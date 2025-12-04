@@ -517,14 +517,14 @@ export async function getGeoDistribution() {
     .from('cases')
     .select(`
       department_id,
-      department:regulatory_departments(province, city)
+      department:regulatory_departments(province)
     `);
   
   if (error) throw error;
   
   const provinceCounts: Record<string, number> = {};
   (data || []).forEach(item => {
-    const dept = item.department as unknown as { province: string | null; city: string | null } | null;
+    const dept = item.department as unknown as { province: string | null } | null;
     const province = dept?.province || '未知';
     provinceCounts[province] = (provinceCounts[province] || 0) + 1;
   });

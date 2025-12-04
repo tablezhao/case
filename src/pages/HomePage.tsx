@@ -59,6 +59,17 @@ export default function HomePage() {
         getFrontendConfigs(),
       ]);
 
+      console.log('首页数据加载成功:', {
+        statsData,
+        monthlyTrend,
+        deptDist,
+        platformDist,
+        geoDist,
+        keywordsData,
+        newsData,
+        configsData,
+      });
+
       setStats(statsData);
       setMonthlyData(monthlyTrend);
       setDeptData(deptDist);
@@ -69,7 +80,7 @@ export default function HomePage() {
       setConfigs(configsData);
     } catch (error) {
       console.error('加载数据失败:', error);
-      toast.error('加载数据失败');
+      toast.error(`加载数据失败: ${error instanceof Error ? error.message : '未知错误'}`);
     } finally {
       setLoading(false);
     }
