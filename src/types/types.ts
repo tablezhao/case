@@ -90,15 +90,15 @@ export interface RegulatoryNewsWithDetails extends RegulatoryNews {
 
 // 统计数据类型
 export interface StatsOverview {
-  total_cases: number;
+  total_cases: number; // 累计通报频次（按部门+日期去重）
   total_apps: number;
   latest_report_date: string | null;
   latest_department: string | null;
   // 本月统计
-  current_month_cases: number;
+  current_month_cases: number; // 本月通报频次（按部门+日期去重）
   current_month_apps: number;
   // 环比数据
-  cases_change: number; // 相对上月的变化量
+  cases_change: number; // 相对上月的变化量（基于通报频次）
   cases_change_percent: number; // 变化百分比
   apps_change: number;
   apps_change_percent: number;

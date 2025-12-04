@@ -131,10 +131,10 @@ export default function HomePage() {
       {isModuleVisible('stats_overview') && (
         <div className="grid gap-4 sm:gap-6 grid-cols-1 sm:grid-cols-2 2xl:grid-cols-4">
           <StatsCard
-            title="本月通报案例"
+            title="本月通报频次"
             value={stats?.current_month_cases || 0}
             icon={FileText}
-            description="当月新增案例数量"
+            description="当月通报活动次数"
             change={stats?.cases_change}
             changePercent={stats?.cases_change_percent}
             showTrend={true}
@@ -163,9 +163,9 @@ export default function HomePage() {
                   <span className="text-4xl font-bold bg-gradient-to-br from-foreground to-foreground/70 bg-clip-text text-transparent">
                     {stats?.total_cases || 0}
                   </span>
-                  <span className="text-lg font-medium text-muted-foreground">个案例</span>
+                  <span className="text-lg font-medium text-muted-foreground">次通报</span>
                 </div>
-                <p className="text-sm text-muted-foreground">累计通报案例总数</p>
+                <p className="text-sm text-muted-foreground">累计通报频次</p>
               </div>
               <div className="pt-3 border-t border-border/50 space-y-3">
                 <div className="flex items-baseline gap-2">

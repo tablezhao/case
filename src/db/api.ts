@@ -519,41 +519,49 @@ export async function getStatsOverview(): Promise<StatsOverview> {
   const nextMonthYear = currentMonth === 12 ? currentYear + 1 : currentYear;
   const nextMonthStr = `${nextMonthYear}-${String(nextMonth).padStart(2, '0')}`;
 
-  // 获取案例总数
-  const { count: totalCases } = await supabase
+  // 获取所有案例数据（用于计算通报频次）
+  const { data: allCases } = await supabase
     .from('cases')
-    .select('*', { count: 'exact', head: true });
+    .select('report_date, department_id, app_name');
+
+  // 计算累计通报频次（按部门+日期去重）
+  const totalReportFrequency = new Set(
+    (allCases || []).map(c => `${c.department_id}_${c.report_date}`)
+  ).size;
 
   // 获取应用总数（去重）
-  const { data: appsData } = await supabase
-    .from('cases')
-    .select('app_name');
-  
-  const uniqueApps = new Set(appsData?.map(c => c.app_name) || []);
+  const uniqueApps = new Set((allCases || []).map(c => c.app_name));
 
   // 获取本月案例
   const { data: currentMonthCases } = await supabase
     .from('cases')
-    .select('app_name')
+    .select('report_date, department_id, app_name')
     .gte('report_date', `${currentMonthStr}-01`)
     .lt('report_date', `${nextMonthStr}-01`);
 
   // 获取上月案例
   const { data: lastMonthCases } = await supabase
     .from('cases')
-    .select('app_name')
+    .select('report_date, department_id, app_name')
     .gte('report_date', `${lastMonthStr}-01`)
     .lt('report_date', `${currentMonthStr}-01`);
 
-  const currentMonthCount = currentMonthCases?.length || 0;
-  const lastMonthCount = lastMonthCases?.length || 0;
-  
-  const currentMonthApps = new Set(currentMonthCases?.map(c => c.app_name) || []).size;
-  const lastMonthApps = new Set(lastMonthCases?.map(c => c.app_name) || []).size;
+  // 计算本月通报频次（按部门+日期去重）
+  const currentMonthFrequency = new Set(
+    (currentMonthCases || []).map(c => `${c.department_id}_${c.report_date}`)
+  ).size;
 
-  // 计算环比
-  const casesChange = currentMonthCount - lastMonthCount;
-  const casesChangePercent = lastMonthCount === 0 ? 0 : (casesChange / lastMonthCount) * 100;
+  // 计算上月通报频次（按部门+日期去重）
+  const lastMonthFrequency = new Set(
+    (lastMonthCases || []).map(c => `${c.department_id}_${c.report_date}`)
+  ).size;
+  
+  const currentMonthApps = new Set((currentMonthCases || []).map(c => c.app_name)).size;
+  const lastMonthApps = new Set((lastMonthCases || []).map(c => c.app_name)).size;
+
+  // 计算环比（基于通报频次）
+  const casesChange = currentMonthFrequency - lastMonthFrequency;
+  const casesChangePercent = lastMonthFrequency === 0 ? 0 : (casesChange / lastMonthFrequency) * 100;
   
   const appsChange = currentMonthApps - lastMonthApps;
   const appsChangePercent = lastMonthApps === 0 ? 0 : (appsChange / lastMonthApps) * 100;
@@ -572,11 +580,11 @@ export async function getStatsOverview(): Promise<StatsOverview> {
   const department = latestCase?.department as unknown as { name: string } | null;
 
   return {
-    total_cases: totalCases || 0,
+    total_cases: totalReportFrequency,
     total_apps: uniqueApps.size,
     latest_report_date: latestCase?.report_date || null,
     latest_department: department?.name || null,
-    current_month_cases: currentMonthCount,
+    current_month_cases: currentMonthFrequency,
     current_month_apps: currentMonthApps,
     cases_change: casesChange,
     cases_change_percent: casesChangePercent,
