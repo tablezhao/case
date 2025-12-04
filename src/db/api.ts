@@ -11,6 +11,7 @@ import type {
   FooterSettings,
   StaticContent,
   StatsOverview,
+  CaseFilterParams,
 } from '@/types/types';
 
 // ============ 用户相关 ============
@@ -177,19 +178,43 @@ export async function deletePlatform(id: string) {
 }
 
 // ============ 案例相关 ============
-export async function getCases(page = 1, pageSize = 20, sortBy = 'report_date', sortOrder: 'asc' | 'desc' = 'desc') {
+export async function getCases(
+  page = 1, 
+  pageSize = 20, 
+  sortBy = 'report_date', 
+  sortOrder: 'asc' | 'desc' = 'desc',
+  filters?: CaseFilterParams
+) {
   const from = (page - 1) * pageSize;
   const to = from + pageSize - 1;
 
-  const { data, error, count } = await supabase
+  let query = supabase
     .from('cases')
     .select(`
       *,
       department:regulatory_departments(*),
       platform:app_platforms(*)
-    `, { count: 'exact' })
-    .order(sortBy, { ascending: sortOrder === 'asc' })
-    .range(from, to);
+    `, { count: 'exact' });
+
+  // 应用筛选条件
+  if (filters) {
+    if (filters.startDate) {
+      query = query.gte('report_date', filters.startDate);
+    }
+    if (filters.endDate) {
+      query = query.lte('report_date', filters.endDate);
+    }
+    if (filters.departmentIds && filters.departmentIds.length > 0) {
+      query = query.in('department_id', filters.departmentIds);
+    }
+    if (filters.platformIds && filters.platformIds.length > 0) {
+      query = query.in('platform_id', filters.platformIds);
+    }
+  }
+
+  query = query.order(sortBy, { ascending: sortOrder === 'asc' }).range(from, to);
+
+  const { data, error, count } = await query;
   
   if (error) throw error;
   return {
@@ -304,8 +329,7 @@ export async function batchCreateCasesWithDedup(cases: Omit<Case, 'id' | 'create
       existing.app_developer === newCase.app_developer &&
       existing.department_id === newCase.department_id &&
       existing.platform_id === newCase.platform_id &&
-      existing.violation_summary === newCase.violation_summary &&
-      existing.violation_detail === newCase.violation_detail &&
+      existing.violation_content === newCase.violation_content &&
       existing.source_url === newCase.source_url
     );
     
@@ -735,16 +759,16 @@ export async function getGeoDistribution() {
 export async function getViolationKeywords() {
   const { data, error } = await supabase
     .from('cases')
-    .select('violation_summary');
+    .select('violation_content');
   
   if (error) throw error;
   
   const keywords: Record<string, number> = {};
   (data || []).forEach(item => {
-    if (!item.violation_summary) return;
+    if (!item.violation_content) return;
     
     // 简单的关键词提取（实际应用中可以使用更复杂的NLP算法）
-    const words = item.violation_summary
+    const words = item.violation_content
       .split(/[，。、；：！？\s]+/)
       .filter(w => w.length >= 2 && w.length <= 10);
     

@@ -32,8 +32,7 @@ export interface Case {
   app_developer: string | null;
   department_id: string | null;
   platform_id: string | null;
-  violation_summary: string | null;
-  violation_detail: string | null;
+  violation_content: string | null; // 主要违规内容（整合了原违规摘要和详细内容）
   source_url: string | null;
   created_at: string;
   updated_at: string;
@@ -112,8 +111,7 @@ export interface CaseImportData {
   app_developer?: string;
   department_name: string;
   platform_name: string;
-  violation_summary?: string;
-  violation_detail?: string;
+  violation_content?: string; // 主要违规内容
   source_url?: string;
 }
 
@@ -124,4 +122,12 @@ export interface NewsImportData {
   summary?: string;
   content?: string;
   source_url?: string;
+}
+
+// 案例筛选参数类型
+export interface CaseFilterParams {
+  startDate?: string; // 开始日期
+  endDate?: string; // 结束日期
+  departmentIds?: string[]; // 监管部门ID列表
+  platformIds?: string[]; // 应用平台ID列表
 }

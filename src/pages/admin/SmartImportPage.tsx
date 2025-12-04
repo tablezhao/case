@@ -19,8 +19,7 @@ interface ParsedCase {
   developer: string | null;
   department: string | null;
   platform: string | null;
-  violation_summary: string | null;
-  violation_detail: string | null;
+  violation_content: string | null;
   source_url: string | null;
   confidence: number;
   warnings: string[];
@@ -253,8 +252,7 @@ export default function SmartImportPage() {
         app_developer: editedData.developer || null,
         department_id: departmentId,
         platform_id: platformId,
-        violation_summary: editedData.violation_summary || null,
-        violation_detail: editedData.violation_detail || null,
+        violation_content: editedData.violation_content || null,
         source_url: editedData.source_url,
       });
 
@@ -270,8 +268,7 @@ export default function SmartImportPage() {
           { field: '开发者', value: editedData.developer, confidence: editedData.developer ? 0.8 : 0 },
           { field: '监管部门', value: editedData.department, confidence: departmentId ? 1 : 0.5 },
           { field: '应用平台', value: editedData.platform, confidence: platformId ? 1 : 0.5 },
-          { field: '违规摘要', value: editedData.violation_summary, confidence: editedData.violation_summary ? 0.9 : 0 },
-          { field: '详细内容', value: editedData.violation_detail ? '已提取' : null, confidence: editedData.violation_detail ? 0.8 : 0 },
+          { field: '主要违规内容', value: editedData.violation_content, confidence: editedData.violation_content ? 0.9 : 0 },
         ],
         warnings: parsedData?.warnings || [],
         timestamp: new Date().toISOString(),
@@ -665,23 +662,12 @@ export default function SmartImportPage() {
             </div>
 
             <div>
-              <Label htmlFor="violation_summary">违规问题摘要</Label>
+              <Label htmlFor="violation_content">主要违规内容</Label>
               <Textarea
-                id="violation_summary"
-                value={editedData.violation_summary || ''}
-                onChange={(e) => setEditedData({ ...editedData, violation_summary: e.target.value })}
-                placeholder="请输入违规问题摘要"
-                rows={3}
-              />
-            </div>
-
-            <div>
-              <Label htmlFor="violation_detail">详细违规内容</Label>
-              <Textarea
-                id="violation_detail"
-                value={editedData.violation_detail || ''}
-                onChange={(e) => setEditedData({ ...editedData, violation_detail: e.target.value })}
-                placeholder="请输入详细违规内容"
+                id="violation_content"
+                value={editedData.violation_content || ''}
+                onChange={(e) => setEditedData({ ...editedData, violation_content: e.target.value })}
+                placeholder="请输入主要违规内容"
                 rows={6}
               />
             </div>

@@ -35,15 +35,14 @@ export default function CaseManagePage() {
     app_developer: '',
     department_id: '',
     platform_id: '',
-    violation_summary: '',
-    violation_detail: '',
+    violation_content: '',
     source_url: '',
   });
 
   const [batchEditData, setBatchEditData] = useState({
     department_id: '',
     platform_id: '',
-    violation_summary: '',
+    violation_content: '',
   });
 
   useEffect(() => {
@@ -103,8 +102,7 @@ export default function CaseManagePage() {
       app_developer: caseItem.app_developer || '',
       department_id: caseItem.department_id || '',
       platform_id: caseItem.platform_id || '',
-      violation_summary: caseItem.violation_summary || '',
-      violation_detail: caseItem.violation_detail || '',
+      violation_content: caseItem.violation_content || '',
       source_url: caseItem.source_url || '',
     });
     setDialogOpen(true);
@@ -131,8 +129,7 @@ export default function CaseManagePage() {
       app_developer: '',
       department_id: '',
       platform_id: '',
-      violation_summary: '',
-      violation_detail: '',
+      violation_content: '',
       source_url: '',
     });
   };
@@ -185,10 +182,10 @@ export default function CaseManagePage() {
     }
 
     // 构建更新数据（只包含非空字段）
-    const updateData: Partial<{ department_id: string; platform_id: string; violation_summary: string }> = {};
+    const updateData: Partial<{ department_id: string; platform_id: string; violation_content: string }> = {};
     if (batchEditData.department_id) updateData.department_id = batchEditData.department_id;
     if (batchEditData.platform_id) updateData.platform_id = batchEditData.platform_id;
-    if (batchEditData.violation_summary) updateData.violation_summary = batchEditData.violation_summary;
+    if (batchEditData.violation_content) updateData.violation_content = batchEditData.violation_content;
 
     if (Object.keys(updateData).length === 0) {
       toast.error('请至少填写一个要修改的字段');
@@ -200,7 +197,7 @@ export default function CaseManagePage() {
       await batchUpdateCases(updates);
       toast.success(`成功修改 ${selectedIds.length} 条案例`);
       setBatchEditDialogOpen(false);
-      setBatchEditData({ department_id: '', platform_id: '', violation_summary: '' });
+      setBatchEditData({ department_id: '', platform_id: '', violation_content: '' });
       setSelectedIds([]);
       loadData();
     } catch (error) {
@@ -229,8 +226,7 @@ export default function CaseManagePage() {
           app_developer: row['开发者/运营者'] || null,
           department_id: dept?.id || null,
           platform_id: plat?.id || null,
-          violation_summary: row['违规摘要'] || null,
-          violation_detail: row['详细违规内容'] || null,
+          violation_content: row['主要违规内容'] || row['违规摘要'] || null,
           source_url: row['原文链接'] || null,
         };
       });
@@ -254,8 +250,7 @@ export default function CaseManagePage() {
       '开发者/运营者': c.app_developer || '',
       '监管部门': c.department?.name || '',
       '应用平台': c.platform?.name || '',
-      '违规摘要': c.violation_summary || '',
-      '详细违规内容': c.violation_detail || '',
+      '主要违规内容': c.violation_content || '',
       '原文链接': c.source_url || '',
     }));
 
@@ -353,11 +348,11 @@ export default function CaseManagePage() {
                         </div>
 
                         <div className="space-y-2">
-                          <Label htmlFor="batch_violation_summary">违规摘要</Label>
+                          <Label htmlFor="batch_violation_content">主要违规内容</Label>
                           <Textarea
-                            id="batch_violation_summary"
-                            value={batchEditData.violation_summary}
-                            onChange={(e) => setBatchEditData({ ...batchEditData, violation_summary: e.target.value })}
+                            id="batch_violation_content"
+                            value={batchEditData.violation_content}
+                            onChange={(e) => setBatchEditData({ ...batchEditData, violation_content: e.target.value })}
                             placeholder="不修改"
                             rows={3}
                           />
@@ -478,22 +473,13 @@ export default function CaseManagePage() {
                     </div>
 
                     <div className="space-y-2">
-                      <Label htmlFor="violation_summary">违规摘要</Label>
+                      <Label htmlFor="violation_content">主要违规内容 *</Label>
                       <Textarea
-                        id="violation_summary"
-                        value={formData.violation_summary}
-                        onChange={(e) => setFormData({ ...formData, violation_summary: e.target.value })}
-                        rows={2}
-                      />
-                    </div>
-
-                    <div className="space-y-2">
-                      <Label htmlFor="violation_detail">详细违规内容</Label>
-                      <Textarea
-                        id="violation_detail"
-                        value={formData.violation_detail}
-                        onChange={(e) => setFormData({ ...formData, violation_detail: e.target.value })}
-                        rows={4}
+                        id="violation_content"
+                        value={formData.violation_content}
+                        onChange={(e) => setFormData({ ...formData, violation_content: e.target.value })}
+                        rows={6}
+                        placeholder="请输入主要违规内容"
                       />
                     </div>
 

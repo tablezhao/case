@@ -1,9 +1,19 @@
 import { useEffect, useState } from 'react';
-import { getCases } from '@/db/api';
-import type { CaseWithDetails } from '@/types/types';
+import { getCases, getDepartments, getPlatforms } from '@/db/api';
+import type { CaseWithDetails, RegulatoryDepartment, AppPlatform, CaseFilterParams } from '@/types/types';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
+import { Input } from '@/components/ui/input';
+import { Label } from '@/components/ui/label';
 import { Skeleton } from '@/components/ui/skeleton';
+import { Badge } from '@/components/ui/badge';
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/components/ui/select';
 import {
   Dialog,
   DialogContent,
@@ -19,26 +29,69 @@ import {
   TableHeader,
   TableRow,
 } from '@/components/ui/table';
-import { ExternalLink, Eye } from 'lucide-react';
+import { ExternalLink, Eye, Search, X, Filter } from 'lucide-react';
 import { toast } from 'sonner';
+import { useNavigate } from 'react-router-dom';
 
 export default function CasesPage() {
+  const navigate = useNavigate();
   const [cases, setCases] = useState<CaseWithDetails[]>([]);
+  const [departments, setDepartments] = useState<RegulatoryDepartment[]>([]);
+  const [platforms, setPlatforms] = useState<AppPlatform[]>([]);
   const [total, setTotal] = useState(0);
   const [page, setPage] = useState(1);
   const [pageSize] = useState(20);
   const [loading, setLoading] = useState(true);
   const [selectedCase, setSelectedCase] = useState<CaseWithDetails | null>(null);
   const [dialogOpen, setDialogOpen] = useState(false);
+  const [showFilters, setShowFilters] = useState(false);
+
+  // 筛选条件
+  const [filters, setFilters] = useState<CaseFilterParams>({
+    startDate: '',
+    endDate: '',
+    departmentIds: [],
+    platformIds: [],
+  });
+
+  // 临时筛选条件（用于表单）
+  const [tempFilters, setTempFilters] = useState<{
+    startDate: string;
+    endDate: string;
+    departmentId: string;
+    platformId: string;
+  }>({
+    startDate: '',
+    endDate: '',
+    departmentId: '',
+    platformId: '',
+  });
+
+  useEffect(() => {
+    loadInitialData();
+  }, []);
 
   useEffect(() => {
     loadCases();
-  }, [page]);
+  }, [page, filters]);
+
+  const loadInitialData = async () => {
+    try {
+      const [depts, plats] = await Promise.all([
+        getDepartments(),
+        getPlatforms(),
+      ]);
+      setDepartments(depts);
+      setPlatforms(plats);
+    } catch (error) {
+      console.error('加载基础数据失败:', error);
+    }
+  };
 
   const loadCases = async () => {
     try {
       setLoading(true);
-      const result = await getCases(page, pageSize);
+      const result = await getCases(page, pageSize, 'report_date', 'desc', filters);
       setCases(result.data);
       setTotal(result.total);
     } catch (error) {
@@ -49,14 +102,47 @@ export default function CasesPage() {
     }
   };
 
+  const handleSearch = () => {
+    // 将临时筛选条件转换为实际筛选参数
+    const newFilters: CaseFilterParams = {
+      startDate: tempFilters.startDate || undefined,
+      endDate: tempFilters.endDate || undefined,
+      departmentIds: tempFilters.departmentId ? [tempFilters.departmentId] : undefined,
+      platformIds: tempFilters.platformId ? [tempFilters.platformId] : undefined,
+    };
+    setFilters(newFilters);
+    setPage(1); // 重置到第一页
+  };
+
+  const handleClearFilters = () => {
+    setTempFilters({
+      startDate: '',
+      endDate: '',
+      departmentId: '',
+      platformId: '',
+    });
+    setFilters({
+      startDate: '',
+      endDate: '',
+      departmentIds: [],
+      platformIds: [],
+    });
+    setPage(1);
+  };
+
   const handleViewDetail = (caseItem: CaseWithDetails) => {
-    setSelectedCase(caseItem);
-    setDialogOpen(true);
+    // 跳转到详情页
+    navigate(`/cases/${caseItem.id}`);
   };
 
   const totalPages = Math.ceil(total / pageSize);
 
-  if (loading && page === 1) {
+  // 检查是否有活动的筛选条件
+  const hasActiveFilters = filters.startDate || filters.endDate || 
+    (filters.departmentIds && filters.departmentIds.length > 0) || 
+    (filters.platformIds && filters.platformIds.length > 0);
+
+  if (loading && page === 1 && cases.length === 0) {
     return (
       <div className="container mx-auto p-6">
         <Skeleton className="h-96 bg-muted" />
@@ -65,12 +151,107 @@ export default function CasesPage() {
   }
 
   return (
-    <div className="container mx-auto p-6">
-      <Card>
+    <div className="container mx-auto py-6 px-4 max-w-7xl">
+      <Card className="shadow-sm">
         <CardHeader>
-          <CardTitle>案例查询</CardTitle>
-          <p className="text-sm text-muted-foreground">共 {total} 条案例</p>
+          <div className="flex items-center justify-between">
+            <div>
+              <CardTitle className="text-2xl">案例查询</CardTitle>
+              <p className="text-sm text-muted-foreground mt-1">
+                共 {total} 条案例
+                {hasActiveFilters && <span className="text-primary ml-2">（已筛选）</span>}
+              </p>
+            </div>
+            <Button
+              variant={showFilters ? 'default' : 'outline'}
+              size="sm"
+              onClick={() => setShowFilters(!showFilters)}
+              className="gap-2"
+            >
+              <Filter className="w-4 h-4" />
+              {showFilters ? '隐藏筛选' : '显示筛选'}
+            </Button>
+          </div>
+
+          {/* 筛选面板 */}
+          {showFilters && (
+            <div className="mt-4 p-4 border rounded-lg bg-muted/30 space-y-4">
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+                <div className="space-y-2">
+                  <Label htmlFor="startDate">开始日期</Label>
+                  <Input
+                    id="startDate"
+                    type="date"
+                    value={tempFilters.startDate}
+                    onChange={(e) => setTempFilters({ ...tempFilters, startDate: e.target.value })}
+                  />
+                </div>
+
+                <div className="space-y-2">
+                  <Label htmlFor="endDate">结束日期</Label>
+                  <Input
+                    id="endDate"
+                    type="date"
+                    value={tempFilters.endDate}
+                    onChange={(e) => setTempFilters({ ...tempFilters, endDate: e.target.value })}
+                  />
+                </div>
+
+                <div className="space-y-2">
+                  <Label htmlFor="department">监管部门</Label>
+                  <Select
+                    value={tempFilters.departmentId}
+                    onValueChange={(value) => setTempFilters({ ...tempFilters, departmentId: value })}
+                  >
+                    <SelectTrigger id="department">
+                      <SelectValue placeholder="全部部门" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="all">全部部门</SelectItem>
+                      {departments.map((dept) => (
+                        <SelectItem key={dept.id} value={dept.id}>
+                          {dept.name}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+
+                <div className="space-y-2">
+                  <Label htmlFor="platform">应用平台</Label>
+                  <Select
+                    value={tempFilters.platformId}
+                    onValueChange={(value) => setTempFilters({ ...tempFilters, platformId: value })}
+                  >
+                    <SelectTrigger id="platform">
+                      <SelectValue placeholder="全部平台" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="all">全部平台</SelectItem>
+                      {platforms.map((plat) => (
+                        <SelectItem key={plat.id} value={plat.id}>
+                          {plat.name}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+              </div>
+
+              <div className="flex gap-2">
+                <Button onClick={handleSearch} className="gap-2">
+                  <Search className="w-4 h-4" />
+                  查询
+                </Button>
+                <Button variant="outline" onClick={handleClearFilters} className="gap-2">
+                  <X className="w-4 h-4" />
+                  清空
+                </Button>
+              </div>
+            </div>
+          )}
         </CardHeader>
+
         <CardContent>
           <div className="rounded-md border">
             <Table>
@@ -81,29 +262,47 @@ export default function CasesPage() {
                   <TableHead>开发者/运营者</TableHead>
                   <TableHead>监管部门</TableHead>
                   <TableHead>应用平台</TableHead>
-                  <TableHead>违规摘要</TableHead>
+                  <TableHead>主要违规内容</TableHead>
                   <TableHead className="text-right">操作</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
-                {cases.length === 0 ? (
+                {loading ? (
                   <TableRow>
-                    <TableCell colSpan={7} className="text-center text-muted-foreground">
+                    <TableCell colSpan={7} className="text-center">
+                      <div className="flex items-center justify-center py-8">
+                        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary"></div>
+                      </div>
+                    </TableCell>
+                  </TableRow>
+                ) : cases.length === 0 ? (
+                  <TableRow>
+                    <TableCell colSpan={7} className="text-center text-muted-foreground py-8">
                       暂无数据
                     </TableCell>
                   </TableRow>
                 ) : (
                   cases.map((caseItem) => (
-                    <TableRow key={caseItem.id}>
+                    <TableRow key={caseItem.id} className="hover:bg-muted/50">
                       <TableCell className="whitespace-nowrap">
                         {caseItem.report_date}
                       </TableCell>
                       <TableCell className="font-medium">{caseItem.app_name}</TableCell>
                       <TableCell>{caseItem.app_developer || '-'}</TableCell>
-                      <TableCell>{caseItem.department?.name || '-'}</TableCell>
-                      <TableCell>{caseItem.platform?.name || '-'}</TableCell>
-                      <TableCell className="max-w-xs truncate">
-                        {caseItem.violation_summary || '-'}
+                      <TableCell>
+                        {caseItem.department?.name ? (
+                          <Badge variant="outline">{caseItem.department.name}</Badge>
+                        ) : '-'}
+                      </TableCell>
+                      <TableCell>
+                        {caseItem.platform?.name ? (
+                          <Badge variant="secondary">{caseItem.platform.name}</Badge>
+                        ) : '-'}
+                      </TableCell>
+                      <TableCell className="max-w-md">
+                        <div className="line-clamp-2">
+                          {caseItem.violation_content || '-'}
+                        </div>
                       </TableCell>
                       <TableCell className="text-right space-x-2">
                         <Button
@@ -165,67 +364,6 @@ export default function CasesPage() {
           )}
         </CardContent>
       </Card>
-
-      <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
-        <DialogContent className="max-w-2xl max-h-[80vh] overflow-y-auto">
-          <DialogHeader>
-            <DialogTitle>{selectedCase?.app_name}</DialogTitle>
-            <DialogDescription>案例详情</DialogDescription>
-          </DialogHeader>
-          {selectedCase && (
-            <div className="space-y-4">
-              <div>
-                <h4 className="font-medium mb-1">通报日期</h4>
-                <p className="text-sm text-muted-foreground">{selectedCase.report_date}</p>
-              </div>
-              <div>
-                <h4 className="font-medium mb-1">开发者/运营者</h4>
-                <p className="text-sm text-muted-foreground">
-                  {selectedCase.app_developer || '-'}
-                </p>
-              </div>
-              <div>
-                <h4 className="font-medium mb-1">监管部门</h4>
-                <p className="text-sm text-muted-foreground">
-                  {selectedCase.department?.name || '-'}
-                </p>
-              </div>
-              <div>
-                <h4 className="font-medium mb-1">应用平台</h4>
-                <p className="text-sm text-muted-foreground">
-                  {selectedCase.platform?.name || '-'}
-                </p>
-              </div>
-              <div>
-                <h4 className="font-medium mb-1">违规摘要</h4>
-                <p className="text-sm text-muted-foreground">
-                  {selectedCase.violation_summary || '-'}
-                </p>
-              </div>
-              <div>
-                <h4 className="font-medium mb-1">详细违规内容</h4>
-                <p className="text-sm text-muted-foreground whitespace-pre-wrap">
-                  {selectedCase.violation_detail || '-'}
-                </p>
-              </div>
-              {selectedCase.source_url && (
-                <div>
-                  <Button variant="outline" asChild>
-                    <a
-                      href={selectedCase.source_url}
-                      target="_blank"
-                      rel="noopener noreferrer"
-                    >
-                      <ExternalLink className="w-4 h-4 mr-2" />
-                      查看原文链接
-                    </a>
-                  </Button>
-                </div>
-              )}
-            </div>
-          )}
-        </DialogContent>
-      </Dialog>
     </div>
   );
 }

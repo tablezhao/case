@@ -1,6 +1,7 @@
 import type { ReactNode } from 'react';
 import HomePage from './pages/HomePage';
 import CasesPage from './pages/CasesPage';
+import CaseDetailPage from './pages/CaseDetailPage';
 import NewsPage from './pages/NewsPage';
 import NewsDetailPage from './pages/NewsDetailPage';
 import DepartmentsPublicPage from './pages/DepartmentsPage';
@@ -34,6 +35,12 @@ const routes: RouteConfig[] = [
     path: '/cases',
     element: <CasesPage />,
     visible: true,
+  },
+  {
+    name: '案例详情',
+    path: '/cases/:id',
+    element: <CaseDetailPage />,
+    visible: false,
   },
   {
     name: '监管资讯',
