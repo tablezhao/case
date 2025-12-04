@@ -57,7 +57,7 @@ export default function NewsDetailPage() {
   };
 
   const handleBack = () => {
-    navigate(-1);
+    navigate('/news');
   };
 
   const handleShare = (platform: string) => {

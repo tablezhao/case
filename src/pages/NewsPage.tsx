@@ -7,13 +7,6 @@ import { Button } from '@/components/ui/button';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Badge } from '@/components/ui/badge';
 import {
-  Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogHeader,
-  DialogTitle,
-} from '@/components/ui/dialog';
-import {
   Table,
   TableBody,
   TableCell,
@@ -21,9 +14,8 @@ import {
   TableHeader,
   TableRow,
 } from '@/components/ui/table';
-import { ExternalLink, Eye, Calendar, Building2, FileText } from 'lucide-react';
+import { ExternalLink, Eye } from 'lucide-react';
 import { toast } from 'sonner';
-import { Separator } from '@/components/ui/separator';
 
 export default function NewsPage() {
   const navigate = useNavigate();
@@ -32,8 +24,6 @@ export default function NewsPage() {
   const [page, setPage] = useState(1);
   const [pageSize] = useState(20);
   const [loading, setLoading] = useState(true);
-  const [selectedNews, setSelectedNews] = useState<RegulatoryNewsWithDetails | null>(null);
-  const [dialogOpen, setDialogOpen] = useState(false);
 
   useEffect(() => {
     loadNews();
@@ -53,9 +43,8 @@ export default function NewsPage() {
     }
   };
 
-  const handleViewDetail = (newsItem: RegulatoryNewsWithDetails) => {
-    setSelectedNews(newsItem);
-    setDialogOpen(true);
+  const handleViewDetail = (newsId: string) => {
+    navigate(`/news/${newsId}`);
   };
 
   const totalPages = Math.ceil(total / pageSize);
@@ -112,7 +101,7 @@ export default function NewsPage() {
                         <Button
                           variant="ghost"
                           size="sm"
-                          onClick={() => handleViewDetail(newsItem)}
+                          onClick={() => handleViewDetail(newsItem.id)}
                         >
                           <Eye className="w-4 h-4 mr-1" />
                           查看详情
@@ -170,7 +159,7 @@ export default function NewsPage() {
                       <Button
                         variant="default"
                         size="sm"
-                        onClick={() => handleViewDetail(newsItem)}
+                        onClick={() => handleViewDetail(newsItem.id)}
                         className="flex-1 min-h-[44px]"
                       >
                         <Eye className="w-4 h-4 mr-1" />
@@ -229,75 +218,6 @@ export default function NewsPage() {
           )}
         </CardContent>
       </Card>
-
-      {/* 详情对话框 */}
-      <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
-        <DialogContent className="max-w-3xl max-h-[85vh] overflow-y-auto">
-          <DialogHeader>
-            <DialogTitle className="text-xl sm:text-2xl leading-tight pr-8">
-              {selectedNews?.title}
-            </DialogTitle>
-            <DialogDescription className="sr-only">
-              监管资讯详细内容
-            </DialogDescription>
-          </DialogHeader>
-
-          {selectedNews && (
-            <div className="space-y-6 pt-4">
-              {/* 基本信息 */}
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 p-4 bg-muted/30 rounded-lg">
-                <div className="flex items-center gap-2 text-sm">
-                  <Calendar className="w-4 h-4 text-muted-foreground" />
-                  <span className="text-muted-foreground">发布日期：</span>
-                  <span className="font-medium">{selectedNews.publish_date}</span>
-                </div>
-                {selectedNews.department && (
-                  <div className="flex items-center gap-2 text-sm">
-                    <Building2 className="w-4 h-4 text-muted-foreground" />
-                    <span className="text-muted-foreground">监管部门：</span>
-                    <Badge variant="outline">{selectedNews.department.name}</Badge>
-                  </div>
-                )}
-              </div>
-
-              <Separator />
-
-              {/* 详细内容 */}
-              <div className="space-y-3">
-                <div className="flex items-center gap-2">
-                  <FileText className="w-5 h-5 text-primary" />
-                  <h3 className="text-lg font-semibold">详细内容</h3>
-                </div>
-                <Card className="bg-muted/20 border-l-4 border-l-primary">
-                  <CardContent className="pt-6">
-                    <div className="prose prose-sm max-w-none">
-                      <p className="text-base leading-relaxed whitespace-pre-wrap text-foreground">
-                        {selectedNews.content || '暂无详细内容'}
-                      </p>
-                    </div>
-                  </CardContent>
-                </Card>
-              </div>
-
-              {/* 原文链接 */}
-              {selectedNews.source_url && (
-                <div className="flex justify-center pt-4">
-                  <Button asChild variant="outline" className="gap-2">
-                    <a
-                      href={selectedNews.source_url}
-                      target="_blank"
-                      rel="noopener noreferrer"
-                    >
-                      <ExternalLink className="w-4 h-4" />
-                      查看官方原文
-                    </a>
-                  </Button>
-                </div>
-              )}
-            </div>
-          )}
-        </DialogContent>
-      </Dialog>
     </div>
   );
 }
