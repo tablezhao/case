@@ -60,4 +60,3 @@ WHERE province IS NOT NULL;
 -- 添加注释
 COMMENT ON COLUMN regulatory_departments.level IS '部门级别：national-国家级，provincial-省级';
 COMMENT ON COLUMN regulatory_departments.province IS '所属省份（仅省级部门需要）';
-COMMENT ON COLUMN regulatory_departments.city IS '所属城市（已废弃，保留用于历史数据）';
