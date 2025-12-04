@@ -334,23 +334,32 @@ export default function SmartImportPage() {
   };
 
   return (
-    <div className="container mx-auto p-6 max-w-6xl">
-      <div className="mb-6 flex items-center gap-4">
-        <Button variant="ghost" size="sm" onClick={() => navigate('/admin')}>
-          <ArrowLeft className="w-4 h-4 mr-2" />
+    <div className="container mx-auto py-6 px-4 max-w-6xl">
+      {/* 顶部导航栏 */}
+      <div className="flex items-center gap-4 mb-6">
+        <Button
+          variant="outline"
+          size="sm"
+          onClick={() => navigate(-1)}
+          className="gap-2"
+        >
+          <ArrowLeft className="w-4 h-4" />
           返回
         </Button>
-        <div>
-          <h1 className="text-3xl font-bold flex items-center gap-2">
-            <Sparkles className="w-8 h-8 text-primary" />
+        <div className="h-6 w-px bg-border" />
+        <div className="flex-1">
+          <h1 className="text-2xl font-bold flex items-center gap-2">
+            <Sparkles className="w-6 h-6 text-primary" />
             智能案例导入
           </h1>
-          <p className="text-muted-foreground mt-1">支持URL、文本、图片、PDF多种输入方式</p>
+          <p className="text-sm text-muted-foreground mt-1">
+            支持URL、文本、图片、PDF多种输入方式
+          </p>
         </div>
       </div>
 
       {/* 输入区域 */}
-      <Card className="mb-6">
+      <Card className="mb-6 shadow-sm hover:shadow-md transition-shadow">
         <CardHeader>
           <CardTitle>步骤1：选择输入方式并提供内容</CardTitle>
           <CardDescription>支持网页URL、文本描述、图片截图、PDF文档</CardDescription>
@@ -547,7 +556,7 @@ export default function SmartImportPage() {
 
       {/* 解析结果预览 */}
       {parsedData && editedData && (
-        <Card className="mb-6">
+        <Card className="mb-6 shadow-sm hover:shadow-md transition-shadow">
           <CardHeader>
             <div className="flex items-center justify-between">
               <div>
@@ -708,7 +717,7 @@ export default function SmartImportPage() {
 
       {/* 执行报告 */}
       {importResult && (
-        <Card>
+        <Card className="shadow-sm hover:shadow-md transition-shadow">
           <CardHeader>
             <CardTitle className="flex items-center gap-2">
               <CheckCircle2 className="w-6 h-6 text-green-600" />
@@ -793,7 +802,7 @@ export default function SmartImportPage() {
 
       {/* 使用说明 */}
       {!parsedData && !loading && (
-        <Card>
+        <Card className="shadow-sm hover:shadow-md transition-shadow">
           <CardHeader>
             <CardTitle>使用说明</CardTitle>
           </CardHeader>

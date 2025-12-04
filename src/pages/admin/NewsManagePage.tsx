@@ -9,10 +9,12 @@ import { Textarea } from '@/components/ui/textarea';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
-import { Plus, Pencil, Trash2 } from 'lucide-react';
+import { Plus, Pencil, Trash2, ArrowLeft } from 'lucide-react';
 import { toast } from 'sonner';
+import { useNavigate } from 'react-router-dom';
 
 export default function NewsManagePage() {
+  const navigate = useNavigate();
   const [news, setNews] = useState<RegulatoryNewsWithDetails[]>([]);
   const [departments, setDepartments] = useState<RegulatoryDepartment[]>([]);
   const [total, setTotal] = useState(0);
@@ -119,14 +121,29 @@ export default function NewsManagePage() {
   const totalPages = Math.ceil(total / pageSize);
 
   return (
-    <div className="container mx-auto p-6">
-      <Card>
+    <div className="container mx-auto py-6 px-4 max-w-7xl">
+      {/* 顶部导航栏 */}
+      <div className="flex items-center gap-4 mb-6">
+        <Button
+          variant="outline"
+          size="sm"
+          onClick={() => navigate(-1)}
+          className="gap-2"
+        >
+          <ArrowLeft className="w-4 h-4" />
+          返回
+        </Button>
+        <div className="h-6 w-px bg-border" />
+        <div className="flex-1">
+          <h1 className="text-2xl font-bold">监管资讯管理</h1>
+          <p className="text-sm text-muted-foreground mt-1">共 {total} 条资讯</p>
+        </div>
+      </div>
+
+      <Card className="shadow-sm hover:shadow-md transition-shadow">
         <CardHeader>
           <div className="flex items-center justify-between">
-            <div>
-              <CardTitle>监管资讯管理</CardTitle>
-              <p className="text-sm text-muted-foreground mt-1">共 {total} 条资讯</p>
-            </div>
+            <CardTitle>资讯列表</CardTitle>
             <Dialog open={dialogOpen} onOpenChange={(open) => {
               setDialogOpen(open);
               if (!open) resetForm();

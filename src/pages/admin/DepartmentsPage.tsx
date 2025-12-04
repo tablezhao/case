@@ -10,10 +10,12 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Badge } from '@/components/ui/badge';
-import { Plus, Pencil, Trash2 } from 'lucide-react';
+import { Plus, Pencil, Trash2, ArrowLeft } from 'lucide-react';
 import { toast } from 'sonner';
+import { useNavigate } from 'react-router-dom';
 
 export default function DepartmentsPage() {
+  const navigate = useNavigate();
   const [departments, setDepartments] = useState<RegulatoryDepartment[]>([]);
   const [platforms, setPlatforms] = useState<AppPlatform[]>([]);
   const [deptDialogOpen, setDeptDialogOpen] = useState(false);
@@ -165,7 +167,27 @@ export default function DepartmentsPage() {
   };
 
   return (
-    <div className="container mx-auto p-6">
+    <div className="container mx-auto py-6 px-4 max-w-7xl">
+      {/* 顶部导航栏 */}
+      <div className="flex items-center gap-4 mb-6">
+        <Button
+          variant="outline"
+          size="sm"
+          onClick={() => navigate(-1)}
+          className="gap-2"
+        >
+          <ArrowLeft className="w-4 h-4" />
+          返回
+        </Button>
+        <div className="h-6 w-px bg-border" />
+        <div className="flex-1">
+          <h1 className="text-2xl font-bold">部门与平台管理</h1>
+          <p className="text-sm text-muted-foreground mt-1">
+            管理监管部门和应用平台信息
+          </p>
+        </div>
+      </div>
+
       <Tabs defaultValue="departments" className="w-full">
         <TabsList className="grid w-full max-w-md grid-cols-2">
           <TabsTrigger value="departments">监管部门</TabsTrigger>
@@ -173,11 +195,11 @@ export default function DepartmentsPage() {
         </TabsList>
 
         <TabsContent value="departments">
-          <Card>
+          <Card className="shadow-sm hover:shadow-md transition-shadow">
             <CardHeader>
               <div className="flex items-center justify-between">
                 <div>
-                  <CardTitle>监管部门管理</CardTitle>
+                  <CardTitle>监管部门列表</CardTitle>
                   <p className="text-sm text-muted-foreground mt-1">共 {departments.length} 个部门</p>
                 </div>
                 <Dialog open={deptDialogOpen} onOpenChange={(open) => {
@@ -305,11 +327,11 @@ export default function DepartmentsPage() {
         </TabsContent>
 
         <TabsContent value="platforms">
-          <Card>
+          <Card className="shadow-sm hover:shadow-md transition-shadow">
             <CardHeader>
               <div className="flex items-center justify-between">
                 <div>
-                  <CardTitle>应用平台管理</CardTitle>
+                  <CardTitle>应用平台列表</CardTitle>
                   <p className="text-sm text-muted-foreground mt-1">共 {platforms.length} 个平台</p>
                 </div>
                 <Dialog open={platDialogOpen} onOpenChange={(open) => {
