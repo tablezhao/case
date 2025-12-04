@@ -1,7 +1,8 @@
 import "jsr:@supabase/functions-js/edge-runtime.d.ts";
 
 interface ParseRequest {
-  url: string;
+  type: 'url' | 'text' | 'image' | 'pdf';
+  content: string; // URL、文本内容、或文件URL
 }
 
 interface ParsedCase {
@@ -12,91 +13,61 @@ interface ParsedCase {
   platform: string | null;
   violation_summary: string | null;
   violation_detail: string | null;
-  source_url: string;
+  source_url: string | null;
   confidence: number;
   warnings: string[];
+  input_type: string;
 }
 
 Deno.serve(async (req: Request) => {
   try {
-    const { url }: ParseRequest = await req.json();
+    const { type, content }: ParseRequest = await req.json();
     
-    if (!url) {
+    if (!type || !content) {
       return new Response(
-        JSON.stringify({ error: "URL参数缺失" }),
+        JSON.stringify({ error: "参数缺失：需要type和content" }),
+        { status: 400, headers: { "Content-Type": "application/json" } }
+      );
+    }
+    
+    if (!['url', 'text', 'image', 'pdf'].includes(type)) {
+      return new Response(
+        JSON.stringify({ error: "无效的type参数，必须是url、text、image或pdf" }),
         { status: 400, headers: { "Content-Type": "application/json" } }
       );
     }
 
-    // 验证URL格式
-    let parsedUrl: URL;
-    try {
-      parsedUrl = new URL(url);
-    } catch {
-      return new Response(
-        JSON.stringify({ error: "URL格式无效" }),
-        { status: 400, headers: { "Content-Type": "application/json" } }
-      );
-    }
-
-    // 安全检查：仅允许HTTP/HTTPS协议
-    if (!['http:', 'https:'].includes(parsedUrl.protocol)) {
-      return new Response(
-        JSON.stringify({ error: "仅支持HTTP/HTTPS协议" }),
-        { status: 400, headers: { "Content-Type": "application/json" } }
-      );
-    }
-
-    // 获取网页内容
-    const controller = new AbortController();
-    const timeoutId = setTimeout(() => controller.abort(), 30000); // 30秒超时
     
-    let html: string;
-    try {
-      const contentResponse = await fetch(url, {
-        signal: controller.signal,
-        headers: {
-          'User-Agent': 'Mozilla/5.0 (compatible; ComplianceBot/1.0)',
-        },
-      });
-      
-      if (!contentResponse.ok) {
-        throw new Error(`HTTP ${contentResponse.status}: ${contentResponse.statusText}`);
-      }
-      
-      html = await contentResponse.text();
-      clearTimeout(timeoutId);
-      
-      // 限制内容大小（5MB）
-      if (html.length > 5 * 1024 * 1024) {
-        throw new Error("网页内容过大（超过5MB）");
-      }
-    } catch (error) {
-      clearTimeout(timeoutId);
-      if (error.name === 'AbortError') {
-        return new Response(
-          JSON.stringify({ error: "请求超时（30秒）" }),
-          { status: 408, headers: { "Content-Type": "application/json" } }
-        );
-      }
-      return new Response(
-        JSON.stringify({ error: `无法获取网页内容: ${error.message}` }),
-        { status: 500, headers: { "Content-Type": "application/json" } }
-      );
-    }
+    // 根据输入类型处理内容
+    let textContent: string;
+    let sourceUrl: string | null = null;
     
-    // 清理HTML并提取文本
-    const textContent = html
-      .replace(/<script[^>]*>[\s\S]*?<\/script>/gi, '')
-      .replace(/<style[^>]*>[\s\S]*?<\/style>/gi, '')
-      .replace(/<[^>]+>/g, ' ')
-      .replace(/&nbsp;/g, ' ')
-      .replace(/&lt;/g, '<')
-      .replace(/&gt;/g, '>')
-      .replace(/&amp;/g, '&')
-      .replace(/&quot;/g, '"')
-      .replace(/\s+/g, ' ')
-      .trim();
+    switch (type) {
+      case 'url':
+        // URL输入：抓取网页内容
+        const urlResult = await processUrl(content);
+        textContent = urlResult.text;
+        sourceUrl = content;
+        break;
+        
+      case 'text':
+        // 文本输入：直接使用
+        textContent = processText(content);
+        break;
+        
+      case 'image':
+        // 图片输入：提示用户（简化版）
+        textContent = processImage(content);
+        break;
+        
+      case 'pdf':
+        // PDF输入：提示用户（简化版）
+        textContent = processPdf(content);
+        break;
+        
+      default:
+        throw new Error("不支持的输入类型");
+    }
     
     // 提取结构化数据
     const warnings: string[] = [];
@@ -137,9 +108,10 @@ Deno.serve(async (req: Request) => {
       platform,
       violation_summary,
       violation_detail,
-      source_url: url,
+      source_url: sourceUrl,
       confidence,
-      warnings
+      warnings,
+      input_type: type
     };
     
     return new Response(
@@ -155,6 +127,89 @@ Deno.serve(async (req: Request) => {
     );
   }
 });
+
+// 处理URL输入
+async function processUrl(url: string): Promise<{ text: string }> {
+  // 验证URL格式
+  let parsedUrl: URL;
+  try {
+    parsedUrl = new URL(url);
+  } catch {
+    throw new Error("URL格式无效");
+  }
+
+  // 安全检查：仅允许HTTP/HTTPS协议
+  if (!['http:', 'https:'].includes(parsedUrl.protocol)) {
+    throw new Error("仅支持HTTP/HTTPS协议");
+  }
+
+  // 获取网页内容
+  const controller = new AbortController();
+  const timeoutId = setTimeout(() => controller.abort(), 30000);
+  
+  try {
+    const response = await fetch(url, {
+      signal: controller.signal,
+      headers: {
+        'User-Agent': 'Mozilla/5.0 (compatible; ComplianceBot/1.0)',
+      },
+    });
+    
+    if (!response.ok) {
+      throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+    }
+    
+    const html = await response.text();
+    clearTimeout(timeoutId);
+    
+    // 限制内容大小（5MB）
+    if (html.length > 5 * 1024 * 1024) {
+      throw new Error("网页内容过大（超过5MB）");
+    }
+    
+    // 清理HTML并提取文本
+    const text = html
+      .replace(/<script[^>]*>[\s\S]*?<\/script>/gi, '')
+      .replace(/<style[^>]*>[\s\S]*?<\/style>/gi, '')
+      .replace(/<[^>]+>/g, ' ')
+      .replace(/&nbsp;/g, ' ')
+      .replace(/&lt;/g, '<')
+      .replace(/&gt;/g, '>')
+      .replace(/&amp;/g, '&')
+      .replace(/&quot;/g, '"')
+      .replace(/\s+/g, ' ')
+      .trim();
+    
+    return { text };
+  } catch (error) {
+    clearTimeout(timeoutId);
+    if (error.name === 'AbortError') {
+      throw new Error("请求超时（30秒）");
+    }
+    throw error;
+  }
+}
+
+// 处理文本输入
+function processText(text: string): string {
+  return text
+    .replace(/\s+/g, ' ')
+    .trim();
+}
+
+// 处理图片输入（简化版）
+function processImage(imageUrl: string): string {
+  // 简化实现：返回提示信息
+  // 完整实现需要集成OCR服务
+  return `[图片内容] 系统检测到您上传了图片。当前版本暂不支持自动识别图片内容，请根据图片手动填写案例信息。图片URL: ${imageUrl}`;
+}
+
+// 处理PDF输入（简化版）
+function processPdf(pdfUrl: string): string {
+  // 简化实现：返回提示信息
+  // 完整实现需要集成PDF解析库
+  return `[PDF文档] 系统检测到您上传了PDF文档。当前版本暂不支持自动解析PDF内容，请根据文档手动填写案例信息。PDF URL: ${pdfUrl}`;
+}
 
 // 提取日期
 function extractDate(text: string): string | null {

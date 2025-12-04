@@ -5,9 +5,10 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import { Badge } from '@/components/ui/badge';
-import { Loader2, Sparkles, AlertCircle, CheckCircle2, ArrowLeft, ExternalLink } from 'lucide-react';
+import { Loader2, Sparkles, AlertCircle, CheckCircle2, ArrowLeft, ExternalLink, Upload, FileText } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { supabase } from '@/db/supabase';
 import { createCase, getDepartments, getPlatforms } from '@/db/api';
@@ -20,13 +21,21 @@ interface ParsedCase {
   platform: string | null;
   violation_summary: string | null;
   violation_detail: string | null;
-  source_url: string;
+  source_url: string | null;
   confidence: number;
   warnings: string[];
+  input_type: string;
 }
 
+type InputType = 'url' | 'text' | 'image' | 'pdf';
+
 export default function SmartImportPage() {
-  const [url, setUrl] = useState('');
+  const [activeTab, setActiveTab] = useState<InputType>('url');
+  const [urlInput, setUrlInput] = useState('');
+  const [textInput, setTextInput] = useState('');
+  const [uploadedFile, setUploadedFile] = useState<File | null>(null);
+  const [fileUrl, setFileUrl] = useState<string>('');
+  
   const [loading, setLoading] = useState(false);
   const [parsedData, setParsedData] = useState<ParsedCase | null>(null);
   const [editedData, setEditedData] = useState<ParsedCase | null>(null);
@@ -35,14 +44,106 @@ export default function SmartImportPage() {
   const { toast } = useToast();
   const navigate = useNavigate();
 
-  const handleParse = async () => {
-    if (!url.trim()) {
+  const handleFileUpload = async (file: File) => {
+    // 验证文件类型
+    const isImage = file.type.startsWith('image/');
+    const isPdf = file.type === 'application/pdf';
+    
+    if (!isImage && !isPdf) {
       toast({
-        title: '错误',
-        description: '请输入网页URL',
+        title: '文件类型错误',
+        description: '仅支持图片（JPG、PNG）和PDF文件',
         variant: 'destructive',
       });
       return;
+    }
+    
+    // 验证文件大小
+    const maxSize = isPdf ? 10 * 1024 * 1024 : 5 * 1024 * 1024;
+    if (file.size > maxSize) {
+      toast({
+        title: '文件过大',
+        description: `文件大小不能超过${isPdf ? '10MB' : '5MB'}`,
+        variant: 'destructive',
+      });
+      return;
+    }
+    
+    setUploadedFile(file);
+    
+    // 上传到Supabase Storage
+    try {
+      const fileName = `${Date.now()}-${file.name}`;
+      const filePath = `temp/${fileName}`;
+      
+      const { error: uploadError } = await supabase.storage
+        .from('temp-uploads')
+        .upload(filePath, file);
+      
+      if (uploadError) throw uploadError;
+      
+      // 获取公开URL
+      const { data: { publicUrl } } = supabase.storage
+        .from('temp-uploads')
+        .getPublicUrl(filePath);
+      
+      setFileUrl(publicUrl);
+      
+      toast({
+        title: '上传成功',
+        description: '文件已上传，可以开始解析',
+      });
+    } catch (error: any) {
+      console.error('上传错误:', error);
+      toast({
+        title: '上传失败',
+        description: error.message || '无法上传文件',
+        variant: 'destructive',
+      });
+    }
+  };
+
+  const handleParse = async () => {
+    let content = '';
+    
+    // 根据当前Tab获取输入内容
+    switch (activeTab) {
+      case 'url':
+        if (!urlInput.trim()) {
+          toast({
+            title: '错误',
+            description: '请输入网页URL',
+            variant: 'destructive',
+          });
+          return;
+        }
+        content = urlInput.trim();
+        break;
+        
+      case 'text':
+        if (!textInput.trim()) {
+          toast({
+            title: '错误',
+            description: '请输入文本内容',
+            variant: 'destructive',
+          });
+          return;
+        }
+        content = textInput.trim();
+        break;
+        
+      case 'image':
+      case 'pdf':
+        if (!fileUrl) {
+          toast({
+            title: '错误',
+            description: '请先上传文件',
+            variant: 'destructive',
+          });
+          return;
+        }
+        content = fileUrl;
+        break;
     }
 
     setLoading(true);
@@ -51,8 +152,11 @@ export default function SmartImportPage() {
     setImportResult(null);
 
     try {
-      const { data, error } = await supabase.functions.invoke('parse-case-from-url', {
-        body: { url: url.trim() },
+      const { data, error } = await supabase.functions.invoke('parse-multimodal-case', {
+        body: { 
+          type: activeTab,
+          content: content
+        },
       });
 
       if (error) {
@@ -75,7 +179,7 @@ export default function SmartImportPage() {
       console.error('解析错误:', error);
       toast({
         title: '解析失败',
-        description: error.message || '无法解析网页内容',
+        description: error.message || '无法解析内容',
         variant: 'destructive',
       });
     } finally {
@@ -121,7 +225,6 @@ export default function SmartImportPage() {
         if (dept) {
           departmentId = dept.id;
         } else {
-          // 这里可以自动创建部门，但为了简化，我们先设为null
           toast({
             title: '提示',
             description: `部门"${editedData.department}"不存在，将保存为空`,
@@ -160,6 +263,7 @@ export default function SmartImportPage() {
         operation: 'create',
         success: true,
         case_id: newCase.id,
+        input_type: editedData.input_type,
         extracted_fields: [
           { field: '应用名称', value: editedData.app_name, confidence: editedData.app_name ? 1 : 0 },
           { field: '通报日期', value: editedData.report_date, confidence: editedData.report_date ? 1 : 0 },
@@ -179,6 +283,12 @@ export default function SmartImportPage() {
         title: '导入成功',
         description: '案例已成功保存到数据库',
       });
+      
+      // 清理临时文件
+      if (fileUrl && (activeTab === 'image' || activeTab === 'pdf')) {
+        const filePath = fileUrl.split('/').slice(-2).join('/');
+        await supabase.storage.from('temp-uploads').remove([filePath]);
+      }
     } catch (error: any) {
       console.error('导入错误:', error);
       toast({
@@ -189,6 +299,16 @@ export default function SmartImportPage() {
     } finally {
       setImporting(false);
     }
+  };
+
+  const resetForm = () => {
+    setUrlInput('');
+    setTextInput('');
+    setUploadedFile(null);
+    setFileUrl('');
+    setParsedData(null);
+    setEditedData(null);
+    setImportResult(null);
   };
 
   const getConfidenceColor = (confidence: number) => {
@@ -203,6 +323,16 @@ export default function SmartImportPage() {
     return <Badge variant="destructive">低</Badge>;
   };
 
+  const getInputTypeLabel = (type: string) => {
+    const labels: Record<string, string> = {
+      url: 'URL输入',
+      text: '文本输入',
+      image: '图片上传',
+      pdf: 'PDF上传'
+    };
+    return labels[type] || type;
+  };
+
   return (
     <div className="container mx-auto p-6 max-w-6xl">
       <div className="mb-6 flex items-center gap-4">
@@ -215,44 +345,202 @@ export default function SmartImportPage() {
             <Sparkles className="w-8 h-8 text-primary" />
             智能案例导入
           </h1>
-          <p className="text-muted-foreground mt-1">AI自动解析监管通报网页，提取案例信息</p>
+          <p className="text-muted-foreground mt-1">支持URL、文本、图片、PDF多种输入方式</p>
         </div>
       </div>
 
-      {/* URL输入区域 */}
+      {/* 输入区域 */}
       <Card className="mb-6">
         <CardHeader>
-          <CardTitle>步骤1：输入网页URL</CardTitle>
-          <CardDescription>输入监管部门发布的通报案例网页地址</CardDescription>
+          <CardTitle>步骤1：选择输入方式并提供内容</CardTitle>
+          <CardDescription>支持网页URL、文本描述、图片截图、PDF文档</CardDescription>
         </CardHeader>
         <CardContent>
-          <div className="flex gap-4">
-            <div className="flex-1">
-              <Label htmlFor="url">网页地址</Label>
-              <Input
-                id="url"
-                type="url"
-                placeholder="https://example.gov.cn/notice/12345"
-                value={url}
-                onChange={(e) => setUrl(e.target.value)}
-                disabled={loading}
-              />
-            </div>
-            <div className="flex items-end">
-              <Button onClick={handleParse} disabled={loading || !url.trim()}>
-                {loading ? (
-                  <>
-                    <Loader2 className="w-4 h-4 mr-2 animate-spin" />
-                    解析中...
-                  </>
-                ) : (
-                  <>
-                    <Sparkles className="w-4 h-4 mr-2" />
-                    开始解析
-                  </>
-                )}
-              </Button>
-            </div>
+          <Tabs value={activeTab} onValueChange={(v) => setActiveTab(v as InputType)}>
+            <TabsList className="grid w-full grid-cols-4">
+              <TabsTrigger value="url">🌐 URL输入</TabsTrigger>
+              <TabsTrigger value="text">📝 文本输入</TabsTrigger>
+              <TabsTrigger value="image">🖼️ 图片上传</TabsTrigger>
+              <TabsTrigger value="pdf">📄 PDF上传</TabsTrigger>
+            </TabsList>
+
+            {/* URL输入 */}
+            <TabsContent value="url" className="space-y-4">
+              <div>
+                <Label htmlFor="url">网页地址</Label>
+                <Input
+                  id="url"
+                  type="url"
+                  placeholder="https://example.gov.cn/notice/12345"
+                  value={urlInput}
+                  onChange={(e) => setUrlInput(e.target.value)}
+                  disabled={loading}
+                />
+                <p className="text-sm text-muted-foreground mt-1">
+                  输入监管部门发布的通报案例网页地址
+                </p>
+              </div>
+            </TabsContent>
+
+            {/* 文本输入 */}
+            <TabsContent value="text" className="space-y-4">
+              <div>
+                <Label htmlFor="text">文本内容</Label>
+                <Textarea
+                  id="text"
+                  placeholder="粘贴或输入案例文本内容，例如：工业和信息化部于2024年1月15日发布通报，某某App（开发者：XX科技有限公司）在应用宝平台存在超范围收集个人信息的问题..."
+                  value={textInput}
+                  onChange={(e) => setTextInput(e.target.value)}
+                  disabled={loading}
+                  rows={8}
+                />
+                <p className="text-sm text-muted-foreground mt-1">
+                  直接粘贴案例文本内容，AI将自动提取关键信息
+                </p>
+              </div>
+            </TabsContent>
+
+            {/* 图片上传 */}
+            <TabsContent value="image" className="space-y-4">
+              <div>
+                <Label>上传图片</Label>
+                <div className="border-2 border-dashed rounded-lg p-8 text-center">
+                  {uploadedFile && uploadedFile.type.startsWith('image/') ? (
+                    <div className="space-y-4">
+                      <CheckCircle2 className="w-12 h-12 text-green-600 mx-auto" />
+                      <div>
+                        <p className="font-medium">{uploadedFile.name}</p>
+                        <p className="text-sm text-muted-foreground">
+                          {(uploadedFile.size / 1024 / 1024).toFixed(2)} MB
+                        </p>
+                      </div>
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={() => {
+                          setUploadedFile(null);
+                          setFileUrl('');
+                        }}
+                      >
+                        重新上传
+                      </Button>
+                    </div>
+                  ) : (
+                    <div className="space-y-4">
+                      <Upload className="w-12 h-12 text-muted-foreground mx-auto" />
+                      <div>
+                        <p className="font-medium">拖拽图片到此处或点击上传</p>
+                        <p className="text-sm text-muted-foreground">
+                          支持JPG、PNG格式，最大5MB
+                        </p>
+                      </div>
+                      <input
+                        type="file"
+                        accept="image/jpeg,image/png,image/jpg"
+                        onChange={(e) => {
+                          const file = e.target.files?.[0];
+                          if (file) handleFileUpload(file);
+                        }}
+                        className="hidden"
+                        id="image-upload"
+                      />
+                      <Button
+                        variant="outline"
+                        onClick={() => document.getElementById('image-upload')?.click()}
+                      >
+                        选择图片
+                      </Button>
+                    </div>
+                  )}
+                </div>
+                <Alert className="mt-4">
+                  <AlertCircle className="h-4 w-4" />
+                  <AlertDescription>
+                    <strong>当前版本限制：</strong>图片上传功能暂不支持自动OCR识别，
+                    系统会提示您根据图片内容手动填写信息。完整的图像理解功能将在后续版本中提供。
+                  </AlertDescription>
+                </Alert>
+              </div>
+            </TabsContent>
+
+            {/* PDF上传 */}
+            <TabsContent value="pdf" className="space-y-4">
+              <div>
+                <Label>上传PDF</Label>
+                <div className="border-2 border-dashed rounded-lg p-8 text-center">
+                  {uploadedFile && uploadedFile.type === 'application/pdf' ? (
+                    <div className="space-y-4">
+                      <FileText className="w-12 h-12 text-primary mx-auto" />
+                      <div>
+                        <p className="font-medium">{uploadedFile.name}</p>
+                        <p className="text-sm text-muted-foreground">
+                          {(uploadedFile.size / 1024 / 1024).toFixed(2)} MB
+                        </p>
+                      </div>
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={() => {
+                          setUploadedFile(null);
+                          setFileUrl('');
+                        }}
+                      >
+                        重新上传
+                      </Button>
+                    </div>
+                  ) : (
+                    <div className="space-y-4">
+                      <FileText className="w-12 h-12 text-muted-foreground mx-auto" />
+                      <div>
+                        <p className="font-medium">拖拽PDF到此处或点击上传</p>
+                        <p className="text-sm text-muted-foreground">
+                          支持PDF格式，最大10MB
+                        </p>
+                      </div>
+                      <input
+                        type="file"
+                        accept="application/pdf"
+                        onChange={(e) => {
+                          const file = e.target.files?.[0];
+                          if (file) handleFileUpload(file);
+                        }}
+                        className="hidden"
+                        id="pdf-upload"
+                      />
+                      <Button
+                        variant="outline"
+                        onClick={() => document.getElementById('pdf-upload')?.click()}
+                      >
+                        选择PDF
+                      </Button>
+                    </div>
+                  )}
+                </div>
+                <Alert className="mt-4">
+                  <AlertCircle className="h-4 w-4" />
+                  <AlertDescription>
+                    <strong>当前版本限制：</strong>PDF上传功能暂不支持自动解析，
+                    系统会提示您根据PDF内容手动填写信息。完整的PDF解析功能将在后续版本中提供。
+                  </AlertDescription>
+                </Alert>
+              </div>
+            </TabsContent>
+          </Tabs>
+
+          <div className="mt-6 flex justify-end">
+            <Button onClick={handleParse} disabled={loading} size="lg">
+              {loading ? (
+                <>
+                  <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                  解析中...
+                </>
+              ) : (
+                <>
+                  <Sparkles className="w-4 h-4 mr-2" />
+                  开始解析
+                </>
+              )}
+            </Button>
           </div>
         </CardContent>
       </Card>
@@ -264,7 +552,9 @@ export default function SmartImportPage() {
             <div className="flex items-center justify-between">
               <div>
                 <CardTitle>步骤2：检查并编辑数据</CardTitle>
-                <CardDescription>AI已自动提取以下信息，请检查并修改</CardDescription>
+                <CardDescription>
+                  AI已通过{getInputTypeLabel(parsedData.input_type)}自动提取以下信息，请检查并修改
+                </CardDescription>
               </div>
               <div className="flex items-center gap-2">
                 <span className="text-sm text-muted-foreground">置信度：</span>
@@ -343,24 +633,26 @@ export default function SmartImportPage() {
                 />
               </div>
 
-              <div>
-                <Label htmlFor="source_url">原文链接</Label>
-                <div className="flex gap-2">
-                  <Input
-                    id="source_url"
-                    value={editedData.source_url}
-                    readOnly
-                    className="flex-1"
-                  />
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    onClick={() => window.open(editedData.source_url, '_blank')}
-                  >
-                    <ExternalLink className="w-4 h-4" />
-                  </Button>
+              {editedData.source_url && (
+                <div>
+                  <Label htmlFor="source_url">原文链接</Label>
+                  <div className="flex gap-2">
+                    <Input
+                      id="source_url"
+                      value={editedData.source_url}
+                      readOnly
+                      className="flex-1"
+                    />
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={() => window.open(editedData.source_url!, '_blank')}
+                    >
+                      <ExternalLink className="w-4 h-4" />
+                    </Button>
+                  </div>
                 </div>
-              </div>
+              )}
             </div>
 
             <div>
@@ -433,6 +725,12 @@ export default function SmartImportPage() {
                 </div>
               </div>
               <div>
+                <Label>输入方式</Label>
+                <div className="text-lg font-semibold">
+                  {getInputTypeLabel(importResult.input_type)}
+                </div>
+              </div>
+              <div>
                 <Label>案例ID</Label>
                 <div className="text-sm font-mono text-muted-foreground">{importResult.case_id}</div>
               </div>
@@ -485,12 +783,7 @@ export default function SmartImportPage() {
               <Button variant="outline" onClick={() => navigate('/admin/cases')}>
                 查看案例列表
               </Button>
-              <Button onClick={() => {
-                setUrl('');
-                setParsedData(null);
-                setEditedData(null);
-                setImportResult(null);
-              }}>
+              <Button onClick={resetForm}>
                 继续导入
               </Button>
             </div>
@@ -506,19 +799,46 @@ export default function SmartImportPage() {
           </CardHeader>
           <CardContent className="space-y-4">
             <div>
-              <h3 className="font-semibold mb-2">功能介绍</h3>
-              <p className="text-sm text-muted-foreground">
-                智能案例导入功能使用AI技术自动解析监管部门官网发布的通报案例，
-                提取关键信息并生成结构化数据，大幅提升数据录入效率。
-              </p>
+              <h3 className="font-semibold mb-2">多模态输入支持</h3>
+              <div className="grid gap-4 grid-cols-1 md:grid-cols-2">
+                <div className="p-4 border rounded-lg">
+                  <h4 className="font-medium mb-2">🌐 URL输入</h4>
+                  <p className="text-sm text-muted-foreground">
+                    输入监管部门官网的通报案例网页地址，系统自动抓取并解析内容。
+                    适用于在线发布的通报案例。
+                  </p>
+                </div>
+                <div className="p-4 border rounded-lg">
+                  <h4 className="font-medium mb-2">📝 文本输入</h4>
+                  <p className="text-sm text-muted-foreground">
+                    直接粘贴或输入案例文本内容，AI自动提取关键信息。
+                    适用于复制的文本内容或手动输入的描述。
+                  </p>
+                </div>
+                <div className="p-4 border rounded-lg">
+                  <h4 className="font-medium mb-2">🖼️ 图片上传</h4>
+                  <p className="text-sm text-muted-foreground">
+                    上传通报案例的截图或照片。当前版本需要手动填写信息，
+                    未来将支持OCR自动识别。
+                  </p>
+                </div>
+                <div className="p-4 border rounded-lg">
+                  <h4 className="font-medium mb-2">📄 PDF上传</h4>
+                  <p className="text-sm text-muted-foreground">
+                    上传PDF格式的通报文档。当前版本需要手动填写信息，
+                    未来将支持自动解析PDF内容。
+                  </p>
+                </div>
+              </div>
             </div>
 
             <div>
               <h3 className="font-semibold mb-2">操作步骤</h3>
               <ol className="list-decimal list-inside space-y-2 text-sm text-muted-foreground">
-                <li>复制监管通报网页的完整URL地址</li>
-                <li>粘贴到上方输入框，点击"开始解析"</li>
-                <li>等待AI分析网页内容（通常需要10-30秒）</li>
+                <li>选择合适的输入方式（URL、文本、图片或PDF）</li>
+                <li>提供相应的内容或上传文件</li>
+                <li>点击"开始解析"按钮</li>
+                <li>等待AI分析处理（10-30秒）</li>
                 <li>检查提取的数据，修改不准确的字段</li>
                 <li>点击"确认导入"保存到数据库</li>
                 <li>查看执行报告，确认导入结果</li>
@@ -528,11 +848,12 @@ export default function SmartImportPage() {
             <div>
               <h3 className="font-semibold mb-2">注意事项</h3>
               <ul className="list-disc list-inside space-y-1 text-sm text-muted-foreground">
-                <li>仅支持HTTP/HTTPS协议的网页</li>
-                <li>建议使用政府官网发布的正式通报</li>
-                <li>AI提取的数据可能不完全准确，请仔细检查</li>
+                <li>URL输入：仅支持HTTP/HTTPS协议的网页</li>
+                <li>文本输入：建议包含完整的案例信息</li>
+                <li>图片上传：支持JPG、PNG格式，最大5MB</li>
+                <li>PDF上传：支持PDF格式，最大10MB</li>
                 <li>必填字段：应用名称、通报日期</li>
-                <li>如果部门或平台不存在，需要先在"部门与平台"中创建</li>
+                <li>AI提取的数据可能不完全准确，请仔细检查</li>
               </ul>
             </div>
           </CardContent>
