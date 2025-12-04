@@ -1,13 +1,15 @@
 import { useState, useEffect } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { Switch } from '@/components/ui/switch';
-import { useToast } from '@/hooks/use-toast';
-import { Loader2, Save, Plus, Trash2, Eye, EyeOff } from 'lucide-react';
-import { getAllFooterSettings, updateFooterSetting, deleteFooterSetting } from '@/db/api';
+import { Badge } from '@/components/ui/badge';
+import { toast } from 'sonner';
+import { Loader2, Save, ArrowLeft, Eye, ChevronDown, CheckCircle2 } from 'lucide-react';
+import { getAllFooterSettings, updateFooterSetting } from '@/db/api';
 import type { FooterSettings } from '@/types/types';
 import {
   Dialog,
@@ -25,10 +27,10 @@ import {
 } from '@/components/ui/accordion';
 
 export default function FooterSettingsPage() {
+  const navigate = useNavigate();
   const [settings, setSettings] = useState<FooterSettings[]>([]);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState<string | null>(null);
-  const { toast } = useToast();
 
   useEffect(() => {
     loadSettings();
@@ -40,11 +42,7 @@ export default function FooterSettingsPage() {
       const data = await getAllFooterSettings();
       setSettings(data);
     } catch (error: any) {
-      toast({
-        title: '加载失败',
-        description: error.message,
-        variant: 'destructive',
-      });
+      toast.error(error.message || '加载失败');
     } finally {
       setLoading(false);
     }
@@ -54,16 +52,13 @@ export default function FooterSettingsPage() {
     try {
       setSaving(id);
       await updateFooterSetting(id, updates);
-      toast({
-        title: '保存成功',
+      toast.success('保存成功', {
         description: '页脚配置已更新',
       });
       await loadSettings();
     } catch (error: any) {
-      toast({
-        title: '保存失败',
+      toast.error('保存失败', {
         description: error.message,
-        variant: 'destructive',
       });
     } finally {
       setSaving(null);
@@ -72,6 +67,10 @@ export default function FooterSettingsPage() {
 
   const handleToggleActive = async (id: string, currentState: boolean) => {
     await handleSave(id, { is_active: !currentState });
+  };
+
+  const handleBack = () => {
+    navigate(-1);
   };
 
   const getSectionName = (section: string) => {
@@ -97,35 +96,60 @@ export default function FooterSettingsPage() {
   }
 
   return (
-    <div className="container mx-auto py-8 px-4">
-      <div className="mb-8">
-        <h1 className="text-3xl font-bold mb-2">页脚配置管理</h1>
-        <p className="text-muted-foreground">
-          管理网站页脚的各个模块内容，修改后将实时同步到前台展示
-        </p>
+    <div className="container mx-auto py-6 px-4 max-w-5xl">
+      {/* 顶部导航栏 */}
+      <div className="flex items-center gap-4 mb-6">
+        <Button
+          variant="outline"
+          size="sm"
+          onClick={handleBack}
+          className="gap-2"
+        >
+          <ArrowLeft className="w-4 h-4" />
+          返回
+        </Button>
+        <div className="h-6 w-px bg-border" />
+        <div className="flex-1">
+          <h1 className="text-2xl font-bold">页脚配置管理</h1>
+          <p className="text-sm text-muted-foreground mt-1">
+            管理网站页脚的各个模块内容，修改后将实时同步到前台展示
+          </p>
+        </div>
       </div>
 
-      <div className="space-y-6">
-        <Accordion type="single" collapsible className="w-full">
+      {/* 配置列表 */}
+      <div className="space-y-4">
+        <Accordion type="single" collapsible className="w-full space-y-3">
           {settings.map((setting) => (
-            <AccordionItem key={setting.id} value={setting.id}>
-              <AccordionTrigger className="hover:no-underline">
+            <AccordionItem
+              key={setting.id}
+              value={setting.id}
+              className="border rounded-lg bg-card shadow-sm hover:shadow-md transition-shadow"
+            >
+              <AccordionTrigger className="hover:no-underline px-6 py-4">
                 <div className="flex items-center justify-between w-full pr-4">
                   <div className="flex items-center gap-3">
-                    <span className="font-semibold">{getSectionName(setting.section)}</span>
-                    {setting.is_active ? (
-                      <span className="text-xs bg-green-100 text-green-700 px-2 py-1 rounded">
-                        已启用
-                      </span>
-                    ) : (
-                      <span className="text-xs bg-gray-100 text-gray-700 px-2 py-1 rounded">
-                        已禁用
-                      </span>
-                    )}
+                    <span className="text-lg font-semibold">
+                      {getSectionName(setting.section)}
+                    </span>
+                    <Badge
+                      variant={setting.is_active ? 'default' : 'secondary'}
+                      className={setting.is_active ? 'bg-green-500 hover:bg-green-600' : ''}
+                    >
+                      {setting.is_active ? (
+                        <>
+                          <CheckCircle2 className="w-3 h-3 mr-1" />
+                          已启用
+                        </>
+                      ) : (
+                        '已禁用'
+                      )}
+                    </Badge>
                   </div>
+                  <ChevronDown className="w-5 h-5 text-muted-foreground transition-transform" />
                 </div>
               </AccordionTrigger>
-              <AccordionContent>
+              <AccordionContent className="px-6 pb-6">
                 <SettingEditor
                   setting={setting}
                   onSave={handleSave}
@@ -153,6 +177,7 @@ function SettingEditor({ setting, onSave, onToggleActive, saving }: SettingEdito
   const [content, setContent] = useState(JSON.stringify(setting.content, null, 2));
   const [displayOrder, setDisplayOrder] = useState(setting.display_order);
   const [contentError, setContentError] = useState('');
+  const [hasChanges, setHasChanges] = useState(false);
 
   const handleSave = async () => {
     // 验证JSON格式
@@ -164,18 +189,35 @@ function SettingEditor({ setting, onSave, onToggleActive, saving }: SettingEdito
         content: parsedContent,
         display_order: displayOrder,
       });
+      setHasChanges(false);
     } catch (error) {
       setContentError('JSON格式错误，请检查');
     }
+  };
+
+  const handleContentChange = (value: string) => {
+    setContent(value);
+    setContentError('');
+    setHasChanges(true);
+  };
+
+  const handleTitleChange = (value: string) => {
+    setTitle(value);
+    setHasChanges(true);
+  };
+
+  const handleOrderChange = (value: number) => {
+    setDisplayOrder(value);
+    setHasChanges(true);
   };
 
   const renderContentPreview = () => {
     try {
       const data = JSON.parse(content);
       return (
-        <div className="bg-muted p-4 rounded-lg">
-          <h4 className="font-semibold mb-2">内容预览</h4>
-          <pre className="text-xs overflow-auto max-h-40">
+        <div className="bg-muted/50 p-4 rounded-lg border">
+          <h4 className="text-sm font-semibold mb-2 text-muted-foreground">内容预览</h4>
+          <pre className="text-xs overflow-auto max-h-40 font-mono">
             {JSON.stringify(data, null, 2)}
           </pre>
         </div>
@@ -186,108 +228,122 @@ function SettingEditor({ setting, onSave, onToggleActive, saving }: SettingEdito
   };
 
   return (
-    <Card>
-      <CardContent className="pt-6 space-y-4">
-        {/* 启用/禁用开关 */}
-        <div className="flex items-center justify-between p-4 bg-muted rounded-lg">
-          <div>
-            <Label className="text-base">模块状态</Label>
-            <p className="text-sm text-muted-foreground">
-              {setting.is_active ? '此模块当前在前台显示' : '此模块当前在前台隐藏'}
-            </p>
-          </div>
-          <Switch
-            checked={setting.is_active}
-            onCheckedChange={() => onToggleActive(setting.id, setting.is_active)}
-            disabled={saving}
-          />
+    <div className="space-y-6 pt-4">
+      {/* 启用/禁用开关 */}
+      <div className="flex items-center justify-between p-4 bg-muted/50 rounded-lg border">
+        <div className="flex-1">
+          <Label className="text-base font-semibold">模块状态</Label>
+          <p className="text-sm text-muted-foreground mt-1">
+            {setting.is_active ? '此模块当前在前台显示' : '此模块当前在前台隐藏'}
+          </p>
         </div>
+        <Switch
+          checked={setting.is_active}
+          onCheckedChange={() => onToggleActive(setting.id, setting.is_active)}
+          disabled={saving}
+          className="data-[state=checked]:bg-green-500"
+        />
+      </div>
 
+      {/* 基本信息 */}
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
         {/* 标题 */}
         <div className="space-y-2">
-          <Label htmlFor="title">模块标题</Label>
+          <Label htmlFor="title" className="font-semibold">
+            模块标题
+          </Label>
           <Input
             id="title"
             value={title}
-            onChange={(e) => setTitle(e.target.value)}
+            onChange={(e) => handleTitleChange(e.target.value)}
             placeholder="输入模块标题"
+            className="transition-all focus:ring-2 focus:ring-primary"
           />
         </div>
 
         {/* 显示顺序 */}
         <div className="space-y-2">
-          <Label htmlFor="order">显示顺序</Label>
+          <Label htmlFor="order" className="font-semibold">
+            显示顺序
+          </Label>
           <Input
             id="order"
             type="number"
             value={displayOrder}
-            onChange={(e) => setDisplayOrder(parseInt(e.target.value) || 0)}
+            onChange={(e) => handleOrderChange(parseInt(e.target.value) || 0)}
             placeholder="数字越小越靠前"
+            className="transition-all focus:ring-2 focus:ring-primary"
           />
           <p className="text-xs text-muted-foreground">
             数字越小，模块在页脚中的位置越靠前
           </p>
         </div>
+      </div>
 
-        {/* 内容编辑 */}
-        <div className="space-y-2">
-          <div className="flex items-center justify-between">
-            <Label htmlFor="content">模块内容（JSON格式）</Label>
-            <Dialog>
-              <DialogTrigger asChild>
-                <Button variant="outline" size="sm">
-                  <Eye className="w-4 h-4 mr-2" />
-                  查看示例
-                </Button>
-              </DialogTrigger>
-              <DialogContent className="max-w-2xl max-h-[80vh] overflow-auto">
-                <DialogHeader>
-                  <DialogTitle>内容格式说明</DialogTitle>
-                  <DialogDescription>
-                    根据不同的模块类型，内容格式有所不同
-                  </DialogDescription>
-                </DialogHeader>
-                <ContentFormatGuide section={setting.section} />
-              </DialogContent>
-            </Dialog>
-          </div>
-          <Textarea
-            id="content"
-            value={content}
-            onChange={(e) => {
-              setContent(e.target.value);
-              setContentError('');
-            }}
-            placeholder="输入JSON格式的内容"
-            rows={12}
-            className="font-mono text-sm"
-          />
-          {contentError && (
-            <p className="text-sm text-destructive">{contentError}</p>
+      {/* 内容编辑 */}
+      <div className="space-y-2">
+        <div className="flex items-center justify-between">
+          <Label htmlFor="content" className="font-semibold">
+            模块内容（JSON格式）
+          </Label>
+          <Dialog>
+            <DialogTrigger asChild>
+              <Button variant="outline" size="sm" className="gap-2">
+                <Eye className="w-4 h-4" />
+                查看示例
+              </Button>
+            </DialogTrigger>
+            <DialogContent className="max-w-2xl max-h-[80vh] overflow-auto">
+              <DialogHeader>
+                <DialogTitle>内容格式说明</DialogTitle>
+                <DialogDescription>
+                  根据不同的模块类型，内容格式有所不同
+                </DialogDescription>
+              </DialogHeader>
+              <ContentFormatGuide section={setting.section} />
+            </DialogContent>
+          </Dialog>
+        </div>
+        <Textarea
+          id="content"
+          value={content}
+          onChange={(e) => handleContentChange(e.target.value)}
+          placeholder="输入JSON格式的内容"
+          rows={12}
+          className="font-mono text-sm transition-all focus:ring-2 focus:ring-primary"
+        />
+        {contentError && (
+          <p className="text-sm text-destructive flex items-center gap-2">
+            <span className="w-1 h-1 rounded-full bg-destructive" />
+            {contentError}
+          </p>
+        )}
+      </div>
+
+      {/* 内容预览 */}
+      {renderContentPreview()}
+
+      {/* 保存按钮 */}
+      <div className="flex justify-end gap-2 pt-4 border-t">
+        <Button
+          onClick={handleSave}
+          disabled={saving || !hasChanges}
+          className="gap-2 min-w-[120px]"
+        >
+          {saving ? (
+            <>
+              <Loader2 className="w-4 h-4 animate-spin" />
+              保存中...
+            </>
+          ) : (
+            <>
+              <Save className="w-4 h-4" />
+              保存修改
+            </>
           )}
-        </div>
-
-        {/* 内容预览 */}
-        {renderContentPreview()}
-
-        {/* 保存按钮 */}
-        <div className="flex justify-end gap-2 pt-4">
-          <Button onClick={handleSave} disabled={saving}>
-            {saving ? (
-              <>
-                <Loader2 className="w-4 h-4 mr-2 animate-spin" />
-                保存中...
-              </>
-            ) : (
-              <>
-                <Save className="w-4 h-4 mr-2" />
-                保存修改
-              </>
-            )}
-          </Button>
-        </div>
-      </CardContent>
-    </Card>
+        </Button>
+      </div>
+    </div>
   );
 }
 
@@ -373,7 +429,7 @@ function ContentFormatGuide({ section }: { section: string }) {
       </div>
       <div>
         <h4 className="font-semibold mb-2">示例格式</h4>
-        <pre className="bg-muted p-4 rounded-lg text-xs overflow-auto">
+        <pre className="bg-muted p-4 rounded-lg text-xs overflow-auto font-mono border">
           {JSON.stringify(guide.example, null, 2)}
         </pre>
       </div>
