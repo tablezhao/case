@@ -16,6 +16,7 @@ export default function GeoChart({ data, title }: GeoChartProps) {
 
     const chart = echarts.init(chartRef.current);
 
+    // 按数值降序排序，取前15个
     const sortedData = [...data].sort((a, b) => b.count - a.count).slice(0, 15);
 
     const option = {
@@ -37,6 +38,7 @@ export default function GeoChart({ data, title }: GeoChartProps) {
       yAxis: {
         type: 'category',
         data: sortedData.map((item) => item.province),
+        inverse: true, // 反转y轴，使最大值显示在顶部
       },
       series: [
         {

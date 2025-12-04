@@ -192,10 +192,10 @@ export default function HomePage() {
       {isModuleVisible('trend_chart') && (
         <Card>
           <CardHeader>
-            <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
+            <div className="flex flex-col xl:flex-row xl:items-center xl:justify-between gap-3">
               <CardTitle className="text-lg sm:text-xl">通报趋势分析</CardTitle>
               <Tabs value={trendView} onValueChange={(v) => setTrendView(v as 'monthly' | 'yearly')}>
-                <TabsList className="grid w-full grid-cols-2 sm:w-auto">
+                <TabsList className="grid grid-cols-2 w-full xl:w-auto xl:min-w-[240px]">
                   <TabsTrigger value="monthly" className="text-sm">月度视图</TabsTrigger>
                   <TabsTrigger value="yearly" className="text-sm">年度视图</TabsTrigger>
                 </TabsList>
@@ -224,14 +224,14 @@ export default function HomePage() {
         </CardHeader>
         <CardContent className="px-2 sm:px-6">
           <Tabs value={analysisView} onValueChange={(v) => setAnalysisView(v as typeof analysisView)}>
-            <TabsList className="mb-4 grid w-full grid-cols-2 sm:w-auto">
+            <TabsList className="mb-4 grid grid-cols-2 w-full xl:w-auto xl:min-w-[240px]">
               <TabsTrigger value="department" className="text-sm">按部门</TabsTrigger>
               <TabsTrigger value="geography" className="text-sm">按地域</TabsTrigger>
             </TabsList>
             
             <TabsContent value="department" className="mt-0">
               <Tabs value={deptLevelView} onValueChange={(v) => setDeptLevelView(v as typeof deptLevelView)}>
-                <TabsList className="mb-4 grid w-full grid-cols-2 sm:w-auto">
+                <TabsList className="mb-4 grid grid-cols-2 w-full xl:w-auto xl:min-w-[240px]">
                   <TabsTrigger value="national" className="text-sm">国家级部门</TabsTrigger>
                   <TabsTrigger value="provincial" className="text-sm">省级部门</TabsTrigger>
                 </TabsList>
