@@ -8,6 +8,8 @@ import { Label } from '@/components/ui/label';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { Badge } from '@/components/ui/badge';
 import { Plus, Pencil, Trash2 } from 'lucide-react';
 import { toast } from 'sonner';
 
@@ -21,6 +23,7 @@ export default function DepartmentsPage() {
 
   const [deptForm, setDeptForm] = useState({
     name: '',
+    level: 'provincial' as 'national' | 'provincial',
     province: '',
     city: '',
   });
@@ -55,12 +58,26 @@ export default function DepartmentsPage() {
       return;
     }
 
+    // 验证：省级部门必须有省份
+    if (deptForm.level === 'provincial' && !deptForm.province) {
+      toast.error('省级部门必须填写省份');
+      return;
+    }
+
+    // 国家级部门不应该有省份
+    const submitData = {
+      name: deptForm.name,
+      level: deptForm.level,
+      province: deptForm.level === 'national' ? null : deptForm.province,
+      city: deptForm.city || null,
+    };
+
     try {
       if (editingDept) {
-        await updateDepartment(editingDept.id, deptForm);
+        await updateDepartment(editingDept.id, submitData);
         toast.success('更新成功');
       } else {
-        await createDepartment(deptForm);
+        await createDepartment(submitData);
         toast.success('创建成功');
       }
       setDeptDialogOpen(false);
@@ -101,6 +118,7 @@ export default function DepartmentsPage() {
     setEditingDept(dept);
     setDeptForm({
       name: dept.name,
+      level: dept.level,
       province: dept.province || '',
       city: dept.city || '',
     });
@@ -141,7 +159,7 @@ export default function DepartmentsPage() {
 
   const resetDeptForm = () => {
     setEditingDept(null);
-    setDeptForm({ name: '', province: '', city: '' });
+    setDeptForm({ name: '', level: 'provincial', province: '', city: '' });
   };
 
   const resetPlatForm = () => {
@@ -189,17 +207,42 @@ export default function DepartmentsPage() {
                           required
                         />
                       </div>
+                      <div className="space-y-2">
+                        <Label htmlFor="level">部门级别 *</Label>
+                        <Select
+                          value={deptForm.level}
+                          onValueChange={(value: 'national' | 'provincial') => 
+                            setDeptForm({ ...deptForm, level: value, province: value === 'national' ? '' : deptForm.province })
+                          }
+                        >
+                          <SelectTrigger>
+                            <SelectValue />
+                          </SelectTrigger>
+                          <SelectContent>
+                            <SelectItem value="national">国家级</SelectItem>
+                            <SelectItem value="provincial">省级</SelectItem>
+                          </SelectContent>
+                        </Select>
+                        <p className="text-xs text-muted-foreground">
+                          {deptForm.level === 'national' ? '国家级部门无需填写省份' : '省级部门必须填写省份'}
+                        </p>
+                      </div>
                       <div className="grid grid-cols-2 gap-4">
                         <div className="space-y-2">
-                          <Label htmlFor="province">省份</Label>
+                          <Label htmlFor="province">
+                            省份 {deptForm.level === 'provincial' && '*'}
+                          </Label>
                           <Input
                             id="province"
                             value={deptForm.province}
                             onChange={(e) => setDeptForm({ ...deptForm, province: e.target.value })}
+                            disabled={deptForm.level === 'national'}
+                            required={deptForm.level === 'provincial'}
+                            placeholder={deptForm.level === 'national' ? '国家级无需填写' : '请输入省份'}
                           />
                         </div>
                         <div className="space-y-2">
-                          <Label htmlFor="city">城市</Label>
+                          <Label htmlFor="city">城市（已废弃）</Label>
                           <Input
                             id="city"
                             value={deptForm.city}
@@ -226,8 +269,8 @@ export default function DepartmentsPage() {
                   <TableHeader>
                     <TableRow>
                       <TableHead>部门名称</TableHead>
+                      <TableHead>级别</TableHead>
                       <TableHead>省份</TableHead>
-                      <TableHead>城市</TableHead>
                       <TableHead className="text-right">操作</TableHead>
                     </TableRow>
                   </TableHeader>
@@ -242,8 +285,12 @@ export default function DepartmentsPage() {
                       departments.map((dept) => (
                         <TableRow key={dept.id}>
                           <TableCell className="font-medium">{dept.name}</TableCell>
+                          <TableCell>
+                            <Badge variant={dept.level === 'national' ? 'default' : 'secondary'}>
+                              {dept.level === 'national' ? '国家级' : '省级'}
+                            </Badge>
+                          </TableCell>
                           <TableCell>{dept.province || '-'}</TableCell>
-                          <TableCell>{dept.city || '-'}</TableCell>
                           <TableCell className="text-right space-x-2">
                             <Button
                               variant="ghost"

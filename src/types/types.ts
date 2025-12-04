@@ -2,6 +2,8 @@
 
 export type UserRole = 'user' | 'admin';
 
+export type DepartmentLevel = 'national' | 'provincial';
+
 export interface Profile {
   id: string;
   username: string;
@@ -12,6 +14,7 @@ export interface Profile {
 export interface RegulatoryDepartment {
   id: string;
   name: string;
+  level: DepartmentLevel;
   province: string | null;
   city: string | null;
   created_at: string;

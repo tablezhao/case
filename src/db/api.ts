@@ -58,6 +58,55 @@ export async function getDepartments() {
   return Array.isArray(data) ? data : [];
 }
 
+export async function getNationalDepartments() {
+  const { data, error } = await supabase
+    .from('regulatory_departments')
+    .select('*')
+    .eq('level', 'national')
+    .order('name', { ascending: true });
+  
+  if (error) throw error;
+  return Array.isArray(data) ? data : [];
+}
+
+export async function getProvincialDepartments(province?: string) {
+  let query = supabase
+    .from('regulatory_departments')
+    .select('*')
+    .eq('level', 'provincial');
+  
+  if (province) {
+    query = query.eq('province', province);
+  }
+  
+  query = query.order('name', { ascending: true });
+  
+  const { data, error } = await query;
+  
+  if (error) throw error;
+  return Array.isArray(data) ? data : [];
+}
+
+export async function getProvincesList() {
+  const { data, error } = await supabase
+    .from('regulatory_departments')
+    .select('province')
+    .eq('level', 'provincial')
+    .not('province', 'is', null)
+    .order('province', { ascending: true });
+  
+  if (error) throw error;
+  
+  // 去重
+  const provinces = Array.from(new Set(
+    (Array.isArray(data) ? data : [])
+      .map(d => d.province)
+      .filter(Boolean)
+  ));
+  
+  return provinces;
+}
+
 export async function createDepartment(department: Omit<RegulatoryDepartment, 'id' | 'created_at'>) {
   const { data, error } = await supabase
     .from('regulatory_departments')
