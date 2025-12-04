@@ -252,6 +252,96 @@ export async function batchCreateCases(cases: Omit<Case, 'id' | 'created_at' | '
   return Array.isArray(data) ? data : [];
 }
 
+// 批量删除案例
+export async function batchDeleteCases(ids: string[]) {
+  const { error } = await supabase
+    .from('cases')
+    .delete()
+    .in('id', ids);
+  
+  if (error) throw error;
+}
+
+// 批量更新案例
+export async function batchUpdateCases(updates: { id: string; data: Partial<Omit<Case, 'id' | 'created_at' | 'updated_at'>> }[]) {
+  // Supabase不支持批量更新不同数据，需要逐个更新
+  const promises = updates.map(({ id, data }) =>
+    supabase
+      .from('cases')
+      .update(data)
+      .eq('id', id)
+  );
+  
+  const results = await Promise.all(promises);
+  const errors = results.filter(r => r.error);
+  
+  if (errors.length > 0) {
+    throw new Error(`批量更新失败: ${errors.length} 条记录更新失败`);
+  }
+}
+
+// 导入案例并去重（保留最新数据）
+export async function batchCreateCasesWithDedup(cases: Omit<Case, 'id' | 'created_at' | 'updated_at'>[]) {
+  // 1. 获取所有现有案例
+  const { data: existingCases, error: fetchError } = await supabase
+    .from('cases')
+    .select('*')
+    .order('id', { ascending: true });
+  
+  if (fetchError) throw fetchError;
+  
+  const existingCasesArray = Array.isArray(existingCases) ? existingCases : [];
+  
+  // 2. 检查重复并收集需要删除的旧数据ID
+  const duplicateIds: string[] = [];
+  const newCases: Omit<Case, 'id' | 'created_at' | 'updated_at'>[] = [];
+  
+  for (const newCase of cases) {
+    // 查找完全匹配的现有案例
+    const duplicate = existingCasesArray.find(existing => 
+      existing.report_date === newCase.report_date &&
+      existing.app_name === newCase.app_name &&
+      existing.app_developer === newCase.app_developer &&
+      existing.department_id === newCase.department_id &&
+      existing.platform_id === newCase.platform_id &&
+      existing.violation_summary === newCase.violation_summary &&
+      existing.violation_detail === newCase.violation_detail &&
+      existing.source_url === newCase.source_url
+    );
+    
+    if (duplicate) {
+      // 找到重复数据，标记旧数据待删除
+      duplicateIds.push(duplicate.id);
+    }
+    
+    // 所有新数据都要导入（包括重复的，因为要保留最新的）
+    newCases.push(newCase);
+  }
+  
+  // 3. 删除重复的旧数据
+  if (duplicateIds.length > 0) {
+    const { error: deleteError } = await supabase
+      .from('cases')
+      .delete()
+      .in('id', duplicateIds);
+    
+    if (deleteError) throw deleteError;
+  }
+  
+  // 4. 插入新数据
+  const { data: insertedData, error: insertError } = await supabase
+    .from('cases')
+    .insert(newCases)
+    .select();
+  
+  if (insertError) throw insertError;
+  
+  return {
+    inserted: Array.isArray(insertedData) ? insertedData.length : 0,
+    duplicatesRemoved: duplicateIds.length,
+  };
+}
+
 // ============ 监管资讯相关 ============
 export async function getNews(page = 1, pageSize = 20, sortBy = 'publish_date', sortOrder: 'asc' | 'desc' = 'desc') {
   const from = (page - 1) * pageSize;

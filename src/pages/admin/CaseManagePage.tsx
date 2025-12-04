@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { getCases, createCase, updateCase, deleteCase, getDepartments, getPlatforms, batchCreateCases } from '@/db/api';
+import { getCases, createCase, updateCase, deleteCase, getDepartments, getPlatforms, batchCreateCasesWithDedup, batchDeleteCases, batchUpdateCases } from '@/db/api';
 import type { CaseWithDetails, RegulatoryDepartment, AppPlatform } from '@/types/types';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -9,6 +9,7 @@ import { Textarea } from '@/components/ui/textarea';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
+import { Checkbox } from '@/components/ui/checkbox';
 import { Plus, Pencil, Trash2, Upload, Download } from 'lucide-react';
 import { toast } from 'sonner';
 import * as XLSX from 'xlsx';
@@ -22,7 +23,9 @@ export default function CaseManagePage() {
   const [pageSize] = useState(20);
   const [loading, setLoading] = useState(false);
   const [dialogOpen, setDialogOpen] = useState(false);
+  const [batchEditDialogOpen, setBatchEditDialogOpen] = useState(false);
   const [editingCase, setEditingCase] = useState<CaseWithDetails | null>(null);
+  const [selectedIds, setSelectedIds] = useState<string[]>([]);
 
   const [formData, setFormData] = useState({
     report_date: '',
@@ -33,6 +36,12 @@ export default function CaseManagePage() {
     violation_summary: '',
     violation_detail: '',
     source_url: '',
+  });
+
+  const [batchEditData, setBatchEditData] = useState({
+    department_id: '',
+    platform_id: '',
+    violation_summary: '',
   });
 
   useEffect(() => {
@@ -126,6 +135,78 @@ export default function CaseManagePage() {
     });
   };
 
+  // 全选/取消全选
+  const handleSelectAll = (checked: boolean) => {
+    if (checked) {
+      setSelectedIds(cases.map(c => c.id));
+    } else {
+      setSelectedIds([]);
+    }
+  };
+
+  // 单选
+  const handleSelectOne = (id: string, checked: boolean) => {
+    if (checked) {
+      setSelectedIds([...selectedIds, id]);
+    } else {
+      setSelectedIds(selectedIds.filter(sid => sid !== id));
+    }
+  };
+
+  // 批量删除
+  const handleBatchDelete = async () => {
+    if (selectedIds.length === 0) {
+      toast.error('请先选择要删除的案例');
+      return;
+    }
+
+    if (!confirm(`确定要删除选中的 ${selectedIds.length} 条案例吗？`)) return;
+
+    try {
+      await batchDeleteCases(selectedIds);
+      toast.success(`成功删除 ${selectedIds.length} 条案例`);
+      setSelectedIds([]);
+      loadData();
+    } catch (error) {
+      console.error('批量删除失败:', error);
+      toast.error('批量删除失败');
+    }
+  };
+
+  // 批量修改
+  const handleBatchEdit = async (e: React.FormEvent) => {
+    e.preventDefault();
+
+    if (selectedIds.length === 0) {
+      toast.error('请先选择要修改的案例');
+      return;
+    }
+
+    // 构建更新数据（只包含非空字段）
+    const updateData: Partial<{ department_id: string; platform_id: string; violation_summary: string }> = {};
+    if (batchEditData.department_id) updateData.department_id = batchEditData.department_id;
+    if (batchEditData.platform_id) updateData.platform_id = batchEditData.platform_id;
+    if (batchEditData.violation_summary) updateData.violation_summary = batchEditData.violation_summary;
+
+    if (Object.keys(updateData).length === 0) {
+      toast.error('请至少填写一个要修改的字段');
+      return;
+    }
+
+    try {
+      const updates = selectedIds.map(id => ({ id, data: updateData }));
+      await batchUpdateCases(updates);
+      toast.success(`成功修改 ${selectedIds.length} 条案例`);
+      setBatchEditDialogOpen(false);
+      setBatchEditData({ department_id: '', platform_id: '', violation_summary: '' });
+      setSelectedIds([]);
+      loadData();
+    } catch (error) {
+      console.error('批量修改失败:', error);
+      toast.error('批量修改失败');
+    }
+  };
+
   const handleImport = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) return;
@@ -152,8 +233,9 @@ export default function CaseManagePage() {
         };
       });
 
-      await batchCreateCases(casesToImport);
-      toast.success(`成功导入 ${casesToImport.length} 条案例`);
+      // 使用带去重的导入函数
+      const result = await batchCreateCasesWithDedup(casesToImport);
+      toast.success(`成功导入 ${result.inserted} 条案例${result.duplicatesRemoved > 0 ? `，去重 ${result.duplicatesRemoved} 条` : ''}`);
       loadData();
     } catch (error) {
       console.error('导入失败:', error);
@@ -182,6 +264,7 @@ export default function CaseManagePage() {
   };
 
   const totalPages = Math.ceil(total / pageSize);
+  const allSelected = cases.length > 0 && selectedIds.length === cases.length;
 
   return (
     <div className="container mx-auto p-6">
@@ -190,9 +273,92 @@ export default function CaseManagePage() {
           <div className="flex items-center justify-between">
             <div>
               <CardTitle>案例管理</CardTitle>
-              <p className="text-sm text-muted-foreground mt-1">共 {total} 条案例</p>
+              <p className="text-sm text-muted-foreground mt-1">
+                共 {total} 条案例
+                {selectedIds.length > 0 && ` · 已选择 ${selectedIds.length} 条`}
+              </p>
             </div>
             <div className="flex gap-2">
+              {selectedIds.length > 0 && (
+                <>
+                  <Button variant="outline" size="sm" onClick={handleBatchDelete}>
+                    <Trash2 className="w-4 h-4 mr-2" />
+                    批量删除
+                  </Button>
+                  <Dialog open={batchEditDialogOpen} onOpenChange={setBatchEditDialogOpen}>
+                    <DialogTrigger asChild>
+                      <Button variant="outline" size="sm">
+                        <Pencil className="w-4 h-4 mr-2" />
+                        批量修改
+                      </Button>
+                    </DialogTrigger>
+                    <DialogContent>
+                      <DialogHeader>
+                        <DialogTitle>批量修改 ({selectedIds.length} 条案例)</DialogTitle>
+                      </DialogHeader>
+                      <form onSubmit={handleBatchEdit} className="space-y-4">
+                        <div className="space-y-2">
+                          <Label htmlFor="batch_department_id">监管部门</Label>
+                          <Select
+                            value={batchEditData.department_id}
+                            onValueChange={(value) => setBatchEditData({ ...batchEditData, department_id: value })}
+                          >
+                            <SelectTrigger>
+                              <SelectValue placeholder="不修改" />
+                            </SelectTrigger>
+                            <SelectContent>
+                              {departments.map((dept) => (
+                                <SelectItem key={dept.id} value={dept.id}>
+                                  {dept.name}
+                                </SelectItem>
+                              ))}
+                            </SelectContent>
+                          </Select>
+                        </div>
+
+                        <div className="space-y-2">
+                          <Label htmlFor="batch_platform_id">应用平台</Label>
+                          <Select
+                            value={batchEditData.platform_id}
+                            onValueChange={(value) => setBatchEditData({ ...batchEditData, platform_id: value })}
+                          >
+                            <SelectTrigger>
+                              <SelectValue placeholder="不修改" />
+                            </SelectTrigger>
+                            <SelectContent>
+                              {platforms.map((plat) => (
+                                <SelectItem key={plat.id} value={plat.id}>
+                                  {plat.name}
+                                </SelectItem>
+                              ))}
+                            </SelectContent>
+                          </Select>
+                        </div>
+
+                        <div className="space-y-2">
+                          <Label htmlFor="batch_violation_summary">违规摘要</Label>
+                          <Textarea
+                            id="batch_violation_summary"
+                            value={batchEditData.violation_summary}
+                            onChange={(e) => setBatchEditData({ ...batchEditData, violation_summary: e.target.value })}
+                            placeholder="不修改"
+                            rows={3}
+                          />
+                        </div>
+
+                        <div className="flex justify-end gap-2">
+                          <Button type="button" variant="outline" onClick={() => setBatchEditDialogOpen(false)}>
+                            取消
+                          </Button>
+                          <Button type="submit">
+                            确认修改
+                          </Button>
+                        </div>
+                      </form>
+                    </DialogContent>
+                  </Dialog>
+                </>
+              )}
               <Button variant="outline" size="sm" onClick={handleExport}>
                 <Download className="w-4 h-4 mr-2" />
                 导出
@@ -343,6 +509,12 @@ export default function CaseManagePage() {
             <Table>
               <TableHeader>
                 <TableRow>
+                  <TableHead className="w-12">
+                    <Checkbox
+                      checked={allSelected}
+                      onCheckedChange={handleSelectAll}
+                    />
+                  </TableHead>
                   <TableHead>通报日期</TableHead>
                   <TableHead>应用名称</TableHead>
                   <TableHead>监管部门</TableHead>
@@ -353,13 +525,19 @@ export default function CaseManagePage() {
               <TableBody>
                 {cases.length === 0 ? (
                   <TableRow>
-                    <TableCell colSpan={5} className="text-center text-muted-foreground">
+                    <TableCell colSpan={6} className="text-center text-muted-foreground">
                       暂无数据
                     </TableCell>
                   </TableRow>
                 ) : (
                   cases.map((caseItem) => (
                     <TableRow key={caseItem.id}>
+                      <TableCell>
+                        <Checkbox
+                          checked={selectedIds.includes(caseItem.id)}
+                          onCheckedChange={(checked) => handleSelectOne(caseItem.id, checked as boolean)}
+                        />
+                      </TableCell>
                       <TableCell>{caseItem.report_date}</TableCell>
                       <TableCell className="font-medium">{caseItem.app_name}</TableCell>
                       <TableCell>{caseItem.department?.name || '-'}</TableCell>
