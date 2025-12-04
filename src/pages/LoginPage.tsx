@@ -54,7 +54,7 @@ export default function LoginPage() {
         if (error) throw error;
 
         toast.success('登录成功');
-        navigate('/');
+        navigate('/admin');
       }
     } catch (error: unknown) {
       const err = error as { message?: string };
