@@ -129,7 +129,7 @@ export default function HomePage() {
   return (
     <div className="container mx-auto px-4 py-4 sm:px-6 sm:py-6 space-y-4 sm:space-y-6">
       {isModuleVisible('stats_overview') && (
-        <div className="grid gap-3 sm:gap-4 grid-cols-1 sm:grid-cols-2 2xl:grid-cols-4">
+        <div className="grid gap-4 sm:gap-6 grid-cols-1 sm:grid-cols-2 2xl:grid-cols-4">
           <StatsCard
             title="本月通报案例"
             value={stats?.current_month_cases || 0}
@@ -138,6 +138,7 @@ export default function HomePage() {
             change={stats?.cases_change}
             changePercent={stats?.cases_change_percent}
             showTrend={true}
+            variant="gradient"
           />
           <StatsCard
             title="本月涉及应用"
@@ -147,42 +148,55 @@ export default function HomePage() {
             change={stats?.apps_change}
             changePercent={stats?.apps_change_percent}
             showTrend={true}
+            variant="gradient"
           />
-          <Card>
-            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-              <CardTitle className="text-sm font-medium">累计统计</CardTitle>
-              <FileText className="h-4 w-4 text-muted-foreground" />
+          <Card className="overflow-hidden bg-gradient-to-br from-background via-background to-primary/5 border-primary/20 hover:border-primary/40 transition-all duration-300 hover:shadow-lg">
+            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-3">
+              <CardTitle className="text-sm font-semibold text-muted-foreground tracking-wide uppercase">
+                累计统计
+              </CardTitle>
+              <FileText className="h-10 w-10 p-2 rounded-lg bg-primary/10 text-primary" />
             </CardHeader>
-            <CardContent>
-              <div className="space-y-2">
-                <div>
-                  <div className="text-lg sm:text-xl font-bold">{stats?.total_cases || 0} 个案例</div>
-                  <p className="text-xs text-muted-foreground">累计通报案例总数</p>
+            <CardContent className="space-y-4">
+              <div className="space-y-3">
+                <div className="flex items-baseline gap-2">
+                  <span className="text-4xl font-bold bg-gradient-to-br from-foreground to-foreground/70 bg-clip-text text-transparent">
+                    {stats?.total_cases || 0}
+                  </span>
+                  <span className="text-lg font-medium text-muted-foreground">个案例</span>
                 </div>
-                <div className="pt-2 border-t">
-                  <div className="text-lg sm:text-xl font-bold">{stats?.total_apps || 0} 个应用</div>
-                  <p className="text-xs text-muted-foreground">累计涉及应用总数</p>
+                <p className="text-sm text-muted-foreground">累计通报案例总数</p>
+              </div>
+              <div className="pt-3 border-t border-border/50 space-y-3">
+                <div className="flex items-baseline gap-2">
+                  <span className="text-4xl font-bold bg-gradient-to-br from-foreground to-foreground/70 bg-clip-text text-transparent">
+                    {stats?.total_apps || 0}
+                  </span>
+                  <span className="text-lg font-medium text-muted-foreground">个应用</span>
                 </div>
+                <p className="text-sm text-muted-foreground">累计涉及应用总数</p>
               </div>
             </CardContent>
           </Card>
-          <Card>
-            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-              <CardTitle className="text-sm font-medium">最近通报</CardTitle>
-              <Calendar className="h-4 w-4 text-muted-foreground" />
+          <Card className="overflow-hidden bg-gradient-to-br from-background to-accent/5 border-accent/20 hover:border-accent/40 transition-all duration-300 hover:shadow-lg">
+            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-3">
+              <CardTitle className="text-sm font-semibold text-muted-foreground tracking-wide uppercase">
+                最近通报
+              </CardTitle>
+              <Calendar className="h-10 w-10 p-2 rounded-lg bg-accent/10 text-accent" />
             </CardHeader>
-            <CardContent>
+            <CardContent className="space-y-4">
               <div className="space-y-2">
-                <div>
-                  <div className="text-base sm:text-lg font-bold">{stats?.latest_report_date || '-'}</div>
-                  <p className="text-xs text-muted-foreground">最新通报日期</p>
+                <div className="text-3xl font-bold bg-gradient-to-br from-foreground to-foreground/70 bg-clip-text text-transparent">
+                  {stats?.latest_report_date || '-'}
                 </div>
-                <div className="pt-2 border-t">
-                  <div className="text-sm font-medium truncate" title={stats?.latest_department || '-'}>
-                    {stats?.latest_department || '-'}
-                  </div>
-                  <p className="text-xs text-muted-foreground">发布部门</p>
+                <p className="text-sm text-muted-foreground">最新通报日期</p>
+              </div>
+              <div className="pt-3 border-t border-border/50 space-y-2">
+                <div className="text-base font-semibold text-foreground line-clamp-2" title={stats?.latest_department || '-'}>
+                  {stats?.latest_department || '-'}
                 </div>
+                <p className="text-sm text-muted-foreground">发布部门</p>
               </div>
             </CardContent>
           </Card>
