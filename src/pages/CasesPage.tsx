@@ -256,17 +256,17 @@ export default function CasesPage() {
 
         <CardContent className="px-0 sm:px-6">
           {/* 桌面端表格视图 */}
-          <div className="hidden md:block rounded-md border">
+          <div className="hidden md:block rounded-md border overflow-hidden">
             <Table>
               <TableHeader>
-                <TableRow>
-                  <TableHead>通报日期</TableHead>
-                  <TableHead>应用名称</TableHead>
-                  <TableHead>开发者/运营者</TableHead>
-                  <TableHead>监管部门</TableHead>
-                  <TableHead>应用平台</TableHead>
-                  <TableHead>主要违规内容</TableHead>
-                  <TableHead className="text-right">操作</TableHead>
+                <TableRow className="bg-muted/50">
+                  <TableHead className="w-[110px]">通报日期</TableHead>
+                  <TableHead className="w-[180px]">应用名称</TableHead>
+                  <TableHead className="w-[160px]">开发者/运营者</TableHead>
+                  <TableHead className="w-[200px]">监管部门</TableHead>
+                  <TableHead className="w-[140px]">应用平台</TableHead>
+                  <TableHead className="min-w-[300px]">主要违规内容</TableHead>
+                  <TableHead className="w-[140px] text-right">操作</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
@@ -286,52 +286,79 @@ export default function CasesPage() {
                   </TableRow>
                 ) : (
                   cases.map((caseItem) => (
-                    <TableRow key={caseItem.id} className="hover:bg-muted/50">
-                      <TableCell className="whitespace-nowrap">
+                    <TableRow 
+                      key={caseItem.id} 
+                      className="hover:bg-muted/50 transition-colors cursor-pointer group"
+                      onClick={() => handleViewDetail(caseItem)}
+                    >
+                      <TableCell className="whitespace-nowrap text-sm">
                         {caseItem.report_date}
                       </TableCell>
-                      <TableCell className="font-medium">{caseItem.app_name}</TableCell>
-                      <TableCell>{caseItem.app_developer || '-'}</TableCell>
+                      <TableCell className="font-medium text-sm group-hover:text-primary transition-colors">
+                        {caseItem.app_name}
+                      </TableCell>
+                      <TableCell className="text-sm text-muted-foreground">
+                        {caseItem.app_developer || '-'}
+                      </TableCell>
                       <TableCell>
                         {caseItem.department?.name ? (
-                          <Badge variant="outline">{caseItem.department.name}</Badge>
-                        ) : '-'}
+                          <Badge variant="outline" className="font-normal whitespace-nowrap">
+                            {caseItem.department.name}
+                          </Badge>
+                        ) : (
+                          <span className="text-sm text-muted-foreground">-</span>
+                        )}
                       </TableCell>
                       <TableCell>
                         {caseItem.platform?.name ? (
-                          <Badge variant="secondary">{caseItem.platform.name}</Badge>
-                        ) : '-'}
+                          <Badge className="font-normal whitespace-nowrap bg-orange-500 hover:bg-orange-600">
+                            {caseItem.platform.name}
+                          </Badge>
+                        ) : (
+                          <span className="text-sm text-muted-foreground">-</span>
+                        )}
                       </TableCell>
-                      <TableCell className="max-w-md">
-                        <div className="line-clamp-2">
+                      <TableCell className="max-w-[400px]">
+                        <div 
+                          className="line-clamp-2 text-sm text-muted-foreground leading-relaxed"
+                          title={caseItem.violation_content || '-'}
+                        >
                           {caseItem.violation_content || '-'}
                         </div>
                       </TableCell>
-                      <TableCell className="text-right space-x-2">
-                        <Button
-                          variant="ghost"
-                          size="sm"
-                          onClick={() => handleViewDetail(caseItem)}
-                        >
-                          <Eye className="w-4 h-4 mr-1" />
-                          详情
-                        </Button>
-                        {caseItem.source_url && (
+                      <TableCell className="text-right">
+                        <div className="flex items-center justify-end gap-1">
                           <Button
                             variant="ghost"
                             size="sm"
-                            asChild
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              handleViewDetail(caseItem);
+                            }}
+                            className="h-8 px-2 hover:bg-primary/10 hover:text-primary"
                           >
-                            <a
-                              href={caseItem.source_url}
-                              target="_blank"
-                              rel="noopener noreferrer"
-                            >
-                              <ExternalLink className="w-4 h-4 mr-1" />
-                              原文
-                            </a>
+                            <Eye className="w-4 h-4 mr-1" />
+                            详情
                           </Button>
-                        )}
+                          {caseItem.source_url && (
+                            <Button
+                              variant="ghost"
+                              size="sm"
+                              asChild
+                              className="h-8 px-2 hover:bg-primary/10 hover:text-primary"
+                            >
+                              <a
+                                href={caseItem.source_url}
+                                target="_blank"
+                                rel="noopener noreferrer"
+                                onClick={(e) => e.stopPropagation()}
+                              >
+                                <ExternalLink className="w-4 h-4 mr-1" />
+                                原文
+                              </a>
+                            </Button>
+                          )}
+                        </div>
                       </TableCell>
                     </TableRow>
                   ))

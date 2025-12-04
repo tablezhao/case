@@ -537,61 +537,75 @@ export default function CaseManagePage() {
           </div>
         </CardHeader>
         <CardContent>
-          <div className="rounded-md border">
+          <div className="rounded-md border overflow-hidden">
             <Table>
               <TableHeader>
-                <TableRow>
-                  <TableHead className="w-12">
+                <TableRow className="bg-muted/50">
+                  <TableHead className="w-16">
                     <Checkbox
                       checked={allSelected}
                       onCheckedChange={handleSelectAll}
+                      className="w-5 h-5"
                     />
                   </TableHead>
-                  <TableHead>通报日期</TableHead>
-                  <TableHead>应用名称</TableHead>
-                  <TableHead>监管部门</TableHead>
-                  <TableHead>应用平台</TableHead>
-                  <TableHead className="text-right">操作</TableHead>
+                  <TableHead className="w-[120px]">通报日期</TableHead>
+                  <TableHead className="min-w-[180px]">应用名称</TableHead>
+                  <TableHead className="w-[200px]">监管部门</TableHead>
+                  <TableHead className="w-[160px]">应用平台</TableHead>
+                  <TableHead className="w-[120px] text-right">操作</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
                 {cases.length === 0 ? (
                   <TableRow>
-                    <TableCell colSpan={6} className="text-center text-muted-foreground">
+                    <TableCell colSpan={6} className="text-center text-muted-foreground py-8">
                       暂无数据
                     </TableCell>
                   </TableRow>
                 ) : (
-                  cases.map((caseItem) => (
-                    <TableRow key={caseItem.id}>
-                      <TableCell>
-                        <Checkbox
-                          checked={selectedIds.includes(caseItem.id)}
-                          onCheckedChange={(checked) => handleSelectOne(caseItem.id, checked as boolean)}
-                        />
-                      </TableCell>
-                      <TableCell>{caseItem.report_date}</TableCell>
-                      <TableCell className="font-medium">{caseItem.app_name}</TableCell>
-                      <TableCell>{caseItem.department?.name || '-'}</TableCell>
-                      <TableCell>{caseItem.platform?.name || '-'}</TableCell>
-                      <TableCell className="text-right space-x-2">
-                        <Button
-                          variant="ghost"
-                          size="sm"
-                          onClick={() => handleEdit(caseItem)}
-                        >
-                          <Pencil className="w-4 h-4" />
-                        </Button>
-                        <Button
-                          variant="ghost"
-                          size="sm"
-                          onClick={() => handleDelete(caseItem.id)}
-                        >
-                          <Trash2 className="w-4 h-4" />
-                        </Button>
-                      </TableCell>
-                    </TableRow>
-                  ))
+                  cases.map((caseItem) => {
+                    const isSelected = selectedIds.includes(caseItem.id);
+                    return (
+                      <TableRow 
+                        key={caseItem.id}
+                        className={`hover:bg-muted/50 transition-colors ${isSelected ? 'bg-primary/5' : ''}`}
+                      >
+                        <TableCell>
+                          <Checkbox
+                            checked={isSelected}
+                            onCheckedChange={(checked) => handleSelectOne(caseItem.id, checked as boolean)}
+                            className="w-5 h-5"
+                          />
+                        </TableCell>
+                        <TableCell className="text-sm whitespace-nowrap">{caseItem.report_date}</TableCell>
+                        <TableCell className="font-medium text-sm">{caseItem.app_name}</TableCell>
+                        <TableCell className="text-sm">{caseItem.department?.name || '-'}</TableCell>
+                        <TableCell className="text-sm">{caseItem.platform?.name || '-'}</TableCell>
+                        <TableCell className="text-right">
+                          <div className="flex items-center justify-end gap-1">
+                            <Button
+                              variant="ghost"
+                              size="sm"
+                              onClick={() => handleEdit(caseItem)}
+                              className="h-9 w-9 p-0 hover:bg-primary/10 hover:text-primary"
+                              title="编辑"
+                            >
+                              <Pencil className="w-[18px] h-[18px]" />
+                            </Button>
+                            <Button
+                              variant="ghost"
+                              size="sm"
+                              onClick={() => handleDelete(caseItem.id)}
+                              className="h-9 w-9 p-0 hover:bg-destructive/10 hover:text-destructive"
+                              title="删除"
+                            >
+                              <Trash2 className="w-[18px] h-[18px]" />
+                            </Button>
+                          </div>
+                        </TableCell>
+                      </TableRow>
+                    );
+                  })
                 )}
               </TableBody>
             </Table>
