@@ -291,13 +291,10 @@ export default function HomePage() {
               {recentNews.map((news) => (
                 <div
                   key={news.id}
-                  className="flex flex-col sm:flex-row sm:items-start sm:justify-between p-3 sm:p-4 border rounded-lg hover:bg-muted/50 transition-colors gap-3"
+                  className="flex flex-col sm:flex-row sm:items-center sm:justify-between p-3 sm:p-4 border rounded-lg hover:bg-muted/50 transition-colors gap-3"
                 >
                   <div className="flex-1 min-w-0">
-                    <h3 className="font-medium mb-1 text-base leading-snug">{news.title}</h3>
-                    <p className="text-sm text-muted-foreground mb-2 line-clamp-2">
-                      {news.summary || '暂无摘要'}
-                    </p>
+                    <h3 className="font-medium mb-2 text-base leading-snug">{news.title}</h3>
                     <div className="flex flex-wrap items-center gap-2 sm:gap-4 text-xs text-muted-foreground">
                       <span>{news.publish_date}</span>
                       <span className="truncate max-w-[200px]">{news.department?.name || '未知部门'}</span>

@@ -28,7 +28,6 @@ export default function NewsManagePage() {
     publish_date: '',
     department_id: '',
     title: '',
-    summary: '',
     content: '',
     source_url: '',
   });
@@ -64,11 +63,16 @@ export default function NewsManagePage() {
     }
 
     try {
+      const newsData = {
+        ...formData,
+        summary: null, // 摘要字段已移除，设为null
+      };
+
       if (editingNews) {
-        await updateNews(editingNews.id, formData);
+        await updateNews(editingNews.id, newsData);
         toast.success('更新成功');
       } else {
-        await createNews(formData);
+        await createNews(newsData);
         toast.success('创建成功');
       }
       setDialogOpen(false);
@@ -86,7 +90,6 @@ export default function NewsManagePage() {
       publish_date: newsItem.publish_date,
       department_id: newsItem.department_id || '',
       title: newsItem.title,
-      summary: newsItem.summary || '',
       content: newsItem.content || '',
       source_url: newsItem.source_url || '',
     });
@@ -112,7 +115,6 @@ export default function NewsManagePage() {
       publish_date: '',
       department_id: '',
       title: '',
-      summary: '',
       content: '',
       source_url: '',
     });
@@ -201,22 +203,14 @@ export default function NewsManagePage() {
                   </div>
 
                   <div className="space-y-2">
-                    <Label htmlFor="summary">摘要</Label>
-                    <Textarea
-                      id="summary"
-                      value={formData.summary}
-                      onChange={(e) => setFormData({ ...formData, summary: e.target.value })}
-                      rows={2}
-                    />
-                  </div>
-
-                  <div className="space-y-2">
-                    <Label htmlFor="content">详细内容</Label>
+                    <Label htmlFor="content">详细内容 *</Label>
                     <Textarea
                       id="content"
                       value={formData.content}
                       onChange={(e) => setFormData({ ...formData, content: e.target.value })}
-                      rows={6}
+                      rows={8}
+                      required
+                      placeholder="请输入资讯的详细内容"
                     />
                   </div>
 
