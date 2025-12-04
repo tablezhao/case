@@ -127,9 +127,9 @@ export default function HomePage() {
   }
 
   return (
-    <div className="container mx-auto p-6 space-y-6">
+    <div className="container mx-auto px-4 py-4 sm:px-6 sm:py-6 space-y-4 sm:space-y-6">
       {isModuleVisible('stats_overview') && (
-        <div className="grid gap-4 grid-cols-1 md:grid-cols-2 2xl:grid-cols-4">
+        <div className="grid gap-3 sm:gap-4 grid-cols-1 sm:grid-cols-2 2xl:grid-cols-4">
           <StatsCard
             title="本月通报案例"
             value={stats?.current_month_cases || 0}
@@ -156,11 +156,11 @@ export default function HomePage() {
             <CardContent>
               <div className="space-y-2">
                 <div>
-                  <div className="text-lg font-bold">{stats?.total_cases || 0} 个案例</div>
+                  <div className="text-lg sm:text-xl font-bold">{stats?.total_cases || 0} 个案例</div>
                   <p className="text-xs text-muted-foreground">累计通报案例总数</p>
                 </div>
                 <div className="pt-2 border-t">
-                  <div className="text-lg font-bold">{stats?.total_apps || 0} 个应用</div>
+                  <div className="text-lg sm:text-xl font-bold">{stats?.total_apps || 0} 个应用</div>
                   <p className="text-xs text-muted-foreground">累计涉及应用总数</p>
                 </div>
               </div>
@@ -174,7 +174,7 @@ export default function HomePage() {
             <CardContent>
               <div className="space-y-2">
                 <div>
-                  <div className="text-lg font-bold">{stats?.latest_report_date || '-'}</div>
+                  <div className="text-base sm:text-lg font-bold">{stats?.latest_report_date || '-'}</div>
                   <p className="text-xs text-muted-foreground">最新通报日期</p>
                 </div>
                 <div className="pt-2 border-t">
@@ -192,17 +192,17 @@ export default function HomePage() {
       {isModuleVisible('trend_chart') && (
         <Card>
           <CardHeader>
-            <div className="flex items-center justify-between">
-              <CardTitle>通报趋势分析</CardTitle>
+            <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
+              <CardTitle className="text-lg sm:text-xl">通报趋势分析</CardTitle>
               <Tabs value={trendView} onValueChange={(v) => setTrendView(v as 'monthly' | 'yearly')}>
-                <TabsList>
-                  <TabsTrigger value="monthly">月度视图</TabsTrigger>
-                  <TabsTrigger value="yearly">年度视图</TabsTrigger>
+                <TabsList className="grid w-full grid-cols-2 sm:w-auto">
+                  <TabsTrigger value="monthly" className="text-sm">月度视图</TabsTrigger>
+                  <TabsTrigger value="yearly" className="text-sm">年度视图</TabsTrigger>
                 </TabsList>
               </Tabs>
             </div>
           </CardHeader>
-          <CardContent>
+          <CardContent className="px-2 sm:px-6">
             {trendView === 'monthly' && monthlyData.length > 0 && (
               <TrendChart data={monthlyData} title="" type="monthly" />
             )}
@@ -220,20 +220,20 @@ export default function HomePage() {
       {/* 监管趋势分析 - 二层级结构 */}
       <Card>
         <CardHeader>
-          <CardTitle>监管趋势分析</CardTitle>
+          <CardTitle className="text-lg sm:text-xl">监管趋势分析</CardTitle>
         </CardHeader>
-        <CardContent>
+        <CardContent className="px-2 sm:px-6">
           <Tabs value={analysisView} onValueChange={(v) => setAnalysisView(v as typeof analysisView)}>
-            <TabsList className="mb-4">
-              <TabsTrigger value="department">按部门</TabsTrigger>
-              <TabsTrigger value="geography">按地域</TabsTrigger>
+            <TabsList className="mb-4 grid w-full grid-cols-2 sm:w-auto">
+              <TabsTrigger value="department" className="text-sm">按部门</TabsTrigger>
+              <TabsTrigger value="geography" className="text-sm">按地域</TabsTrigger>
             </TabsList>
             
             <TabsContent value="department" className="mt-0">
               <Tabs value={deptLevelView} onValueChange={(v) => setDeptLevelView(v as typeof deptLevelView)}>
-                <TabsList className="mb-4">
-                  <TabsTrigger value="national">国家级部门</TabsTrigger>
-                  <TabsTrigger value="provincial">省级部门</TabsTrigger>
+                <TabsList className="mb-4 grid w-full grid-cols-2 sm:w-auto">
+                  <TabsTrigger value="national" className="text-sm">国家级部门</TabsTrigger>
+                  <TabsTrigger value="provincial" className="text-sm">省级部门</TabsTrigger>
                 </TabsList>
                 
                 <TabsContent value="national" className="mt-0">
@@ -271,7 +271,7 @@ export default function HomePage() {
         </CardContent>
       </Card>
 
-      <div className="grid gap-6 grid-cols-1 2xl:grid-cols-2">
+      <div className="grid gap-4 sm:gap-6 grid-cols-1 2xl:grid-cols-2">
         {isModuleVisible('platform_chart') && platformData.length > 0 && (
           <PieChart data={platformData.slice(0, 10)} title="应用平台分布" />
         )}
@@ -284,28 +284,28 @@ export default function HomePage() {
       {isModuleVisible('recent_news') && recentNews.length > 0 && (
         <Card>
           <CardHeader>
-            <CardTitle>近期监管资讯</CardTitle>
+            <CardTitle className="text-lg sm:text-xl">近期监管资讯</CardTitle>
           </CardHeader>
-          <CardContent>
-            <div className="space-y-4">
+          <CardContent className="px-3 sm:px-6">
+            <div className="space-y-3 sm:space-y-4">
               {recentNews.map((news) => (
                 <div
                   key={news.id}
-                  className="flex items-start justify-between p-4 border rounded-lg hover:bg-muted/50 transition-colors"
+                  className="flex flex-col sm:flex-row sm:items-start sm:justify-between p-3 sm:p-4 border rounded-lg hover:bg-muted/50 transition-colors gap-3"
                 >
-                  <div className="flex-1">
-                    <h3 className="font-medium mb-1">{news.title}</h3>
-                    <p className="text-sm text-muted-foreground mb-2">
+                  <div className="flex-1 min-w-0">
+                    <h3 className="font-medium mb-1 text-base leading-snug">{news.title}</h3>
+                    <p className="text-sm text-muted-foreground mb-2 line-clamp-2">
                       {news.summary || '暂无摘要'}
                     </p>
-                    <div className="flex items-center gap-4 text-xs text-muted-foreground">
+                    <div className="flex flex-wrap items-center gap-2 sm:gap-4 text-xs text-muted-foreground">
                       <span>{news.publish_date}</span>
-                      <span>{news.department?.name || '未知部门'}</span>
+                      <span className="truncate max-w-[200px]">{news.department?.name || '未知部门'}</span>
                     </div>
                   </div>
                   <Link
                     to={`/news/${news.id}`}
-                    className="text-sm text-primary hover:underline ml-4"
+                    className="text-sm text-primary hover:underline min-h-[44px] flex items-center justify-center sm:justify-start sm:ml-4 shrink-0"
                   >
                     查看详情
                   </Link>

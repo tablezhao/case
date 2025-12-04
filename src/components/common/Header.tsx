@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
 import { Link, useLocation, useNavigate } from 'react-router-dom';
-import { Shield, LogOut, Settings, User, ChevronDown } from 'lucide-react';
+import { Shield, LogOut, Settings, User, ChevronDown, Menu, X } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import {
   DropdownMenu,
@@ -10,6 +10,7 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
+import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetTrigger } from '@/components/ui/sheet';
 import { supabase } from '@/db/supabase';
 import { getCurrentProfile } from '@/db/api';
 import type { Profile } from '@/types/types';
@@ -20,6 +21,7 @@ export default function Header() {
   const location = useLocation();
   const navigate = useNavigate();
   const [profile, setProfile] = useState<Profile | null>(null);
+  const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const navigation = routes.filter((route) => route.visible !== false);
 
   useEffect(() => {
@@ -52,6 +54,7 @@ export default function Header() {
     try {
       await supabase.auth.signOut();
       setProfile(null);
+      setMobileMenuOpen(false);
       toast.success('已退出登录');
       navigate('/');
     } catch (error) {
@@ -61,11 +64,12 @@ export default function Header() {
   };
 
   return (
-    <header className="bg-card border-b border-border sticky top-0 z-50">
+    <header className="bg-card border-b border-border sticky top-0 z-50 shadow-sm">
       <nav className="container mx-auto px-4 sm:px-6 lg:px-8">
         <div className="flex justify-between h-16">
+          {/* Logo */}
           <div className="flex items-center">
-            <Link to="/" className="flex items-center gap-2">
+            <Link to="/" className="flex items-center gap-2 min-h-[44px]">
               <div className="w-8 h-8 rounded bg-primary flex items-center justify-center">
                 <Shield className="w-5 h-5 text-primary-foreground" />
               </div>
@@ -73,12 +77,13 @@ export default function Header() {
             </Link>
           </div>
 
+          {/* 桌面端导航 */}
           <div className="hidden md:flex items-center gap-6">
             {navigation.map((item) => (
               <Link
                 key={item.path}
                 to={item.path}
-                className={`px-3 py-2 text-sm font-medium rounded transition-colors ${
+                className={`px-3 py-2 min-h-[44px] flex items-center text-sm font-medium rounded transition-colors ${
                   location.pathname === item.path
                     ? 'text-primary bg-primary/10'
                     : 'text-foreground hover:text-primary hover:bg-muted'
@@ -91,7 +96,7 @@ export default function Header() {
             {profile ? (
               <DropdownMenu>
                 <DropdownMenuTrigger asChild>
-                  <Button variant="outline" size="sm" className="gap-2">
+                  <Button variant="outline" size="sm" className="gap-2 min-h-[44px]">
                     <User className="w-4 h-4" />
                     <span>{profile.username || '用户'}</span>
                     <ChevronDown className="w-4 h-4" />
@@ -109,33 +114,32 @@ export default function Header() {
                   <DropdownMenuSeparator />
                   {profile.role === 'admin' && (
                     <DropdownMenuItem asChild>
-                      <Link to="/admin" className="cursor-pointer">
+                      <Link to="/admin" className="cursor-pointer min-h-[44px] flex items-center">
                         <Settings className="w-4 h-4 mr-2" />
                         管理后台
                       </Link>
                     </DropdownMenuItem>
                   )}
-                  <DropdownMenuItem onClick={handleLogout} className="cursor-pointer text-destructive">
+                  <DropdownMenuItem onClick={handleLogout} className="cursor-pointer text-destructive min-h-[44px] flex items-center">
                     <LogOut className="w-4 h-4 mr-2" />
                     退出登录
                   </DropdownMenuItem>
                 </DropdownMenuContent>
               </DropdownMenu>
             ) : (
-              <Button size="sm" asChild>
+              <Button size="sm" asChild className="min-h-[44px]">
                 <Link to="/login">登录</Link>
               </Button>
             )}
           </div>
 
           {/* 移动端菜单 */}
-          <div className="md:hidden flex items-center">
+          <div className="md:hidden flex items-center gap-2">
             {profile ? (
               <DropdownMenu>
                 <DropdownMenuTrigger asChild>
-                  <Button variant="outline" size="sm" className="gap-2">
-                    <User className="w-4 h-4" />
-                    <ChevronDown className="w-4 h-4" />
+                  <Button variant="ghost" size="sm" className="gap-1 min-h-[44px] min-w-[44px]">
+                    <User className="w-5 h-5" />
                   </Button>
                 </DropdownMenuTrigger>
                 <DropdownMenuContent align="end" className="w-48">
@@ -148,33 +152,59 @@ export default function Header() {
                     </div>
                   </DropdownMenuLabel>
                   <DropdownMenuSeparator />
-                  {navigation.map((item) => (
-                    <DropdownMenuItem key={item.path} asChild>
-                      <Link to={item.path} className="cursor-pointer">
-                        {item.name}
-                      </Link>
-                    </DropdownMenuItem>
-                  ))}
-                  <DropdownMenuSeparator />
                   {profile.role === 'admin' && (
                     <DropdownMenuItem asChild>
-                      <Link to="/admin" className="cursor-pointer">
+                      <Link to="/admin" className="cursor-pointer min-h-[44px] flex items-center">
                         <Settings className="w-4 h-4 mr-2" />
                         管理后台
                       </Link>
                     </DropdownMenuItem>
                   )}
-                  <DropdownMenuItem onClick={handleLogout} className="cursor-pointer text-destructive">
+                  <DropdownMenuItem onClick={handleLogout} className="cursor-pointer text-destructive min-h-[44px] flex items-center">
                     <LogOut className="w-4 h-4 mr-2" />
                     退出登录
                   </DropdownMenuItem>
                 </DropdownMenuContent>
               </DropdownMenu>
             ) : (
-              <Button size="sm" asChild>
+              <Button size="sm" asChild className="min-h-[44px]">
                 <Link to="/login">登录</Link>
               </Button>
             )}
+
+            {/* 汉堡菜单 */}
+            <Sheet open={mobileMenuOpen} onOpenChange={setMobileMenuOpen}>
+              <SheetTrigger asChild>
+                <Button variant="ghost" size="sm" className="min-h-[44px] min-w-[44px] p-2">
+                  <Menu className="w-6 h-6" />
+                  <span className="sr-only">打开菜单</span>
+                </Button>
+              </SheetTrigger>
+              <SheetContent side="right" className="w-[280px] sm:w-[320px]">
+                <SheetHeader>
+                  <SheetTitle className="flex items-center gap-2">
+                    <Shield className="w-5 h-5 text-primary" />
+                    <span className="text-primary">合规通</span>
+                  </SheetTitle>
+                </SheetHeader>
+                <div className="flex flex-col gap-2 mt-6">
+                  {navigation.map((item) => (
+                    <Link
+                      key={item.path}
+                      to={item.path}
+                      onClick={() => setMobileMenuOpen(false)}
+                      className={`px-4 py-3 min-h-[44px] flex items-center text-base font-medium rounded-lg transition-colors ${
+                        location.pathname === item.path
+                          ? 'text-primary bg-primary/10'
+                          : 'text-foreground hover:text-primary hover:bg-muted'
+                      }`}
+                    >
+                      {item.name}
+                    </Link>
+                  ))}
+                </div>
+              </SheetContent>
+            </Sheet>
           </div>
         </div>
       </nav>

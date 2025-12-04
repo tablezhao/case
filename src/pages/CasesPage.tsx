@@ -144,19 +144,19 @@ export default function CasesPage() {
 
   if (loading && page === 1 && cases.length === 0) {
     return (
-      <div className="container mx-auto p-6">
+      <div className="container mx-auto px-4 py-4 sm:px-6 sm:py-6">
         <Skeleton className="h-96 bg-muted" />
       </div>
     );
   }
 
   return (
-    <div className="container mx-auto py-6 px-4 max-w-7xl">
+    <div className="container mx-auto px-4 py-4 sm:px-6 sm:py-6 max-w-7xl">
       <Card className="shadow-sm">
-        <CardHeader>
-          <div className="flex items-center justify-between">
+        <CardHeader className="px-4 sm:px-6">
+          <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
             <div>
-              <CardTitle className="text-2xl">案例查询</CardTitle>
+              <CardTitle className="text-xl sm:text-2xl">案例查询</CardTitle>
               <p className="text-sm text-muted-foreground mt-1">
                 共 {total} 条案例
                 {hasActiveFilters && <span className="text-primary ml-2">（已筛选）</span>}
@@ -166,7 +166,7 @@ export default function CasesPage() {
               variant={showFilters ? 'default' : 'outline'}
               size="sm"
               onClick={() => setShowFilters(!showFilters)}
-              className="gap-2"
+              className="gap-2 min-h-[44px] w-full sm:w-auto"
             >
               <Filter className="w-4 h-4" />
               {showFilters ? '隐藏筛选' : '显示筛选'}
@@ -175,8 +175,8 @@ export default function CasesPage() {
 
           {/* 筛选面板 */}
           {showFilters && (
-            <div className="mt-4 p-4 border rounded-lg bg-muted/30 space-y-4">
-              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+            <div className="mt-4 p-3 sm:p-4 border rounded-lg bg-muted/30 space-y-3 sm:space-y-4">
+              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4">
                 <div className="space-y-2">
                   <Label htmlFor="startDate">开始日期</Label>
                   <Input
@@ -184,6 +184,7 @@ export default function CasesPage() {
                     type="date"
                     value={tempFilters.startDate}
                     onChange={(e) => setTempFilters({ ...tempFilters, startDate: e.target.value })}
+                    className="min-h-[44px]"
                   />
                 </div>
 
@@ -194,6 +195,7 @@ export default function CasesPage() {
                     type="date"
                     value={tempFilters.endDate}
                     onChange={(e) => setTempFilters({ ...tempFilters, endDate: e.target.value })}
+                    className="min-h-[44px]"
                   />
                 </div>
 
@@ -238,12 +240,12 @@ export default function CasesPage() {
                 </div>
               </div>
 
-              <div className="flex gap-2">
-                <Button onClick={handleSearch} className="gap-2">
+              <div className="flex flex-col sm:flex-row gap-2">
+                <Button onClick={handleSearch} className="gap-2 min-h-[44px] flex-1 sm:flex-initial">
                   <Search className="w-4 h-4" />
                   查询
                 </Button>
-                <Button variant="outline" onClick={handleClearFilters} className="gap-2">
+                <Button variant="outline" onClick={handleClearFilters} className="gap-2 min-h-[44px] flex-1 sm:flex-initial">
                   <X className="w-4 h-4" />
                   清空
                 </Button>
@@ -252,8 +254,9 @@ export default function CasesPage() {
           )}
         </CardHeader>
 
-        <CardContent>
-          <div className="rounded-md border">
+        <CardContent className="px-0 sm:px-6">
+          {/* 桌面端表格视图 */}
+          <div className="hidden md:block rounded-md border">
             <Table>
               <TableHeader>
                 <TableRow>
@@ -337,17 +340,101 @@ export default function CasesPage() {
             </Table>
           </div>
 
+          {/* 移动端卡片视图 */}
+          <div className="md:hidden space-y-3 px-4">
+            {loading ? (
+              <div className="flex items-center justify-center py-8">
+                <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary"></div>
+              </div>
+            ) : cases.length === 0 ? (
+              <div className="text-center text-muted-foreground py-8">
+                暂无数据
+              </div>
+            ) : (
+              cases.map((caseItem) => (
+                <Card key={caseItem.id} className="overflow-hidden">
+                  <CardContent className="p-4 space-y-3">
+                    <div className="flex items-start justify-between gap-2">
+                      <h3 className="font-medium text-base leading-snug flex-1">
+                        {caseItem.app_name}
+                      </h3>
+                      <Badge variant="outline" className="shrink-0 text-xs">
+                        {caseItem.report_date}
+                      </Badge>
+                    </div>
+
+                    {caseItem.app_developer && (
+                      <div className="text-sm text-muted-foreground">
+                        <span className="font-medium">开发者：</span>
+                        {caseItem.app_developer}
+                      </div>
+                    )}
+
+                    <div className="flex flex-wrap gap-2">
+                      {caseItem.department?.name && (
+                        <Badge variant="outline" className="text-xs">
+                          {caseItem.department.name}
+                        </Badge>
+                      )}
+                      {caseItem.platform?.name && (
+                        <Badge variant="secondary" className="text-xs">
+                          {caseItem.platform.name}
+                        </Badge>
+                      )}
+                    </div>
+
+                    {caseItem.violation_content && (
+                      <div className="text-sm text-muted-foreground line-clamp-3 leading-relaxed">
+                        {caseItem.violation_content}
+                      </div>
+                    )}
+
+                    <div className="flex gap-2 pt-2">
+                      <Button
+                        variant="default"
+                        size="sm"
+                        onClick={() => handleViewDetail(caseItem)}
+                        className="flex-1 min-h-[44px]"
+                      >
+                        <Eye className="w-4 h-4 mr-1" />
+                        查看详情
+                      </Button>
+                      {caseItem.source_url && (
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          asChild
+                          className="flex-1 min-h-[44px]"
+                        >
+                          <a
+                            href={caseItem.source_url}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                          >
+                            <ExternalLink className="w-4 h-4 mr-1" />
+                            查看原文
+                          </a>
+                        </Button>
+                      )}
+                    </div>
+                  </CardContent>
+                </Card>
+              ))
+            )}
+          </div>
+
           {totalPages > 1 && (
-            <div className="flex items-center justify-between mt-4">
-              <div className="text-sm text-muted-foreground">
+            <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 mt-4 px-4 sm:px-0">
+              <div className="text-sm text-muted-foreground text-center sm:text-left">
                 第 {page} / {totalPages} 页
               </div>
-              <div className="flex gap-2">
+              <div className="flex gap-2 justify-center">
                 <Button
                   variant="outline"
                   size="sm"
                   onClick={() => setPage((p) => Math.max(1, p - 1))}
                   disabled={page === 1 || loading}
+                  className="min-h-[44px] min-w-[80px]"
                 >
                   上一页
                 </Button>
@@ -356,6 +443,7 @@ export default function CasesPage() {
                   size="sm"
                   onClick={() => setPage((p) => Math.min(totalPages, p + 1))}
                   disabled={page === totalPages || loading}
+                  className="min-h-[44px] min-w-[80px]"
                 >
                   下一页
                 </Button>

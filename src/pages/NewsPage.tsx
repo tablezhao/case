@@ -5,6 +5,7 @@ import type { RegulatoryNewsWithDetails } from '@/types/types';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Skeleton } from '@/components/ui/skeleton';
+import { Badge } from '@/components/ui/badge';
 import {
   Table,
   TableBody,
@@ -50,21 +51,22 @@ export default function NewsPage() {
 
   if (loading && page === 1) {
     return (
-      <div className="container mx-auto p-6">
+      <div className="container mx-auto px-4 py-4 sm:px-6 sm:py-6">
         <Skeleton className="h-96 bg-muted" />
       </div>
     );
   }
 
   return (
-    <div className="container mx-auto p-6">
+    <div className="container mx-auto px-4 py-4 sm:px-6 sm:py-6">
       <Card>
-        <CardHeader>
-          <CardTitle>监管资讯</CardTitle>
+        <CardHeader className="px-4 sm:px-6">
+          <CardTitle className="text-xl sm:text-2xl">监管资讯</CardTitle>
           <p className="text-sm text-muted-foreground">共 {total} 条资讯</p>
         </CardHeader>
-        <CardContent>
-          <div className="rounded-md border">
+        <CardContent className="px-0 sm:px-6">
+          {/* 桌面端表格视图 */}
+          <div className="hidden md:block rounded-md border">
             <Table>
               <TableHeader>
                 <TableRow>
@@ -128,17 +130,83 @@ export default function NewsPage() {
             </Table>
           </div>
 
+          {/* 移动端卡片视图 */}
+          <div className="md:hidden space-y-3 px-4">
+            {news.length === 0 ? (
+              <div className="text-center text-muted-foreground py-8">
+                暂无数据
+              </div>
+            ) : (
+              news.map((newsItem) => (
+                <Card key={newsItem.id} className="overflow-hidden">
+                  <CardContent className="p-4 space-y-3">
+                    <div className="flex items-start justify-between gap-2">
+                      <h3 className="font-medium text-base leading-snug flex-1">
+                        {newsItem.title}
+                      </h3>
+                      <Badge variant="outline" className="shrink-0 text-xs">
+                        {newsItem.publish_date}
+                      </Badge>
+                    </div>
+
+                    {newsItem.department?.name && (
+                      <Badge variant="secondary" className="text-xs">
+                        {newsItem.department.name}
+                      </Badge>
+                    )}
+
+                    {newsItem.summary && (
+                      <p className="text-sm text-muted-foreground line-clamp-3 leading-relaxed">
+                        {newsItem.summary}
+                      </p>
+                    )}
+
+                    <div className="flex gap-2 pt-2">
+                      <Button
+                        variant="default"
+                        size="sm"
+                        onClick={() => handleViewDetail(newsItem.id)}
+                        className="flex-1 min-h-[44px]"
+                      >
+                        <Eye className="w-4 h-4 mr-1" />
+                        查看详情
+                      </Button>
+                      {newsItem.source_url && (
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          asChild
+                          className="flex-1 min-h-[44px]"
+                        >
+                          <a
+                            href={newsItem.source_url}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                          >
+                            <ExternalLink className="w-4 h-4 mr-1" />
+                            查看原文
+                          </a>
+                        </Button>
+                      )}
+                    </div>
+                  </CardContent>
+                </Card>
+              ))
+            )}
+          </div>
+
           {totalPages > 1 && (
-            <div className="flex items-center justify-between mt-4">
-              <div className="text-sm text-muted-foreground">
+            <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 mt-4 px-4 sm:px-0">
+              <div className="text-sm text-muted-foreground text-center sm:text-left">
                 第 {page} / {totalPages} 页
               </div>
-              <div className="flex gap-2">
+              <div className="flex gap-2 justify-center">
                 <Button
                   variant="outline"
                   size="sm"
                   onClick={() => setPage((p) => Math.max(1, p - 1))}
                   disabled={page === 1 || loading}
+                  className="min-h-[44px] min-w-[80px]"
                 >
                   上一页
                 </Button>
@@ -147,6 +215,7 @@ export default function NewsPage() {
                   size="sm"
                   onClick={() => setPage((p) => Math.min(totalPages, p + 1))}
                   disabled={page === totalPages || loading}
+                  className="min-h-[44px] min-w-[80px]"
                 >
                   下一页
                 </Button>
