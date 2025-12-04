@@ -16,7 +16,6 @@ export interface RegulatoryDepartment {
   name: string;
   level: DepartmentLevel;
   province: string | null;
-  city: string | null;
   created_at: string;
 }
 

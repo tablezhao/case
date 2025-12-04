@@ -25,7 +25,6 @@ export default function DepartmentsPage() {
     name: '',
     level: 'provincial' as 'national' | 'provincial',
     province: '',
-    city: '',
   });
 
   const [platForm, setPlatForm] = useState({
@@ -53,23 +52,22 @@ export default function DepartmentsPage() {
   const handleDeptSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
 
-    if (!deptForm.name) {
+    if (!deptForm.name.trim()) {
       toast.error('请填写部门名称');
       return;
     }
 
     // 验证：省级部门必须有省份
-    if (deptForm.level === 'provincial' && !deptForm.province) {
+    if (deptForm.level === 'provincial' && !deptForm.province.trim()) {
       toast.error('省级部门必须填写省份');
       return;
     }
 
-    // 国家级部门不应该有省份
+    // 国家级部门不应该有省份，省级部门省份不能为空字符串
     const submitData = {
-      name: deptForm.name,
+      name: deptForm.name.trim(),
       level: deptForm.level,
-      province: deptForm.level === 'national' ? null : deptForm.province,
-      city: deptForm.city || null,
+      province: deptForm.level === 'national' ? null : (deptForm.province.trim() || null),
     };
 
     try {
@@ -120,7 +118,6 @@ export default function DepartmentsPage() {
       name: dept.name,
       level: dept.level,
       province: dept.province || '',
-      city: dept.city || '',
     });
     setDeptDialogOpen(true);
   };
@@ -159,7 +156,7 @@ export default function DepartmentsPage() {
 
   const resetDeptForm = () => {
     setEditingDept(null);
-    setDeptForm({ name: '', level: 'provincial', province: '', city: '' });
+    setDeptForm({ name: '', level: 'provincial', province: '' });
   };
 
   const resetPlatForm = () => {
@@ -227,28 +224,18 @@ export default function DepartmentsPage() {
                           {deptForm.level === 'national' ? '国家级部门无需填写省份' : '省级部门必须填写省份'}
                         </p>
                       </div>
-                      <div className="grid grid-cols-2 gap-4">
-                        <div className="space-y-2">
-                          <Label htmlFor="province">
-                            省份 {deptForm.level === 'provincial' && '*'}
-                          </Label>
-                          <Input
-                            id="province"
-                            value={deptForm.province}
-                            onChange={(e) => setDeptForm({ ...deptForm, province: e.target.value })}
-                            disabled={deptForm.level === 'national'}
-                            required={deptForm.level === 'provincial'}
-                            placeholder={deptForm.level === 'national' ? '国家级无需填写' : '请输入省份'}
-                          />
-                        </div>
-                        <div className="space-y-2">
-                          <Label htmlFor="city">城市（已废弃）</Label>
-                          <Input
-                            id="city"
-                            value={deptForm.city}
-                            onChange={(e) => setDeptForm({ ...deptForm, city: e.target.value })}
-                          />
-                        </div>
+                      <div className="space-y-2">
+                        <Label htmlFor="province">
+                          省份 {deptForm.level === 'provincial' && '*'}
+                        </Label>
+                        <Input
+                          id="province"
+                          value={deptForm.province}
+                          onChange={(e) => setDeptForm({ ...deptForm, province: e.target.value })}
+                          disabled={deptForm.level === 'national'}
+                          required={deptForm.level === 'provincial'}
+                          placeholder={deptForm.level === 'national' ? '国家级无需填写' : '请输入省份'}
+                        />
                       </div>
                       <div className="flex justify-end gap-2">
                         <Button type="button" variant="outline" onClick={() => setDeptDialogOpen(false)}>
