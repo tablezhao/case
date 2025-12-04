@@ -12,6 +12,7 @@ interface StatsCardProps {
   changePercent?: number;
   showTrend?: boolean;
   variant?: 'default' | 'gradient' | 'accent';
+  trendLabel?: string; // 新增：环比标签，如"较上月"、"较上季度"、"较上年度"
 }
 
 export default function StatsCard({ 
@@ -23,6 +24,7 @@ export default function StatsCard({
   changePercent,
   showTrend = false,
   variant = 'gradient',
+  trendLabel = '较上月', // 默认值为"较上月"
 }: StatsCardProps) {
   const getTrendColor = () => {
     if (change === undefined || change === 0) return 'text-muted-foreground';
@@ -105,7 +107,7 @@ export default function StatsCard({
                 {change > 0 ? '+' : ''}{change} ({changePercent > 0 ? '+' : ''}{changePercent.toFixed(1)}%)
               </span>
             </Badge>
-            <span className="text-xs text-muted-foreground">较上月</span>
+            <span className="text-xs text-muted-foreground">{trendLabel}</span>
           </div>
         )}
       </CardContent>

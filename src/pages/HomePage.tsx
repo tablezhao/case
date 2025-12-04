@@ -162,10 +162,23 @@ export default function HomePage() {
                   ? '当季度通报活动次数'
                   : '当年度通报活动次数'
               }
-              change={timeDimension === 'month' ? stats?.cases_change : undefined}
-              changePercent={timeDimension === 'month' ? stats?.cases_change_percent : undefined}
-              showTrend={timeDimension === 'month'}
+              change={
+                timeDimension === 'month' 
+                  ? stats?.cases_change 
+                  : timeDimension === 'quarter'
+                  ? stats?.quarter_cases_change
+                  : stats?.year_cases_change
+              }
+              changePercent={
+                timeDimension === 'month' 
+                  ? stats?.cases_change_percent 
+                  : timeDimension === 'quarter'
+                  ? stats?.quarter_cases_change_percent
+                  : stats?.year_cases_change_percent
+              }
+              showTrend={true}
               variant="gradient"
+              trendLabel={timeDimension === 'month' ? '较上月' : timeDimension === 'quarter' ? '较上季度' : '较上年度'}
             />
             <StatsCard
               title={timeDimension === 'month' ? '本月涉及应用' : timeDimension === 'quarter' ? '本季度涉及应用' : '本年度涉及应用'}
@@ -184,10 +197,23 @@ export default function HomePage() {
                   ? '当季度涉及应用数量'
                   : '当年度涉及应用数量'
               }
-              change={timeDimension === 'month' ? stats?.apps_change : undefined}
-              changePercent={timeDimension === 'month' ? stats?.apps_change_percent : undefined}
-              showTrend={timeDimension === 'month'}
+              change={
+                timeDimension === 'month' 
+                  ? stats?.apps_change 
+                  : timeDimension === 'quarter'
+                  ? stats?.quarter_apps_change
+                  : stats?.year_apps_change
+              }
+              changePercent={
+                timeDimension === 'month' 
+                  ? stats?.apps_change_percent 
+                  : timeDimension === 'quarter'
+                  ? stats?.quarter_apps_change_percent
+                  : stats?.year_apps_change_percent
+              }
+              showTrend={true}
               variant="gradient"
+              trendLabel={timeDimension === 'month' ? '较上月' : timeDimension === 'quarter' ? '较上季度' : '较上年度'}
             />
             <Card className="overflow-hidden bg-gradient-to-br from-background via-background to-primary/5 border-primary/20 hover:border-primary/40 transition-all duration-300 hover:shadow-lg">
               <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">

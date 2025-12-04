@@ -103,11 +103,21 @@ export interface StatsOverview {
   // 本年度统计
   current_year_cases: number; // 本年度通报频次（按部门+日期去重）
   current_year_apps: number;
-  // 环比数据（月度）
+  // 月度环比数据
   cases_change: number; // 相对上月的变化量（基于通报频次）
   cases_change_percent: number; // 变化百分比
   apps_change: number;
   apps_change_percent: number;
+  // 季度环比数据
+  quarter_cases_change: number; // 相对上季度的变化量（基于通报频次）
+  quarter_cases_change_percent: number; // 变化百分比
+  quarter_apps_change: number;
+  quarter_apps_change_percent: number;
+  // 年度环比数据
+  year_cases_change: number; // 相对上年度的变化量（基于通报频次）
+  year_cases_change_percent: number; // 变化百分比
+  year_apps_change: number;
+  year_apps_change_percent: number;
 }
 
 // Excel导入数据类型

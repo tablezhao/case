@@ -504,33 +504,55 @@ export async function updateStaticContent(id: string, updates: Partial<StaticCon
 
 // ============ 统计数据相关 ============
 export async function getStatsOverview(): Promise<StatsOverview> {
-  // 获取当前年月和上月
   const now = new Date();
   const currentYear = now.getFullYear();
   const currentMonth = now.getMonth() + 1;
+
+  // ========== 本月和上月 ==========
   const currentMonthStr = `${currentYear}-${String(currentMonth).padStart(2, '0')}`;
-  
   const lastMonth = currentMonth === 1 ? 12 : currentMonth - 1;
   const lastMonthYear = currentMonth === 1 ? currentYear - 1 : currentYear;
   const lastMonthStr = `${lastMonthYear}-${String(lastMonth).padStart(2, '0')}`;
-
-  // 计算下月（用于查询范围）
   const nextMonth = currentMonth === 12 ? 1 : currentMonth + 1;
   const nextMonthYear = currentMonth === 12 ? currentYear + 1 : currentYear;
   const nextMonthStr = `${nextMonthYear}-${String(nextMonth).padStart(2, '0')}`;
 
-  // 计算当前季度
-  const currentQuarter = Math.ceil(currentMonth / 3);
+  // ========== 本季度和上季度 ==========
+  const currentQuarter = Math.ceil(currentMonth / 3); // 1-4
   const quarterStartMonth = (currentQuarter - 1) * 3 + 1;
   const quarterEndMonth = currentQuarter * 3;
+  
+  // 本季度范围
   const quarterStartStr = `${currentYear}-${String(quarterStartMonth).padStart(2, '0')}-01`;
-  const quarterEndStr = `${currentYear}-${String(quarterEndMonth + 1).padStart(2, '0')}-01`;
+  let quarterEndYear = currentYear;
+  let quarterEndMonthNext = quarterEndMonth + 1;
+  if (quarterEndMonthNext > 12) {
+    quarterEndMonthNext = 1;
+    quarterEndYear = currentYear + 1;
+  }
+  const quarterEndStr = `${quarterEndYear}-${String(quarterEndMonthNext).padStart(2, '0')}-01`;
 
-  // 计算当前年度
+  // 上季度范围
+  const lastQuarter = currentQuarter === 1 ? 4 : currentQuarter - 1;
+  const lastQuarterYear = currentQuarter === 1 ? currentYear - 1 : currentYear;
+  const lastQuarterStartMonth = (lastQuarter - 1) * 3 + 1;
+  const lastQuarterEndMonth = lastQuarter * 3;
+  const lastQuarterStartStr = `${lastQuarterYear}-${String(lastQuarterStartMonth).padStart(2, '0')}-01`;
+  let lastQuarterEndYear = lastQuarterYear;
+  let lastQuarterEndMonthNext = lastQuarterEndMonth + 1;
+  if (lastQuarterEndMonthNext > 12) {
+    lastQuarterEndMonthNext = 1;
+    lastQuarterEndYear = lastQuarterYear + 1;
+  }
+  const lastQuarterEndStr = `${lastQuarterEndYear}-${String(lastQuarterEndMonthNext).padStart(2, '0')}-01`;
+
+  // ========== 本年度和上年度 ==========
   const yearStartStr = `${currentYear}-01-01`;
   const yearEndStr = `${currentYear + 1}-01-01`;
+  const lastYearStartStr = `${currentYear - 1}-01-01`;
+  const lastYearEndStr = `${currentYear}-01-01`;
 
-  // 获取所有案例数据（用于计算通报频次）
+  // ========== 获取所有案例数据 ==========
   const { data: allCases } = await supabase
     .from('cases')
     .select('report_date, department_id, app_name');
@@ -543,67 +565,100 @@ export async function getStatsOverview(): Promise<StatsOverview> {
   // 获取应用总数（去重）
   const uniqueApps = new Set((allCases || []).map(c => c.app_name));
 
-  // 获取本月案例
+  // ========== 获取本月案例 ==========
   const { data: currentMonthCases } = await supabase
     .from('cases')
     .select('report_date, department_id, app_name')
     .gte('report_date', `${currentMonthStr}-01`)
     .lt('report_date', `${nextMonthStr}-01`);
 
-  // 获取上月案例
+  // ========== 获取上月案例 ==========
   const { data: lastMonthCases } = await supabase
     .from('cases')
     .select('report_date, department_id, app_name')
     .gte('report_date', `${lastMonthStr}-01`)
     .lt('report_date', `${currentMonthStr}-01`);
 
-  // 获取本季度案例
+  // ========== 获取本季度案例 ==========
   const { data: currentQuarterCases } = await supabase
     .from('cases')
     .select('report_date, department_id, app_name')
     .gte('report_date', quarterStartStr)
     .lt('report_date', quarterEndStr);
 
-  // 获取本年度案例
+  // ========== 获取上季度案例 ==========
+  const { data: lastQuarterCases } = await supabase
+    .from('cases')
+    .select('report_date, department_id, app_name')
+    .gte('report_date', lastQuarterStartStr)
+    .lt('report_date', lastQuarterEndStr);
+
+  // ========== 获取本年度案例 ==========
   const { data: currentYearCases } = await supabase
     .from('cases')
     .select('report_date, department_id, app_name')
     .gte('report_date', yearStartStr)
     .lt('report_date', yearEndStr);
 
-  // 计算本月通报频次（按部门+日期去重）
+  // ========== 获取上年度案例 ==========
+  const { data: lastYearCases } = await supabase
+    .from('cases')
+    .select('report_date, department_id, app_name')
+    .gte('report_date', lastYearStartStr)
+    .lt('report_date', lastYearEndStr);
+
+  // ========== 计算通报频次（按部门+日期去重）==========
   const currentMonthFrequency = new Set(
     (currentMonthCases || []).map(c => `${c.department_id}_${c.report_date}`)
   ).size;
 
-  // 计算上月通报频次（按部门+日期去重）
   const lastMonthFrequency = new Set(
     (lastMonthCases || []).map(c => `${c.department_id}_${c.report_date}`)
   ).size;
 
-  // 计算本季度通报频次（按部门+日期去重）
   const currentQuarterFrequency = new Set(
     (currentQuarterCases || []).map(c => `${c.department_id}_${c.report_date}`)
   ).size;
 
-  // 计算本年度通报频次（按部门+日期去重）
+  const lastQuarterFrequency = new Set(
+    (lastQuarterCases || []).map(c => `${c.department_id}_${c.report_date}`)
+  ).size;
+
   const currentYearFrequency = new Set(
     (currentYearCases || []).map(c => `${c.department_id}_${c.report_date}`)
   ).size;
-  
+
+  const lastYearFrequency = new Set(
+    (lastYearCases || []).map(c => `${c.department_id}_${c.report_date}`)
+  ).size;
+
+  // ========== 计算涉及应用数（去重）==========
   const currentMonthApps = new Set((currentMonthCases || []).map(c => c.app_name)).size;
   const lastMonthApps = new Set((lastMonthCases || []).map(c => c.app_name)).size;
   const currentQuarterApps = new Set((currentQuarterCases || []).map(c => c.app_name)).size;
+  const lastQuarterApps = new Set((lastQuarterCases || []).map(c => c.app_name)).size;
   const currentYearApps = new Set((currentYearCases || []).map(c => c.app_name)).size;
+  const lastYearApps = new Set((lastYearCases || []).map(c => c.app_name)).size;
 
-  // 计算环比（基于通报频次）
+  // ========== 计算月度环比 ==========
   const casesChange = currentMonthFrequency - lastMonthFrequency;
   const casesChangePercent = lastMonthFrequency === 0 ? 0 : (casesChange / lastMonthFrequency) * 100;
-  
   const appsChange = currentMonthApps - lastMonthApps;
   const appsChangePercent = lastMonthApps === 0 ? 0 : (appsChange / lastMonthApps) * 100;
 
-  // 获取最近一次通报
+  // ========== 计算季度环比 ==========
+  const quarterCasesChange = currentQuarterFrequency - lastQuarterFrequency;
+  const quarterCasesChangePercent = lastQuarterFrequency === 0 ? 0 : (quarterCasesChange / lastQuarterFrequency) * 100;
+  const quarterAppsChange = currentQuarterApps - lastQuarterApps;
+  const quarterAppsChangePercent = lastQuarterApps === 0 ? 0 : (quarterAppsChange / lastQuarterApps) * 100;
+
+  // ========== 计算年度环比 ==========
+  const yearCasesChange = currentYearFrequency - lastYearFrequency;
+  const yearCasesChangePercent = lastYearFrequency === 0 ? 0 : (yearCasesChange / lastYearFrequency) * 100;
+  const yearAppsChange = currentYearApps - lastYearApps;
+  const yearAppsChangePercent = lastYearApps === 0 ? 0 : (yearAppsChange / lastYearApps) * 100;
+
+  // ========== 获取最近一次通报 ==========
   const { data: latestCase } = await supabase
     .from('cases')
     .select(`
@@ -621,16 +676,30 @@ export async function getStatsOverview(): Promise<StatsOverview> {
     total_apps: uniqueApps.size,
     latest_report_date: latestCase?.report_date || null,
     latest_department: department?.name || null,
+    // 本月数据
     current_month_cases: currentMonthFrequency,
     current_month_apps: currentMonthApps,
+    // 本季度数据
     current_quarter_cases: currentQuarterFrequency,
     current_quarter_apps: currentQuarterApps,
+    // 本年度数据
     current_year_cases: currentYearFrequency,
     current_year_apps: currentYearApps,
+    // 月度环比
     cases_change: casesChange,
     cases_change_percent: casesChangePercent,
     apps_change: appsChange,
     apps_change_percent: appsChangePercent,
+    // 季度环比
+    quarter_cases_change: quarterCasesChange,
+    quarter_cases_change_percent: quarterCasesChangePercent,
+    quarter_apps_change: quarterAppsChange,
+    quarter_apps_change_percent: quarterAppsChangePercent,
+    // 年度环比
+    year_cases_change: yearCasesChange,
+    year_cases_change_percent: yearCasesChangePercent,
+    year_apps_change: yearAppsChange,
+    year_apps_change_percent: yearAppsChangePercent,
   };
 }
 
