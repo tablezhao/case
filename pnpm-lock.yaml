@@ -132,10 +132,10 @@ importers:
         specifier: ^0.553.0
         version: 0.553.0(react@18.3.1)
       miaoda-auth-react:
-        specifier: ^2.0.6
+        specifier: 2.0.6
         version: 2.0.6(@supabase/supabase-js@2.76.1)(react-dom@18.3.1(react@18.3.1))(react-router-dom@7.9.5(react-dom@18.3.1(react@18.3.1))(react@18.3.1))(react@18.3.1)
       miaoda-sc-plugin:
-        specifier: ^1.0.31
+        specifier: 1.0.31
         version: 1.0.31(vite@5.4.19(@types/node@24.2.1)(lightningcss@1.30.1))
       next-themes:
         specifier: ^0.4.6
@@ -278,7 +278,7 @@ packages:
     engines: {node: '>=6.9.0'}
 
   '@babel/helper-globals@7.28.0':
-    resolution: {integrity: sha512-+W6cISkXFa1jXsDEdYA8HeevQT/FULhxzR99pxphltZcVaugps53THCeiWA8SguxxpSp3gKPiuYfSWopkLQ4hw==}
+    resolution: {integrity: sha512-+W6cISkXFa1jXsDEdYA8HeevQT/FULhxzR99pxphltZcVaugps53THCeiWA8SguxxpSp3gKPiuYfSWopkLQ4hw==, tarball: http://registry.npm.baidu-int.com/@babel%2fhelper-globals/-/helper-globals-7.28.0.tgz}
     engines: {node: '>=6.9.0'}
 
   '@babel/helper-module-imports@7.27.1':
@@ -312,7 +312,7 @@ packages:
     engines: {node: '>=6.9.0'}
 
   '@babel/parser@7.28.0':
-    resolution: {integrity: sha512-jVZGvOxOuNSsuQuLRTh13nU0AogFlw32w/MT+LV6D3sP5WdbW61E77RnkbaO2dUvmPAYrBDJXGn5gGS6tH4j8g==}
+    resolution: {integrity: sha512-jVZGvOxOuNSsuQuLRTh13nU0AogFlw32w/MT+LV6D3sP5WdbW61E77RnkbaO2dUvmPAYrBDJXGn5gGS6tH4j8g==, tarball: http://registry.npm.baidu-int.com/@babel%2fparser/-/parser-7.28.0.tgz}
     engines: {node: '>=6.0.0'}
     hasBin: true
 
@@ -337,7 +337,7 @@ packages:
     engines: {node: '>=6.9.0'}
 
   '@babel/traverse@7.28.0':
-    resolution: {integrity: sha512-mGe7UK5wWyh0bKRfupsUchrQGqvDbZDbKJw+kcRGSmdHVYrv+ltd0pnpDTVpiTqnaBru9iEvA8pz8W46v0Amwg==}
+    resolution: {integrity: sha512-mGe7UK5wWyh0bKRfupsUchrQGqvDbZDbKJw+kcRGSmdHVYrv+ltd0pnpDTVpiTqnaBru9iEvA8pz8W46v0Amwg==, tarball: http://registry.npm.baidu-int.com/@babel%2ftraverse/-/traverse-7.28.0.tgz}
     engines: {node: '>=6.9.0'}
 
   '@babel/types@7.28.2':
@@ -595,7 +595,7 @@ packages:
     engines: {node: '>=6.0.0'}
 
   '@jridgewell/sourcemap-codec@1.5.5':
-    resolution: {integrity: sha512-cYQ9310grqxueWbl+WuIUIaiUaDcj7WOq5fVhEljNVgRfOUhY9fy2zTvfoqWsnebh8Sl70VScFbICvJnLKB0Og==}
+    resolution: {integrity: sha512-cYQ9310grqxueWbl+WuIUIaiUaDcj7WOq5fVhEljNVgRfOUhY9fy2zTvfoqWsnebh8Sl70VScFbICvJnLKB0Og==, tarball: http://registry.npm.baidu-int.com/@jridgewell%2fsourcemap-codec/-/sourcemap-codec-1.5.5.tgz}
 
   '@jridgewell/trace-mapping@0.3.30':
     resolution: {integrity: sha512-GQ7Nw5G2lTu/BtHTKfXhKHok2WGetd4XYcVKGx00SjAk8GMwgJM3zr6zORiPGuOE+/vkc90KtTosSSvaCjKb2Q==}
@@ -1717,7 +1717,7 @@ packages:
     engines: {node: '>=10'}
 
   ast-types@0.16.1:
-    resolution: {integrity: sha512-6t10qk83GOG8p0vKmaCr8eiilZwO171AvbROMtvvNiwrTly62t+7XkA8RdIIVbpMhCASAsxgAzdRSwh6nw/5Dg==}
+    resolution: {integrity: sha512-6t10qk83GOG8p0vKmaCr8eiilZwO171AvbROMtvvNiwrTly62t+7XkA8RdIIVbpMhCASAsxgAzdRSwh6nw/5Dg==, tarball: http://registry.npm.baidu-int.com/ast-types/-/ast-types-0.16.1.tgz}
     engines: {node: '>=4'}
 
   asynckit@0.4.0:
@@ -2211,7 +2211,7 @@ packages:
     engines: {node: '>=12'}
 
   esprima@4.0.1:
-    resolution: {integrity: sha1-E7BM2z5sXRnfkatph6hpVhmwqnE=}
+    resolution: {integrity: sha1-E7BM2z5sXRnfkatph6hpVhmwqnE=, tarball: http://registry.npm.baidu-int.com/esprima/-/esprima-4.0.1.tgz}
     engines: {node: '>=4'}
     hasBin: true
 
@@ -2635,7 +2635,7 @@ packages:
       react: ^16.5.1 || ^17.0.0 || ^18.0.0 || ^19.0.0
 
   magic-string@0.30.17:
-    resolution: {integrity: sha512-sNPKHvyjVf7gyjwS4xGTaW/mCnF8wnjtifKBEhxfZ7E/S8tQ0rssrwGNn6q8JH/ohItJfSQp9mBtQYuTlH5QnA==}
+    resolution: {integrity: sha512-sNPKHvyjVf7gyjwS4xGTaW/mCnF8wnjtifKBEhxfZ7E/S8tQ0rssrwGNn6q8JH/ohItJfSQp9mBtQYuTlH5QnA==, tarball: http://registry.npm.baidu-int.com/magic-string/-/magic-string-0.30.17.tgz}
 
   markdown-table@3.0.4:
     resolution: {integrity: sha512-wiYz4+JrLyb/DqW2hkFJxP7Vd7JuTDm77fvbM8VfEQdmSMqcImWeeRbHwZjBjIFki/VaMK2BhFi7oUUZeM5bqw==}
@@ -2705,7 +2705,7 @@ packages:
     resolution: {integrity: sha512-ZudVx73BwrMJfCFmSSJT84y6u5brEoV8DOItdHomNLz32uBjNrelm7mg95X7g+C6UoQH/W6mBLGDEDv73JdxBg==}
 
   miaoda-auth-react@2.0.6:
-    resolution: {integrity: sha512-Cv/uraKbJuG3aIzsTZ1zy+iPAM2M9loqFlzmaHa7q7SJ9Q3lLlWtTV+dcxrrLHVymEzpHtAQ/XmDI3OTC6CD2g==}
+    resolution: {integrity: sha512-Cv/uraKbJuG3aIzsTZ1zy+iPAM2M9loqFlzmaHa7q7SJ9Q3lLlWtTV+dcxrrLHVymEzpHtAQ/XmDI3OTC6CD2g==, tarball: http://registry.npm.baidu-int.com/miaoda-auth-react/-/miaoda-auth-react-2.0.6.tgz}
     peerDependencies:
       '@supabase/supabase-js': '*'
       react: '*'
@@ -2713,7 +2713,7 @@ packages:
       react-router-dom: '*'
 
   miaoda-sc-plugin@1.0.31:
-    resolution: {integrity: sha512-jmuKTquYfOWX8H+OqV849POmpwFtG8JL7vH9ZOLpxS3FC+zyZj2pmeDAkhWkGwCO2LsU100x0CvZ6L5zX+yZug==}
+    resolution: {integrity: sha512-jmuKTquYfOWX8H+OqV849POmpwFtG8JL7vH9ZOLpxS3FC+zyZj2pmeDAkhWkGwCO2LsU100x0CvZ6L5zX+yZug==, tarball: http://registry.npm.baidu-int.com/miaoda-sc-plugin/-/miaoda-sc-plugin-1.0.31.tgz}
     peerDependencies:
       vite: ^4.0.0 || ^5.0.0
 
@@ -3152,7 +3152,7 @@ packages:
     engines: {node: '>=8.10.0'}
 
   recast@0.23.11:
-    resolution: {integrity: sha512-YTUo+Flmw4ZXiWfQKGcwwc11KnoRAYgzAE2E7mXKCjSviTKShtxBsN6YUUBB2gtaBzKzeKunxhUwNHQuRryhWA==}
+    resolution: {integrity: sha512-YTUo+Flmw4ZXiWfQKGcwwc11KnoRAYgzAE2E7mXKCjSviTKShtxBsN6YUUBB2gtaBzKzeKunxhUwNHQuRryhWA==, tarball: http://registry.npm.baidu-int.com/recast/-/recast-0.23.11.tgz}
     engines: {node: '>= 4'}
 
   recharts-scale@0.4.5:
@@ -3289,7 +3289,7 @@ packages:
     engines: {node: '>=0.10.0'}
 
   source-map@0.6.1:
-    resolution: {integrity: sha1-dHIq8y6WFOnCh6jQu95IteLxomM=}
+    resolution: {integrity: sha1-dHIq8y6WFOnCh6jQu95IteLxomM=, tarball: http://registry.npm.baidu-int.com/source-map/-/source-map-0.6.1.tgz}
     engines: {node: '>=0.10.0'}
 
   space-separated-tokens@2.0.2:
