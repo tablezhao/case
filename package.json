@@ -41,6 +41,9 @@
     "clsx": "^2.1.1",
     "cmdk": "^1.1.1",
     "date-fns": "^3.6.0",
+    "echarts": "^6.0.0",
+    "echarts-for-react": "^3.0.5",
+    "echarts-wordcloud": "^2.1.0",
     "embla-carousel-react": "^8.6.0",
     "eventsource-parser": "^3.0.6",
     "input-otp": "^1.4.2",
@@ -66,6 +69,7 @@
     "tailwindcss-animate": "^1.0.7",
     "vaul": "^1.1.2",
     "video-react": "^0.16.0",
+    "xlsx": "^0.18.5",
     "zod": "^3.25.76"
   },
   "devDependencies": {

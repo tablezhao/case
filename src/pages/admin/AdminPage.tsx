@@ -1,0 +1,79 @@
+import { Link } from 'react-router-dom';
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
+import { FileText, Newspaper, Settings, Users, Building2, Smartphone } from 'lucide-react';
+
+export default function AdminPage() {
+  const menuItems = [
+    {
+      title: '案例管理',
+      description: '管理监管案例数据',
+      icon: FileText,
+      link: '/admin/cases',
+      color: 'text-primary',
+    },
+    {
+      title: '资讯管理',
+      description: '管理监管资讯内容',
+      icon: Newspaper,
+      link: '/admin/news',
+      color: 'text-secondary',
+    },
+    {
+      title: '监管部门',
+      description: '管理监管部门信息',
+      icon: Building2,
+      link: '/admin/departments',
+      color: 'text-chart-3',
+    },
+    {
+      title: '应用平台',
+      description: '管理应用平台信息',
+      icon: Smartphone,
+      link: '/admin/platforms',
+      color: 'text-chart-4',
+    },
+    {
+      title: '前端配置',
+      description: '配置前端模块显示',
+      icon: Settings,
+      link: '/admin/config',
+      color: 'text-chart-5',
+    },
+    {
+      title: '用户管理',
+      description: '管理用户和权限',
+      icon: Users,
+      link: '/admin/users',
+      color: 'text-muted-foreground',
+    },
+  ];
+
+  return (
+    <div className="container mx-auto p-6">
+      <div className="mb-8">
+        <h1 className="text-3xl font-bold">管理后台</h1>
+        <p className="text-muted-foreground mt-2">欢迎使用合规通管理系统</p>
+      </div>
+
+      <div className="grid gap-6 grid-cols-1 md:grid-cols-2 2xl:grid-cols-3">
+        {menuItems.map((item) => (
+          <Link key={item.link} to={item.link}>
+            <Card className="hover:shadow-lg transition-shadow cursor-pointer h-full">
+              <CardHeader>
+                <div className="flex items-center gap-4">
+                  <div className={`w-12 h-12 rounded-lg bg-muted flex items-center justify-center ${item.color}`}>
+                    <item.icon className="w-6 h-6" />
+                  </div>
+                  <div>
+                    <CardTitle>{item.title}</CardTitle>
+                    <CardDescription>{item.description}</CardDescription>
+                  </div>
+                </div>
+              </CardHeader>
+            </Card>
+          </Link>
+        ))}
+      </div>
+    </div>
+  );
+}
