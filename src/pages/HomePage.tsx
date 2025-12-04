@@ -35,6 +35,7 @@ export default function HomePage() {
   const [configs, setConfigs] = useState<FrontendConfig[]>([]);
   const [loading, setLoading] = useState(true);
   const [trendView, setTrendView] = useState<'monthly' | 'yearly'>('monthly');
+  const [analysisView, setAnalysisView] = useState<'department' | 'geography' | 'province-dept'>('department');
 
   useEffect(() => {
     loadData();
@@ -203,15 +204,49 @@ export default function HomePage() {
         </Card>
       )}
 
-      <div className="grid gap-6 grid-cols-1 2xl:grid-cols-2">
-        {isModuleVisible('geo_map') && geoData.length > 0 && (
-          <GeoChart data={geoData} title="地理分布（按省份）" />
-        )}
-
-        {isModuleVisible('department_chart') && deptData.length > 0 && (
-          <PieChart data={deptData.slice(0, 10)} title="通报部门分布" />
-        )}
-      </div>
+      {/* 监管趋势分析 - 三层级结构 */}
+      <Card>
+        <CardHeader>
+          <div className="flex items-center justify-between">
+            <CardTitle>监管趋势分析</CardTitle>
+            <Tabs value={analysisView} onValueChange={(v) => setAnalysisView(v as typeof analysisView)}>
+              <TabsList>
+                <TabsTrigger value="department">按部门</TabsTrigger>
+                <TabsTrigger value="geography">按地域</TabsTrigger>
+                <TabsTrigger value="province-dept">省份-部门</TabsTrigger>
+              </TabsList>
+            </Tabs>
+          </div>
+        </CardHeader>
+        <CardContent>
+          <TabsContent value="department" className="mt-0">
+            {deptData.length > 0 ? (
+              <div className="w-full">
+                <PieChart data={deptData} title="" />
+              </div>
+            ) : (
+              <div className="text-center py-8 text-muted-foreground">暂无数据</div>
+            )}
+          </TabsContent>
+          
+          <TabsContent value="geography" className="mt-0">
+            {geoData.length > 0 ? (
+              <div className="w-full">
+                <GeoChart data={geoData} title="" />
+              </div>
+            ) : (
+              <div className="text-center py-8 text-muted-foreground">暂无数据</div>
+            )}
+          </TabsContent>
+          
+          <TabsContent value="province-dept" className="mt-0">
+            <div className="text-center py-12 text-muted-foreground">
+              <p className="text-lg mb-2">省份-部门交叉分析</p>
+              <p className="text-sm">该功能正在开发中，敬请期待</p>
+            </div>
+          </TabsContent>
+        </CardContent>
+      </Card>
 
       <div className="grid gap-6 grid-cols-1 2xl:grid-cols-2">
         {isModuleVisible('platform_chart') && platformData.length > 0 && (
