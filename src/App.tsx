@@ -1,6 +1,7 @@
 import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-dom';
 import { Toaster } from '@/components/ui/sonner';
 import Header from '@/components/common/Header';
+import Footer from '@/components/common/Footer';
 import routes from './routes';
 
 export default function App() {
@@ -20,6 +21,7 @@ export default function App() {
             <Route path="*" element={<Navigate to="/" replace />} />
           </Routes>
         </main>
+        <Footer />
         <Toaster />
       </div>
     </Router>
