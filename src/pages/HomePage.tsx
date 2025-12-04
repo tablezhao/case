@@ -207,44 +207,43 @@ export default function HomePage() {
       {/* 监管趋势分析 - 三层级结构 */}
       <Card>
         <CardHeader>
-          <div className="flex items-center justify-between">
-            <CardTitle>监管趋势分析</CardTitle>
-            <Tabs value={analysisView} onValueChange={(v) => setAnalysisView(v as typeof analysisView)}>
-              <TabsList>
-                <TabsTrigger value="department">按部门</TabsTrigger>
-                <TabsTrigger value="geography">按地域</TabsTrigger>
-                <TabsTrigger value="province-dept">省份-部门</TabsTrigger>
-              </TabsList>
-            </Tabs>
-          </div>
+          <CardTitle>监管趋势分析</CardTitle>
         </CardHeader>
         <CardContent>
-          <TabsContent value="department" className="mt-0">
-            {deptData.length > 0 ? (
-              <div className="w-full">
-                <PieChart data={deptData} title="" />
+          <Tabs value={analysisView} onValueChange={(v) => setAnalysisView(v as typeof analysisView)}>
+            <TabsList className="mb-4">
+              <TabsTrigger value="department">按部门</TabsTrigger>
+              <TabsTrigger value="geography">按地域</TabsTrigger>
+              <TabsTrigger value="province-dept">省份-部门</TabsTrigger>
+            </TabsList>
+            
+            <TabsContent value="department" className="mt-0">
+              {deptData.length > 0 ? (
+                <div className="w-full">
+                  <PieChart data={deptData} title="" />
+                </div>
+              ) : (
+                <div className="text-center py-8 text-muted-foreground">暂无数据</div>
+              )}
+            </TabsContent>
+            
+            <TabsContent value="geography" className="mt-0">
+              {geoData.length > 0 ? (
+                <div className="w-full">
+                  <GeoChart data={geoData} title="" />
+                </div>
+              ) : (
+                <div className="text-center py-8 text-muted-foreground">暂无数据</div>
+              )}
+            </TabsContent>
+            
+            <TabsContent value="province-dept" className="mt-0">
+              <div className="text-center py-12 text-muted-foreground">
+                <p className="text-lg mb-2">省份-部门交叉分析</p>
+                <p className="text-sm">该功能正在开发中，敬请期待</p>
               </div>
-            ) : (
-              <div className="text-center py-8 text-muted-foreground">暂无数据</div>
-            )}
-          </TabsContent>
-          
-          <TabsContent value="geography" className="mt-0">
-            {geoData.length > 0 ? (
-              <div className="w-full">
-                <GeoChart data={geoData} title="" />
-              </div>
-            ) : (
-              <div className="text-center py-8 text-muted-foreground">暂无数据</div>
-            )}
-          </TabsContent>
-          
-          <TabsContent value="province-dept" className="mt-0">
-            <div className="text-center py-12 text-muted-foreground">
-              <p className="text-lg mb-2">省份-部门交叉分析</p>
-              <p className="text-sm">该功能正在开发中，敬请期待</p>
-            </div>
-          </TabsContent>
+            </TabsContent>
+          </Tabs>
         </CardContent>
       </Card>
 
