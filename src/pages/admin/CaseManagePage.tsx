@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { getCases, createCase, updateCase, deleteCase, getDepartments, getPlatforms, batchCreateCasesWithDedup, batchDeleteCases, batchUpdateCases } from '@/db/api';
+import { getCases, createCase, updateCase, deleteCase, getDepartments, getPlatforms, createDepartment, createPlatform, batchCreateCasesWithDedup, batchDeleteCases, batchUpdateCases } from '@/db/api';
 import type { CaseWithDetails, RegulatoryDepartment, AppPlatform } from '@/types/types';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -14,6 +14,7 @@ import { Plus, Pencil, Trash2, Upload, Download, ArrowLeft } from 'lucide-react'
 import { toast } from 'sonner';
 import * as XLSX from 'xlsx';
 import { useNavigate } from 'react-router-dom';
+import { CreatableCombobox } from '@/components/ui/creatable-combobox';
 
 export default function CaseManagePage() {
   const navigate = useNavigate();
@@ -132,6 +133,48 @@ export default function CaseManagePage() {
       violation_content: '',
       source_url: '',
     });
+  };
+
+  // 创建新部门
+  const handleCreateDepartment = async (name: string): Promise<string> => {
+    try {
+      const newDept = await createDepartment({ 
+        name,
+        level: 'national', // 默认为国家级
+        province: null,
+      });
+      if (!newDept) throw new Error('创建部门失败');
+      
+      // 重新加载部门列表
+      const updatedDepts = await getDepartments();
+      setDepartments(updatedDepts);
+      
+      toast.success(`成功创建监管部门：${name}（可在"部门与平台"模块中补充详细信息）`);
+      return newDept.id;
+    } catch (error) {
+      console.error('创建部门失败:', error);
+      toast.error('创建部门失败');
+      throw error;
+    }
+  };
+
+  // 创建新平台
+  const handleCreatePlatform = async (name: string): Promise<string> => {
+    try {
+      const newPlat = await createPlatform({ name });
+      if (!newPlat) throw new Error('创建平台失败');
+      
+      // 重新加载平台列表
+      const updatedPlats = await getPlatforms();
+      setPlatforms(updatedPlats);
+      
+      toast.success(`成功创建应用平台：${name}`);
+      return newPlat.id;
+    } catch (error) {
+      console.error('创建平台失败:', error);
+      toast.error('创建平台失败');
+      throw error;
+    }
   };
 
   // 全选/取消全选
@@ -436,39 +479,25 @@ export default function CaseManagePage() {
                     <div className="grid grid-cols-2 gap-4">
                       <div className="space-y-2">
                         <Label htmlFor="department_id">监管部门</Label>
-                        <Select
+                        <CreatableCombobox
                           value={formData.department_id}
                           onValueChange={(value) => setFormData({ ...formData, department_id: value })}
-                        >
-                          <SelectTrigger>
-                            <SelectValue placeholder="选择监管部门" />
-                          </SelectTrigger>
-                          <SelectContent>
-                            {departments.map((dept) => (
-                              <SelectItem key={dept.id} value={dept.id}>
-                                {dept.name}
-                              </SelectItem>
-                            ))}
-                          </SelectContent>
-                        </Select>
+                          options={departments.map(d => ({ value: d.id, label: d.name }))}
+                          placeholder="选择或新增监管部门"
+                          emptyText="未找到匹配的部门"
+                          onCreate={handleCreateDepartment}
+                        />
                       </div>
                       <div className="space-y-2">
                         <Label htmlFor="platform_id">应用平台</Label>
-                        <Select
+                        <CreatableCombobox
                           value={formData.platform_id}
                           onValueChange={(value) => setFormData({ ...formData, platform_id: value })}
-                        >
-                          <SelectTrigger>
-                            <SelectValue placeholder="选择应用平台" />
-                          </SelectTrigger>
-                          <SelectContent>
-                            {platforms.map((plat) => (
-                              <SelectItem key={plat.id} value={plat.id}>
-                                {plat.name}
-                              </SelectItem>
-                            ))}
-                          </SelectContent>
-                        </Select>
+                          options={platforms.map(p => ({ value: p.id, label: p.name }))}
+                          placeholder="选择或新增应用平台"
+                          emptyText="未找到匹配的平台"
+                          onCreate={handleCreatePlatform}
+                        />
                       </div>
                     </div>
 
