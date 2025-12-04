@@ -95,6 +95,14 @@ export interface StatsOverview {
   total_apps: number;
   latest_report_date: string | null;
   latest_department: string | null;
+  // 本月统计
+  current_month_cases: number;
+  current_month_apps: number;
+  // 环比数据
+  cases_change: number; // 相对上月的变化量
+  cases_change_percent: number; // 变化百分比
+  apps_change: number;
+  apps_change_percent: number;
 }
 
 // Excel导入数据类型

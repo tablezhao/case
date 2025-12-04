@@ -7,10 +7,12 @@ import WordCloud from '@/components/charts/WordCloud';
 import GeoChart from '@/components/charts/GeoChart';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Skeleton } from '@/components/ui/skeleton';
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { toast } from 'sonner';
 import {
   getStatsOverview,
   getMonthlyTrend,
+  getYearlyTrend,
   getDepartmentDistribution,
   getPlatformDistribution,
   getGeoDistribution,
@@ -24,6 +26,7 @@ import { Link } from 'react-router-dom';
 export default function HomePage() {
   const [stats, setStats] = useState<StatsOverview | null>(null);
   const [monthlyData, setMonthlyData] = useState<{ month: string; count: number }[]>([]);
+  const [yearlyData, setYearlyData] = useState<{ year: string; count: number }[]>([]);
   const [deptData, setDeptData] = useState<{ name: string; count: number }[]>([]);
   const [platformData, setPlatformData] = useState<{ name: string; count: number }[]>([]);
   const [geoData, setGeoData] = useState<{ province: string; count: number }[]>([]);
@@ -31,6 +34,7 @@ export default function HomePage() {
   const [recentNews, setRecentNews] = useState<RegulatoryNewsWithDetails[]>([]);
   const [configs, setConfigs] = useState<FrontendConfig[]>([]);
   const [loading, setLoading] = useState(true);
+  const [trendView, setTrendView] = useState<'monthly' | 'yearly'>('monthly');
 
   useEffect(() => {
     loadData();
@@ -42,6 +46,7 @@ export default function HomePage() {
       const [
         statsData,
         monthlyTrend,
+        yearlyTrend,
         deptDist,
         platformDist,
         geoDist,
@@ -51,6 +56,7 @@ export default function HomePage() {
       ] = await Promise.all([
         getStatsOverview(),
         getMonthlyTrend(),
+        getYearlyTrend(),
         getDepartmentDistribution(),
         getPlatformDistribution(),
         getGeoDistribution(),
@@ -62,6 +68,7 @@ export default function HomePage() {
       console.log('首页数据加载成功:', {
         statsData,
         monthlyTrend,
+        yearlyTrend,
         deptDist,
         platformDist,
         geoDist,
@@ -72,6 +79,7 @@ export default function HomePage() {
 
       setStats(statsData);
       setMonthlyData(monthlyTrend);
+      setYearlyData(yearlyTrend);
       setDeptData(deptDist);
       setPlatformData(platformDist);
       setGeoData(geoDist);
@@ -109,34 +117,90 @@ export default function HomePage() {
       {isModuleVisible('stats_overview') && (
         <div className="grid gap-4 grid-cols-1 md:grid-cols-2 2xl:grid-cols-4">
           <StatsCard
-            title="累计通报案例"
-            value={stats?.total_cases || 0}
+            title="本月通报案例"
+            value={stats?.current_month_cases || 0}
             icon={FileText}
-            description="总案例数量"
+            description="当月新增案例数量"
+            change={stats?.cases_change}
+            changePercent={stats?.cases_change_percent}
+            showTrend={true}
           />
           <StatsCard
-            title="涉及应用总数"
-            value={stats?.total_apps || 0}
+            title="本月涉及应用"
+            value={stats?.current_month_apps || 0}
             icon={AlertCircle}
-            description="去重后的应用数量"
+            description="当月涉及应用数量"
+            change={stats?.apps_change}
+            changePercent={stats?.apps_change_percent}
+            showTrend={true}
           />
-          <StatsCard
-            title="最近通报日期"
-            value={stats?.latest_report_date || '-'}
-            icon={Calendar}
-            description="最新一次通报时间"
-          />
-          <StatsCard
-            title="最近通报部门"
-            value={stats?.latest_department || '-'}
-            icon={Building2}
-            description="发布最新通报的部门"
-          />
+          <Card>
+            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+              <CardTitle className="text-sm font-medium">累计统计</CardTitle>
+              <FileText className="h-4 w-4 text-muted-foreground" />
+            </CardHeader>
+            <CardContent>
+              <div className="space-y-2">
+                <div>
+                  <div className="text-lg font-bold">{stats?.total_cases || 0} 个案例</div>
+                  <p className="text-xs text-muted-foreground">累计通报案例总数</p>
+                </div>
+                <div className="pt-2 border-t">
+                  <div className="text-lg font-bold">{stats?.total_apps || 0} 个应用</div>
+                  <p className="text-xs text-muted-foreground">累计涉及应用总数</p>
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+          <Card>
+            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+              <CardTitle className="text-sm font-medium">最近通报</CardTitle>
+              <Calendar className="h-4 w-4 text-muted-foreground" />
+            </CardHeader>
+            <CardContent>
+              <div className="space-y-2">
+                <div>
+                  <div className="text-lg font-bold">{stats?.latest_report_date || '-'}</div>
+                  <p className="text-xs text-muted-foreground">最新通报日期</p>
+                </div>
+                <div className="pt-2 border-t">
+                  <div className="text-sm font-medium truncate" title={stats?.latest_department || '-'}>
+                    {stats?.latest_department || '-'}
+                  </div>
+                  <p className="text-xs text-muted-foreground">发布部门</p>
+                </div>
+              </div>
+            </CardContent>
+          </Card>
         </div>
       )}
 
-      {isModuleVisible('trend_chart') && monthlyData.length > 0 && (
-        <TrendChart data={monthlyData} title="月度通报趋势" type="monthly" />
+      {isModuleVisible('trend_chart') && (
+        <Card>
+          <CardHeader>
+            <div className="flex items-center justify-between">
+              <CardTitle>通报趋势分析</CardTitle>
+              <Tabs value={trendView} onValueChange={(v) => setTrendView(v as 'monthly' | 'yearly')}>
+                <TabsList>
+                  <TabsTrigger value="monthly">月度视图</TabsTrigger>
+                  <TabsTrigger value="yearly">年度视图</TabsTrigger>
+                </TabsList>
+              </Tabs>
+            </div>
+          </CardHeader>
+          <CardContent>
+            {trendView === 'monthly' && monthlyData.length > 0 && (
+              <TrendChart data={monthlyData} title="" type="monthly" />
+            )}
+            {trendView === 'yearly' && yearlyData.length > 0 && (
+              <TrendChart data={yearlyData} title="" type="yearly" />
+            )}
+            {((trendView === 'monthly' && monthlyData.length === 0) ||
+              (trendView === 'yearly' && yearlyData.length === 0)) && (
+              <div className="text-center py-8 text-muted-foreground">暂无数据</div>
+            )}
+          </CardContent>
+        </Card>
       )}
 
       <div className="grid gap-6 grid-cols-1 2xl:grid-cols-2">

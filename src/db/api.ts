@@ -390,6 +390,16 @@ export async function updateStaticContent(id: string, updates: Partial<StaticCon
 
 // ============ 统计数据相关 ============
 export async function getStatsOverview(): Promise<StatsOverview> {
+  // 获取当前年月和上月
+  const now = new Date();
+  const currentYear = now.getFullYear();
+  const currentMonth = now.getMonth() + 1;
+  const currentMonthStr = `${currentYear}-${String(currentMonth).padStart(2, '0')}`;
+  
+  const lastMonth = currentMonth === 1 ? 12 : currentMonth - 1;
+  const lastMonthYear = currentMonth === 1 ? currentYear - 1 : currentYear;
+  const lastMonthStr = `${lastMonthYear}-${String(lastMonth).padStart(2, '0')}`;
+
   // 获取案例总数
   const { count: totalCases } = await supabase
     .from('cases')
@@ -401,6 +411,33 @@ export async function getStatsOverview(): Promise<StatsOverview> {
     .select('app_name');
   
   const uniqueApps = new Set(appsData?.map(c => c.app_name) || []);
+
+  // 获取本月案例
+  const { data: currentMonthCases } = await supabase
+    .from('cases')
+    .select('app_name')
+    .gte('report_date', `${currentMonthStr}-01`)
+    .lt('report_date', `${currentYear}-${String(currentMonth + 1).padStart(2, '0')}-01`);
+
+  // 获取上月案例
+  const { data: lastMonthCases } = await supabase
+    .from('cases')
+    .select('app_name')
+    .gte('report_date', `${lastMonthStr}-01`)
+    .lt('report_date', `${currentMonthStr}-01`);
+
+  const currentMonthCount = currentMonthCases?.length || 0;
+  const lastMonthCount = lastMonthCases?.length || 0;
+  
+  const currentMonthApps = new Set(currentMonthCases?.map(c => c.app_name) || []).size;
+  const lastMonthApps = new Set(lastMonthCases?.map(c => c.app_name) || []).size;
+
+  // 计算环比
+  const casesChange = currentMonthCount - lastMonthCount;
+  const casesChangePercent = lastMonthCount === 0 ? 0 : (casesChange / lastMonthCount) * 100;
+  
+  const appsChange = currentMonthApps - lastMonthApps;
+  const appsChangePercent = lastMonthApps === 0 ? 0 : (appsChange / lastMonthApps) * 100;
 
   // 获取最近一次通报
   const { data: latestCase } = await supabase
@@ -420,6 +457,12 @@ export async function getStatsOverview(): Promise<StatsOverview> {
     total_apps: uniqueApps.size,
     latest_report_date: latestCase?.report_date || null,
     latest_department: department?.name || null,
+    current_month_cases: currentMonthCount,
+    current_month_apps: currentMonthApps,
+    cases_change: casesChange,
+    cases_change_percent: casesChangePercent,
+    apps_change: appsChange,
+    apps_change_percent: appsChangePercent,
   };
 }
 
