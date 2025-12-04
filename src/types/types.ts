@@ -58,6 +58,17 @@ export interface FrontendConfig {
   updated_at: string;
 }
 
+export interface FooterSettings {
+  id: string;
+  section: string;
+  title: string;
+  content: any; // JSON content
+  display_order: number;
+  is_active: boolean;
+  created_at: string;
+  updated_at: string;
+}
+
 export interface StaticContent {
   id: string;
   content_key: string;

@@ -9,6 +9,7 @@ import NewsManagePage from './pages/admin/NewsManagePage';
 import DepartmentsPage from './pages/admin/DepartmentsPage';
 import UsersPage from './pages/admin/UsersPage';
 import SmartImportPage from './pages/admin/SmartImportPage';
+import FooterSettingsPage from './pages/admin/FooterSettingsPage';
 
 interface RouteConfig {
   name: string;
@@ -88,6 +89,14 @@ const routes: RouteConfig[] = [
     name: '智能导入',
     path: '/admin/smart-import',
     element: <SmartImportPage />,
+    visible: false,
+    requireAuth: true,
+    requireAdmin: true,
+  },
+  {
+    name: '页脚配置',
+    path: '/admin/footer-settings',
+    element: <FooterSettingsPage />,
     visible: false,
     requireAuth: true,
     requireAdmin: true,

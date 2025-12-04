@@ -8,6 +8,7 @@ import type {
   RegulatoryNews,
   RegulatoryNewsWithDetails,
   FrontendConfig,
+  FooterSettings,
   StaticContent,
   StatsOverview,
 } from '@/types/types';
@@ -525,4 +526,83 @@ export async function getRecentNews(limit = 5) {
   
   if (error) throw error;
   return Array.isArray(data) ? data : [];
+}
+
+// ============ 页脚配置相关 ============
+export async function getFooterSettings() {
+  const { data, error } = await supabase
+    .from('footer_settings')
+    .select('*')
+    .eq('is_active', true)
+    .order('display_order', { ascending: true });
+  
+  if (error) throw error;
+  return Array.isArray(data) ? data : [];
+}
+
+export async function getAllFooterSettings() {
+  const { data, error } = await supabase
+    .from('footer_settings')
+    .select('*')
+    .order('display_order', { ascending: true });
+  
+  if (error) throw error;
+  return Array.isArray(data) ? data : [];
+}
+
+export async function getFooterSettingBySection(section: string) {
+  const { data, error } = await supabase
+    .from('footer_settings')
+    .select('*')
+    .eq('section', section)
+    .maybeSingle();
+  
+  if (error) throw error;
+  return data;
+}
+
+export async function updateFooterSetting(
+  id: string,
+  updates: {
+    title?: string;
+    content?: any;
+    display_order?: number;
+    is_active?: boolean;
+  }
+) {
+  const { data, error } = await supabase
+    .from('footer_settings')
+    .update(updates)
+    .eq('id', id)
+    .select()
+    .single();
+  
+  if (error) throw error;
+  return data;
+}
+
+export async function createFooterSetting(setting: {
+  section: string;
+  title: string;
+  content: any;
+  display_order: number;
+  is_active: boolean;
+}) {
+  const { data, error } = await supabase
+    .from('footer_settings')
+    .insert(setting)
+    .select()
+    .single();
+  
+  if (error) throw error;
+  return data;
+}
+
+export async function deleteFooterSetting(id: string) {
+  const { error } = await supabase
+    .from('footer_settings')
+    .delete()
+    .eq('id', id);
+  
+  if (error) throw error;
 }
