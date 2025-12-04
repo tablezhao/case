@@ -70,12 +70,12 @@ export default function Header() {
             {profile ? (
               <>
                 {profile.role === 'admin' && (
-                  <Link to="/admin">
-                    <Button variant="outline" size="sm">
+                  <Button variant="outline" size="sm" asChild>
+                    <Link to="/admin">
                       <Settings className="w-4 h-4 mr-2" />
                       管理后台
-                    </Button>
-                  </Link>
+                    </Link>
+                  </Button>
                 )}
                 <Button variant="ghost" size="sm" onClick={handleLogout}>
                   <LogOut className="w-4 h-4 mr-2" />
@@ -83,9 +83,9 @@ export default function Header() {
                 </Button>
               </>
             ) : (
-              <Link to="/login">
-                <Button size="sm">登录</Button>
-              </Link>
+              <Button size="sm" asChild>
+                <Link to="/login">登录</Link>
+              </Button>
             )}
           </div>
         </div>

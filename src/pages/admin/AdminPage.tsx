@@ -19,32 +19,18 @@ export default function AdminPage() {
       color: 'text-secondary',
     },
     {
-      title: '监管部门',
-      description: '管理监管部门信息',
+      title: '部门与平台',
+      description: '管理监管部门和应用平台',
       icon: Building2,
       link: '/admin/departments',
       color: 'text-chart-3',
-    },
-    {
-      title: '应用平台',
-      description: '管理应用平台信息',
-      icon: Smartphone,
-      link: '/admin/platforms',
-      color: 'text-chart-4',
-    },
-    {
-      title: '前端配置',
-      description: '配置前端模块显示',
-      icon: Settings,
-      link: '/admin/config',
-      color: 'text-chart-5',
     },
     {
       title: '用户管理',
       description: '管理用户和权限',
       icon: Users,
       link: '/admin/users',
-      color: 'text-muted-foreground',
+      color: 'text-chart-4',
     },
   ];
 
