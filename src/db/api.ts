@@ -513,7 +513,7 @@ export async function getMonthlyTrend(year?: string) {
     .sort((a, b) => a.month.localeCompare(b.month));
 }
 
-// 获取部门分布数据
+// 获取部门分布数据（所有部门）
 export async function getDepartmentDistribution() {
   const { data, error } = await supabase
     .from('cases')
@@ -529,6 +529,58 @@ export async function getDepartmentDistribution() {
     const dept = item.department as unknown as { name: string } | null;
     const deptName = dept?.name || '未知部门';
     deptCounts[deptName] = (deptCounts[deptName] || 0) + 1;
+  });
+
+  return Object.entries(deptCounts)
+    .map(([name, count]) => ({ name, count }))
+    .sort((a, b) => b.count - a.count);
+}
+
+// 获取国家级部门分布数据
+export async function getNationalDepartmentDistribution() {
+  const { data, error } = await supabase
+    .from('cases')
+    .select(`
+      department_id,
+      department:regulatory_departments(name, level)
+    `);
+  
+  if (error) throw error;
+  
+  const deptCounts: Record<string, number> = {};
+  (data || []).forEach(item => {
+    const dept = item.department as unknown as { name: string; level: string } | null;
+    // 只统计国家级部门
+    if (dept?.level === 'national') {
+      const deptName = dept?.name || '未知部门';
+      deptCounts[deptName] = (deptCounts[deptName] || 0) + 1;
+    }
+  });
+
+  return Object.entries(deptCounts)
+    .map(([name, count]) => ({ name, count }))
+    .sort((a, b) => b.count - a.count);
+}
+
+// 获取省级部门分布数据
+export async function getProvincialDepartmentDistribution() {
+  const { data, error } = await supabase
+    .from('cases')
+    .select(`
+      department_id,
+      department:regulatory_departments(name, level)
+    `);
+  
+  if (error) throw error;
+  
+  const deptCounts: Record<string, number> = {};
+  (data || []).forEach(item => {
+    const dept = item.department as unknown as { name: string; level: string } | null;
+    // 只统计省级部门
+    if (dept?.level === 'provincial') {
+      const deptName = dept?.name || '未知部门';
+      deptCounts[deptName] = (deptCounts[deptName] || 0) + 1;
+    }
   });
 
   return Object.entries(deptCounts)
@@ -565,16 +617,23 @@ export async function getGeoDistribution() {
     .from('cases')
     .select(`
       department_id,
-      department:regulatory_departments(province)
+      department:regulatory_departments(province, level)
     `);
   
   if (error) throw error;
   
   const provinceCounts: Record<string, number> = {};
   (data || []).forEach(item => {
-    const dept = item.department as unknown as { province: string | null } | null;
-    const province = dept?.province || '未知';
-    provinceCounts[province] = (provinceCounts[province] || 0) + 1;
+    const dept = item.department as unknown as { province: string | null; level: string } | null;
+    
+    // 国家级部门归入"国家级"类别
+    if (dept?.level === 'national') {
+      provinceCounts['国家级'] = (provinceCounts['国家级'] || 0) + 1;
+    } else {
+      // 省级部门按省份统计
+      const province = dept?.province || '未知';
+      provinceCounts[province] = (provinceCounts[province] || 0) + 1;
+    }
   });
 
   return Object.entries(provinceCounts)

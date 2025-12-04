@@ -14,6 +14,8 @@ import {
   getMonthlyTrend,
   getYearlyTrend,
   getDepartmentDistribution,
+  getNationalDepartmentDistribution,
+  getProvincialDepartmentDistribution,
   getPlatformDistribution,
   getGeoDistribution,
   getViolationKeywords,
@@ -28,6 +30,8 @@ export default function HomePage() {
   const [monthlyData, setMonthlyData] = useState<{ month: string; count: number }[]>([]);
   const [yearlyData, setYearlyData] = useState<{ year: string; count: number }[]>([]);
   const [deptData, setDeptData] = useState<{ name: string; count: number }[]>([]);
+  const [nationalDeptData, setNationalDeptData] = useState<{ name: string; count: number }[]>([]);
+  const [provincialDeptData, setProvincialDeptData] = useState<{ name: string; count: number }[]>([]);
   const [platformData, setPlatformData] = useState<{ name: string; count: number }[]>([]);
   const [geoData, setGeoData] = useState<{ province: string; count: number }[]>([]);
   const [keywords, setKeywords] = useState<{ name: string; value: number }[]>([]);
@@ -35,7 +39,8 @@ export default function HomePage() {
   const [configs, setConfigs] = useState<FrontendConfig[]>([]);
   const [loading, setLoading] = useState(true);
   const [trendView, setTrendView] = useState<'monthly' | 'yearly'>('monthly');
-  const [analysisView, setAnalysisView] = useState<'department' | 'geography' | 'province-dept'>('department');
+  const [analysisView, setAnalysisView] = useState<'department' | 'geography'>('department');
+  const [deptLevelView, setDeptLevelView] = useState<'national' | 'provincial'>('national');
 
   useEffect(() => {
     loadData();
@@ -49,6 +54,8 @@ export default function HomePage() {
         monthlyTrend,
         yearlyTrend,
         deptDist,
+        nationalDeptDist,
+        provincialDeptDist,
         platformDist,
         geoDist,
         keywordsData,
@@ -59,6 +66,8 @@ export default function HomePage() {
         getMonthlyTrend(),
         getYearlyTrend(),
         getDepartmentDistribution(),
+        getNationalDepartmentDistribution(),
+        getProvincialDepartmentDistribution(),
         getPlatformDistribution(),
         getGeoDistribution(),
         getViolationKeywords(),
@@ -71,6 +80,8 @@ export default function HomePage() {
         monthlyTrend,
         yearlyTrend,
         deptDist,
+        nationalDeptDist,
+        provincialDeptDist,
         platformDist,
         geoDist,
         keywordsData,
@@ -82,6 +93,8 @@ export default function HomePage() {
       setMonthlyData(monthlyTrend);
       setYearlyData(yearlyTrend);
       setDeptData(deptDist);
+      setNationalDeptData(nationalDeptDist);
+      setProvincialDeptData(provincialDeptDist);
       setPlatformData(platformDist);
       setGeoData(geoDist);
       setKeywords(keywordsData);
@@ -204,7 +217,7 @@ export default function HomePage() {
         </Card>
       )}
 
-      {/* 监管趋势分析 - 三层级结构 */}
+      {/* 监管趋势分析 - 二层级结构 */}
       <Card>
         <CardHeader>
           <CardTitle>监管趋势分析</CardTitle>
@@ -214,17 +227,35 @@ export default function HomePage() {
             <TabsList className="mb-4">
               <TabsTrigger value="department">按部门</TabsTrigger>
               <TabsTrigger value="geography">按地域</TabsTrigger>
-              <TabsTrigger value="province-dept">省份-部门</TabsTrigger>
             </TabsList>
             
             <TabsContent value="department" className="mt-0">
-              {deptData.length > 0 ? (
-                <div className="w-full">
-                  <PieChart data={deptData} title="" />
-                </div>
-              ) : (
-                <div className="text-center py-8 text-muted-foreground">暂无数据</div>
-              )}
+              <Tabs value={deptLevelView} onValueChange={(v) => setDeptLevelView(v as typeof deptLevelView)}>
+                <TabsList className="mb-4">
+                  <TabsTrigger value="national">国家级部门</TabsTrigger>
+                  <TabsTrigger value="provincial">省级部门</TabsTrigger>
+                </TabsList>
+                
+                <TabsContent value="national" className="mt-0">
+                  {nationalDeptData.length > 0 ? (
+                    <div className="w-full">
+                      <PieChart data={nationalDeptData} title="" />
+                    </div>
+                  ) : (
+                    <div className="text-center py-8 text-muted-foreground">暂无国家级部门数据</div>
+                  )}
+                </TabsContent>
+                
+                <TabsContent value="provincial" className="mt-0">
+                  {provincialDeptData.length > 0 ? (
+                    <div className="w-full">
+                      <PieChart data={provincialDeptData} title="" />
+                    </div>
+                  ) : (
+                    <div className="text-center py-8 text-muted-foreground">暂无省级部门数据</div>
+                  )}
+                </TabsContent>
+              </Tabs>
             </TabsContent>
             
             <TabsContent value="geography" className="mt-0">
@@ -235,13 +266,6 @@ export default function HomePage() {
               ) : (
                 <div className="text-center py-8 text-muted-foreground">暂无数据</div>
               )}
-            </TabsContent>
-            
-            <TabsContent value="province-dept" className="mt-0">
-              <div className="text-center py-12 text-muted-foreground">
-                <p className="text-lg mb-2">省份-部门交叉分析</p>
-                <p className="text-sm">该功能正在开发中，敬请期待</p>
-              </div>
             </TabsContent>
           </Tabs>
         </CardContent>
