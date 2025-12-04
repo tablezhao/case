@@ -23,7 +23,8 @@ export default function StatsCard({
 }: StatsCardProps) {
   const getTrendColor = () => {
     if (change === undefined || change === 0) return 'text-muted-foreground';
-    return change > 0 ? 'text-green-600' : 'text-red-600';
+    // 增长显示红色（警示），减少显示绿色（改善）
+    return change > 0 ? 'text-red-600' : 'text-green-600';
   };
 
   const getTrendIcon = () => {

@@ -400,6 +400,11 @@ export async function getStatsOverview(): Promise<StatsOverview> {
   const lastMonthYear = currentMonth === 1 ? currentYear - 1 : currentYear;
   const lastMonthStr = `${lastMonthYear}-${String(lastMonth).padStart(2, '0')}`;
 
+  // 计算下月（用于查询范围）
+  const nextMonth = currentMonth === 12 ? 1 : currentMonth + 1;
+  const nextMonthYear = currentMonth === 12 ? currentYear + 1 : currentYear;
+  const nextMonthStr = `${nextMonthYear}-${String(nextMonth).padStart(2, '0')}`;
+
   // 获取案例总数
   const { count: totalCases } = await supabase
     .from('cases')
@@ -417,7 +422,7 @@ export async function getStatsOverview(): Promise<StatsOverview> {
     .from('cases')
     .select('app_name')
     .gte('report_date', `${currentMonthStr}-01`)
-    .lt('report_date', `${currentYear}-${String(currentMonth + 1).padStart(2, '0')}-01`);
+    .lt('report_date', `${nextMonthStr}-01`);
 
   // 获取上月案例
   const { data: lastMonthCases } = await supabase
