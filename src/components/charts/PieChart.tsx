@@ -1,6 +1,7 @@
 import { useEffect, useRef } from 'react';
 import * as echarts from 'echarts';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { chartPalette } from '@/lib/colors';
 
 interface PieChartProps {
   data: { name: string; count: number }[];
@@ -54,7 +55,7 @@ export default function PieChart({ data, title }: PieChartProps) {
             name: item.name,
             value: item.count,
             itemStyle: {
-              color: `hsl(var(--chart-${(index % 5) + 1}))`,
+              color: chartPalette[index % chartPalette.length],
             },
           })),
         },

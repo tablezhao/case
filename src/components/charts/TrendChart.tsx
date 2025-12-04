@@ -1,6 +1,7 @@
 import { useEffect, useRef } from 'react';
 import * as echarts from 'echarts';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { chartColors, chartColorsWithAlpha } from '@/lib/colors';
 
 interface TrendChartProps {
   data: { month: string; count: number }[] | { year: string; count: number }[];
@@ -46,7 +47,7 @@ export default function TrendChart({ data, title, type = 'monthly' }: TrendChart
           smooth: true,
           data: data.map((item) => item.count),
           itemStyle: {
-            color: 'hsl(var(--primary))',
+            color: chartColors.primary,
           },
           areaStyle: {
             color: {
@@ -58,11 +59,11 @@ export default function TrendChart({ data, title, type = 'monthly' }: TrendChart
               colorStops: [
                 {
                   offset: 0,
-                  color: 'hsla(var(--primary), 0.3)',
+                  color: chartColorsWithAlpha.primary(0.3),
                 },
                 {
                   offset: 1,
-                  color: 'hsla(var(--primary), 0.05)',
+                  color: chartColorsWithAlpha.primary(0.05),
                 },
               ],
             },

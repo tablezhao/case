@@ -1,6 +1,7 @@
 import { useEffect, useRef } from 'react';
 import * as echarts from 'echarts';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { chartColors } from '@/lib/colors';
 
 interface GeoChartProps {
   data: { province: string; count: number }[];
@@ -52,11 +53,11 @@ export default function GeoChart({ data, title }: GeoChartProps) {
               colorStops: [
                 {
                   offset: 0,
-                  color: 'hsl(var(--primary))',
+                  color: chartColors.primary,
                 },
                 {
                   offset: 1,
-                  color: 'hsl(var(--primary-light))',
+                  color: chartColors.primaryLight,
                 },
               ],
             },

@@ -2,6 +2,7 @@ import { useEffect, useRef } from 'react';
 import * as echarts from 'echarts';
 import 'echarts-wordcloud';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { chartPalette } from '@/lib/colors';
 
 interface WordCloudProps {
   data: { name: string; value: number }[];
@@ -40,14 +41,7 @@ export default function WordCloud({ data, title }: WordCloudProps) {
             fontFamily: 'sans-serif',
             fontWeight: 'bold',
             color: () => {
-              const colors = [
-                'hsl(var(--primary))',
-                'hsl(var(--secondary))',
-                'hsl(var(--chart-3))',
-                'hsl(var(--chart-4))',
-                'hsl(var(--chart-5))',
-              ];
-              return colors[Math.floor(Math.random() * colors.length)];
+              return chartPalette[Math.floor(Math.random() * chartPalette.length)];
             },
           },
           emphasis: {
