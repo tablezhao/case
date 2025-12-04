@@ -12,7 +12,6 @@ export default function LoginPage() {
   const [username, setUsername] = useState('');
   const [password, setPassword] = useState('');
   const [isLoading, setIsLoading] = useState(false);
-  const [isRegister, setIsRegister] = useState(false);
   const navigate = useNavigate();
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -34,31 +33,18 @@ export default function LoginPage() {
     try {
       const email = `${username}@miaoda.com`;
 
-      if (isRegister) {
-        const { error } = await supabase.auth.signUp({
-          email,
-          password,
-        });
+      const { error } = await supabase.auth.signInWithPassword({
+        email,
+        password,
+      });
 
-        if (error) throw error;
+      if (error) throw error;
 
-        toast.success('注册成功！请登录');
-        setIsRegister(false);
-        setPassword('');
-      } else {
-        const { error } = await supabase.auth.signInWithPassword({
-          email,
-          password,
-        });
-
-        if (error) throw error;
-
-        toast.success('登录成功');
-        navigate('/admin');
-      }
+      toast.success('登录成功');
+      navigate('/admin');
     } catch (error: unknown) {
       const err = error as { message?: string };
-      toast.error(err.message || '操作失败');
+      toast.error(err.message || '登录失败，请检查用户名和密码');
     } finally {
       setIsLoading(false);
     }
@@ -75,7 +61,7 @@ export default function LoginPage() {
           </div>
           <CardTitle className="text-2xl font-bold">合规通</CardTitle>
           <CardDescription>
-            {isRegister ? '创建管理员账户' : '登录管理后台'}
+            登录管理后台
           </CardDescription>
         </CardHeader>
         <CardContent>
@@ -101,22 +87,12 @@ export default function LoginPage() {
                 value={password}
                 onChange={(e) => setPassword(e.target.value)}
                 disabled={isLoading}
-                autoComplete={isRegister ? 'new-password' : 'current-password'}
+                autoComplete="current-password"
               />
             </div>
             <Button type="submit" className="w-full" disabled={isLoading}>
-              {isLoading ? '处理中...' : isRegister ? '注册' : '登录'}
+              {isLoading ? '登录中...' : '登录'}
             </Button>
-            <div className="text-center text-sm">
-              <button
-                type="button"
-                onClick={() => setIsRegister(!isRegister)}
-                className="text-primary hover:underline"
-                disabled={isLoading}
-              >
-                {isRegister ? '已有账户？去登录' : '没有账户？去注册'}
-              </button>
-            </div>
           </form>
         </CardContent>
       </Card>
