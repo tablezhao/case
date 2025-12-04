@@ -97,7 +97,13 @@ export interface StatsOverview {
   // 本月统计
   current_month_cases: number; // 本月通报频次（按部门+日期去重）
   current_month_apps: number;
-  // 环比数据
+  // 本季度统计
+  current_quarter_cases: number; // 本季度通报频次（按部门+日期去重）
+  current_quarter_apps: number;
+  // 本年度统计
+  current_year_cases: number; // 本年度通报频次（按部门+日期去重）
+  current_year_apps: number;
+  // 环比数据（月度）
   cases_change: number; // 相对上月的变化量（基于通报频次）
   cases_change_percent: number; // 变化百分比
   apps_change: number;

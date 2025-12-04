@@ -41,6 +41,7 @@ export default function HomePage() {
   const [trendView, setTrendView] = useState<'monthly' | 'yearly'>('monthly');
   const [analysisView, setAnalysisView] = useState<'department' | 'geography'>('department');
   const [deptLevelView, setDeptLevelView] = useState<'national' | 'provincial'>('national');
+  const [timeDimension, setTimeDimension] = useState<'month' | 'quarter' | 'year'>('month');
 
   useEffect(() => {
     loadData();
@@ -129,77 +130,116 @@ export default function HomePage() {
   return (
     <div className="container mx-auto px-4 py-4 sm:px-6 sm:py-6 space-y-4 sm:space-y-6">
       {isModuleVisible('stats_overview') && (
-        <div className="grid gap-4 sm:gap-6 grid-cols-1 sm:grid-cols-2 2xl:grid-cols-4">
-          <StatsCard
-            title="本月通报频次"
-            value={stats?.current_month_cases || 0}
-            icon={FileText}
-            description="当月通报活动次数"
-            change={stats?.cases_change}
-            changePercent={stats?.cases_change_percent}
-            showTrend={true}
-            variant="gradient"
-          />
-          <StatsCard
-            title="本月涉及应用"
-            value={stats?.current_month_apps || 0}
-            icon={AlertCircle}
-            description="当月涉及应用数量"
-            change={stats?.apps_change}
-            changePercent={stats?.apps_change_percent}
-            showTrend={true}
-            variant="gradient"
-          />
-          <Card className="overflow-hidden bg-gradient-to-br from-background via-background to-primary/5 border-primary/20 hover:border-primary/40 transition-all duration-300 hover:shadow-lg">
-            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-3">
-              <CardTitle className="text-sm font-semibold text-muted-foreground tracking-wide uppercase">
-                累计统计
-              </CardTitle>
-              <FileText className="h-10 w-10 p-2 rounded-lg bg-primary/10 text-primary" />
-            </CardHeader>
-            <CardContent className="space-y-4">
-              <div className="space-y-3">
-                <div className="flex items-baseline gap-2">
-                  <span className="text-4xl font-bold bg-gradient-to-br from-foreground to-foreground/70 bg-clip-text text-transparent">
-                    {stats?.total_cases || 0}
-                  </span>
-                  <span className="text-lg font-medium text-muted-foreground">次通报</span>
+        <div className="space-y-3">
+          {/* 时间维度切换 */}
+          <div className="flex items-center justify-between">
+            <h2 className="text-lg font-semibold">数据概览</h2>
+            <Tabs value={timeDimension} onValueChange={(v) => setTimeDimension(v as 'month' | 'quarter' | 'year')}>
+              <TabsList className="grid grid-cols-3 w-full xl:w-auto xl:min-w-[280px]">
+                <TabsTrigger value="month">本月</TabsTrigger>
+                <TabsTrigger value="quarter">本季度</TabsTrigger>
+                <TabsTrigger value="year">本年度</TabsTrigger>
+              </TabsList>
+            </Tabs>
+          </div>
+
+          {/* 统计卡片 */}
+          <div className="grid gap-3 sm:gap-4 grid-cols-1 sm:grid-cols-2 2xl:grid-cols-4">
+            <StatsCard
+              title={timeDimension === 'month' ? '本月通报频次' : timeDimension === 'quarter' ? '本季度通报频次' : '本年度通报频次'}
+              value={
+                timeDimension === 'month' 
+                  ? stats?.current_month_cases || 0 
+                  : timeDimension === 'quarter'
+                  ? stats?.current_quarter_cases || 0
+                  : stats?.current_year_cases || 0
+              }
+              icon={FileText}
+              description={
+                timeDimension === 'month' 
+                  ? '当月通报活动次数' 
+                  : timeDimension === 'quarter'
+                  ? '当季度通报活动次数'
+                  : '当年度通报活动次数'
+              }
+              change={timeDimension === 'month' ? stats?.cases_change : undefined}
+              changePercent={timeDimension === 'month' ? stats?.cases_change_percent : undefined}
+              showTrend={timeDimension === 'month'}
+              variant="gradient"
+            />
+            <StatsCard
+              title={timeDimension === 'month' ? '本月涉及应用' : timeDimension === 'quarter' ? '本季度涉及应用' : '本年度涉及应用'}
+              value={
+                timeDimension === 'month' 
+                  ? stats?.current_month_apps || 0 
+                  : timeDimension === 'quarter'
+                  ? stats?.current_quarter_apps || 0
+                  : stats?.current_year_apps || 0
+              }
+              icon={AlertCircle}
+              description={
+                timeDimension === 'month' 
+                  ? '当月涉及应用数量' 
+                  : timeDimension === 'quarter'
+                  ? '当季度涉及应用数量'
+                  : '当年度涉及应用数量'
+              }
+              change={timeDimension === 'month' ? stats?.apps_change : undefined}
+              changePercent={timeDimension === 'month' ? stats?.apps_change_percent : undefined}
+              showTrend={timeDimension === 'month'}
+              variant="gradient"
+            />
+            <Card className="overflow-hidden bg-gradient-to-br from-background via-background to-primary/5 border-primary/20 hover:border-primary/40 transition-all duration-300 hover:shadow-lg">
+              <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                <CardTitle className="text-xs font-semibold text-muted-foreground tracking-wide uppercase">
+                  累计统计
+                </CardTitle>
+                <FileText className="h-8 w-8 p-1.5 rounded-lg bg-primary/10 text-primary" />
+              </CardHeader>
+              <CardContent className="space-y-3">
+                <div className="space-y-2">
+                  <div className="flex items-baseline gap-1.5">
+                    <span className="text-3xl font-bold bg-gradient-to-br from-foreground to-foreground/70 bg-clip-text text-transparent">
+                      {stats?.total_cases || 0}
+                    </span>
+                    <span className="text-base font-medium text-muted-foreground">次通报</span>
+                  </div>
+                  <p className="text-xs text-muted-foreground">累计通报频次</p>
                 </div>
-                <p className="text-sm text-muted-foreground">累计通报频次</p>
-              </div>
-              <div className="pt-3 border-t border-border/50 space-y-3">
-                <div className="flex items-baseline gap-2">
-                  <span className="text-4xl font-bold bg-gradient-to-br from-foreground to-foreground/70 bg-clip-text text-transparent">
-                    {stats?.total_apps || 0}
-                  </span>
-                  <span className="text-lg font-medium text-muted-foreground">个应用</span>
+                <div className="pt-2 border-t border-border/50 space-y-2">
+                  <div className="flex items-baseline gap-1.5">
+                    <span className="text-3xl font-bold bg-gradient-to-br from-foreground to-foreground/70 bg-clip-text text-transparent">
+                      {stats?.total_apps || 0}
+                    </span>
+                    <span className="text-base font-medium text-muted-foreground">个应用</span>
+                  </div>
+                  <p className="text-xs text-muted-foreground">累计涉及应用总数</p>
                 </div>
-                <p className="text-sm text-muted-foreground">累计涉及应用总数</p>
-              </div>
-            </CardContent>
-          </Card>
-          <Card className="overflow-hidden bg-gradient-to-br from-background to-accent/5 border-accent/20 hover:border-accent/40 transition-all duration-300 hover:shadow-lg">
-            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-3">
-              <CardTitle className="text-sm font-semibold text-muted-foreground tracking-wide uppercase">
-                最近通报
-              </CardTitle>
-              <Calendar className="h-10 w-10 p-2 rounded-lg bg-accent/10 text-accent" />
-            </CardHeader>
-            <CardContent className="space-y-4">
-              <div className="space-y-2">
-                <div className="text-3xl font-bold bg-gradient-to-br from-foreground to-foreground/70 bg-clip-text text-transparent">
-                  {stats?.latest_report_date || '-'}
+              </CardContent>
+            </Card>
+            <Card className="overflow-hidden bg-gradient-to-br from-background to-accent/5 border-accent/20 hover:border-accent/40 transition-all duration-300 hover:shadow-lg">
+              <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                <CardTitle className="text-xs font-semibold text-muted-foreground tracking-wide uppercase">
+                  最近通报
+                </CardTitle>
+                <Calendar className="h-8 w-8 p-1.5 rounded-lg bg-accent/10 text-accent" />
+              </CardHeader>
+              <CardContent className="space-y-3">
+                <div className="space-y-1.5">
+                  <div className="text-2xl font-bold bg-gradient-to-br from-foreground to-foreground/70 bg-clip-text text-transparent">
+                    {stats?.latest_report_date || '-'}
+                  </div>
+                  <p className="text-xs text-muted-foreground">最新通报日期</p>
                 </div>
-                <p className="text-sm text-muted-foreground">最新通报日期</p>
-              </div>
-              <div className="pt-3 border-t border-border/50 space-y-2">
-                <div className="text-base font-semibold text-foreground line-clamp-2" title={stats?.latest_department || '-'}>
-                  {stats?.latest_department || '-'}
+                <div className="pt-2 border-t border-border/50 space-y-1.5">
+                  <div className="text-sm font-semibold text-foreground line-clamp-2" title={stats?.latest_department || '-'}>
+                    {stats?.latest_department || '-'}
+                  </div>
+                  <p className="text-xs text-muted-foreground">发布部门</p>
                 </div>
-                <p className="text-sm text-muted-foreground">发布部门</p>
-              </div>
-            </CardContent>
-          </Card>
+              </CardContent>
+            </Card>
+          </div>
         </div>
       )}
 

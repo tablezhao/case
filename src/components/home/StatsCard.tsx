@@ -57,9 +57,9 @@ export default function StatsCard({
   const getIconStyles = () => {
     switch (variant) {
       case 'gradient':
-        return 'h-10 w-10 p-2 rounded-lg bg-primary/10 text-primary';
+        return 'h-8 w-8 p-1.5 rounded-lg bg-primary/10 text-primary';
       case 'accent':
-        return 'h-10 w-10 p-2 rounded-lg bg-accent/10 text-accent';
+        return 'h-8 w-8 p-1.5 rounded-lg bg-accent/10 text-accent';
       default:
         return 'h-5 w-5 text-muted-foreground';
     }
@@ -67,40 +67,40 @@ export default function StatsCard({
 
   return (
     <Card className={cn('overflow-hidden', getCardStyles())}>
-      <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-3">
-        <CardTitle className="text-sm font-semibold text-muted-foreground tracking-wide uppercase">
+      <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+        <CardTitle className="text-xs font-semibold text-muted-foreground tracking-wide uppercase">
           {title}
         </CardTitle>
         <Icon className={getIconStyles()} />
       </CardHeader>
-      <CardContent className="space-y-3">
-        {/* 核心数据展示 - 超大字号，强烈视觉冲击 */}
-        <div className="flex items-baseline gap-2">
-          <span className="text-5xl font-bold bg-gradient-to-br from-foreground to-foreground/70 bg-clip-text text-transparent">
+      <CardContent className="space-y-2">
+        {/* 核心数据展示 - 适中字号 */}
+        <div className="flex items-baseline gap-1.5">
+          <span className="text-3xl font-bold bg-gradient-to-br from-foreground to-foreground/70 bg-clip-text text-transparent">
             {value}
           </span>
           {variant === 'gradient' && (
-            <span className="text-lg font-medium text-muted-foreground">
+            <span className="text-base font-medium text-muted-foreground">
               {title.includes('案例') ? '个' : title.includes('应用') ? '个' : ''}
             </span>
           )}
         </div>
         
-        {/* 说明文字 - 中等字号，次要信息 */}
+        {/* 说明文字 - 小字号，次要信息 */}
         {description && (
-          <p className="text-sm text-muted-foreground leading-relaxed">
+          <p className="text-xs text-muted-foreground leading-relaxed">
             {description}
           </p>
         )}
         
         {/* 趋势变化 - 使用Badge突出显示 */}
         {showTrend && change !== undefined && changePercent !== undefined && (
-          <div className="flex items-center gap-2 pt-2 border-t border-border/50">
+          <div className="flex items-center gap-1.5 pt-1.5 border-t border-border/50">
             <Badge 
               variant={getTrendBadgeVariant()} 
-              className="flex items-center gap-1 px-2 py-1"
+              className="flex items-center gap-0.5 px-1.5 py-0.5 text-xs"
             >
-              <TrendIcon className="h-3 w-3" />
+              <TrendIcon className="h-2.5 w-2.5" />
               <span className="font-semibold">
                 {change > 0 ? '+' : ''}{change} ({changePercent > 0 ? '+' : ''}{changePercent.toFixed(1)}%)
               </span>
