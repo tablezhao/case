@@ -1,36 +1,43 @@
 import { Link } from 'react-router-dom';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
-import { FileText, Newspaper, Settings, Users, Building2, Smartphone } from 'lucide-react';
+import { FileText, Newspaper, Users, Building2, Sparkles } from 'lucide-react';
 
 export default function AdminPage() {
   const menuItems = [
+    {
+      title: '智能导入',
+      description: 'AI智能解析网页案例',
+      icon: Sparkles,
+      link: '/admin/smart-import',
+      color: 'text-primary',
+    },
     {
       title: '案例管理',
       description: '管理监管案例数据',
       icon: FileText,
       link: '/admin/cases',
-      color: 'text-primary',
+      color: 'text-secondary',
     },
     {
       title: '资讯管理',
       description: '管理监管资讯内容',
       icon: Newspaper,
       link: '/admin/news',
-      color: 'text-secondary',
+      color: 'text-chart-3',
     },
     {
       title: '部门与平台',
       description: '管理监管部门和应用平台',
       icon: Building2,
       link: '/admin/departments',
-      color: 'text-chart-3',
+      color: 'text-chart-4',
     },
     {
       title: '用户管理',
       description: '管理用户和权限',
       icon: Users,
       link: '/admin/users',
-      color: 'text-chart-4',
+      color: 'text-chart-5',
     },
   ];
 
