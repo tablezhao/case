@@ -2,6 +2,7 @@ import type { ReactNode } from 'react';
 import HomePage from './pages/HomePage';
 import CasesPage from './pages/CasesPage';
 import NewsPage from './pages/NewsPage';
+import NewsDetailPage from './pages/NewsDetailPage';
 import DepartmentsPublicPage from './pages/DepartmentsPage';
 import LoginPage from './pages/LoginPage';
 import AdminPage from './pages/admin/AdminPage';
@@ -39,6 +40,12 @@ const routes: RouteConfig[] = [
     path: '/news',
     element: <NewsPage />,
     visible: true,
+  },
+  {
+    name: '资讯详情',
+    path: '/news/:id',
+    element: <NewsDetailPage />,
+    visible: false,
   },
   {
     name: '监管部门',

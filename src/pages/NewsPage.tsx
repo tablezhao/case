@@ -1,16 +1,10 @@
 import { useEffect, useState } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { getNews } from '@/db/api';
 import type { RegulatoryNewsWithDetails } from '@/types/types';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Skeleton } from '@/components/ui/skeleton';
-import {
-  Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogHeader,
-  DialogTitle,
-} from '@/components/ui/dialog';
 import {
   Table,
   TableBody,
@@ -23,13 +17,12 @@ import { ExternalLink, Eye } from 'lucide-react';
 import { toast } from 'sonner';
 
 export default function NewsPage() {
+  const navigate = useNavigate();
   const [news, setNews] = useState<RegulatoryNewsWithDetails[]>([]);
   const [total, setTotal] = useState(0);
   const [page, setPage] = useState(1);
   const [pageSize] = useState(20);
   const [loading, setLoading] = useState(true);
-  const [selectedNews, setSelectedNews] = useState<RegulatoryNewsWithDetails | null>(null);
-  const [dialogOpen, setDialogOpen] = useState(false);
 
   useEffect(() => {
     loadNews();
@@ -49,9 +42,8 @@ export default function NewsPage() {
     }
   };
 
-  const handleViewDetail = (newsItem: RegulatoryNewsWithDetails) => {
-    setSelectedNews(newsItem);
-    setDialogOpen(true);
+  const handleViewDetail = (newsId: string) => {
+    navigate(`/news/${newsId}`);
   };
 
   const totalPages = Math.ceil(total / pageSize);
@@ -107,10 +99,10 @@ export default function NewsPage() {
                         <Button
                           variant="ghost"
                           size="sm"
-                          onClick={() => handleViewDetail(newsItem)}
+                          onClick={() => handleViewDetail(newsItem.id)}
                         >
                           <Eye className="w-4 h-4 mr-1" />
-                          详情
+                          查看详情
                         </Button>
                         {newsItem.source_url && (
                           <Button
@@ -163,55 +155,6 @@ export default function NewsPage() {
           )}
         </CardContent>
       </Card>
-
-      <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
-        <DialogContent className="max-w-2xl max-h-[80vh] overflow-y-auto">
-          <DialogHeader>
-            <DialogTitle>{selectedNews?.title}</DialogTitle>
-            <DialogDescription>资讯详情</DialogDescription>
-          </DialogHeader>
-          {selectedNews && (
-            <div className="space-y-4">
-              <div>
-                <h4 className="font-medium mb-1">发布日期</h4>
-                <p className="text-sm text-muted-foreground">{selectedNews.publish_date}</p>
-              </div>
-              <div>
-                <h4 className="font-medium mb-1">监管部门</h4>
-                <p className="text-sm text-muted-foreground">
-                  {selectedNews.department?.name || '-'}
-                </p>
-              </div>
-              <div>
-                <h4 className="font-medium mb-1">摘要</h4>
-                <p className="text-sm text-muted-foreground">
-                  {selectedNews.summary || '-'}
-                </p>
-              </div>
-              <div>
-                <h4 className="font-medium mb-1">详细内容</h4>
-                <p className="text-sm text-muted-foreground whitespace-pre-wrap">
-                  {selectedNews.content || '-'}
-                </p>
-              </div>
-              {selectedNews.source_url && (
-                <div>
-                  <Button variant="outline" asChild>
-                    <a
-                      href={selectedNews.source_url}
-                      target="_blank"
-                      rel="noopener noreferrer"
-                    >
-                      <ExternalLink className="w-4 h-4 mr-2" />
-                      查看原文链接
-                    </a>
-                  </Button>
-                </div>
-              )}
-            </div>
-          )}
-        </DialogContent>
-      </Dialog>
     </div>
   );
 }
