@@ -98,15 +98,27 @@ export default function StatsCard({
         {/* 趋势变化 - 使用Badge突出显示 */}
         {showTrend && change !== undefined && changePercent !== undefined && (
           <div className="flex items-center gap-1.5 pt-1.5 border-t border-border/50">
-            <Badge 
-              variant={getTrendBadgeVariant()} 
-              className="flex items-center gap-0.5 px-1.5 py-0.5 text-xs"
-            >
-              <TrendIcon className="h-2.5 w-2.5" />
-              <span className="font-semibold">
-                {change > 0 ? '+' : ''}{change} ({changePercent > 0 ? '+' : ''}{changePercent.toFixed(1)}%)
-              </span>
-            </Badge>
+            {change === 0 ? (
+              // 当变化为0时，显示"持平"
+              <Badge 
+                variant="secondary" 
+                className="flex items-center gap-0.5 px-1.5 py-0.5 text-xs"
+              >
+                <Minus className="h-2.5 w-2.5" />
+                <span className="font-semibold">持平</span>
+              </Badge>
+            ) : (
+              // 当有变化时，显示具体数值
+              <Badge 
+                variant={getTrendBadgeVariant()} 
+                className="flex items-center gap-0.5 px-1.5 py-0.5 text-xs"
+              >
+                <TrendIcon className="h-2.5 w-2.5" />
+                <span className="font-semibold">
+                  {change > 0 ? '+' : ''}{change} ({changePercent > 0 ? '+' : ''}{changePercent.toFixed(1)}%)
+                </span>
+              </Badge>
+            )}
             <span className="text-xs text-muted-foreground">{trendLabel}</span>
           </div>
         )}

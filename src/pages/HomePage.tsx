@@ -1,11 +1,12 @@
 import { useEffect, useState } from 'react';
-import { FileText, Building2, Calendar, AlertCircle } from 'lucide-react';
+import { FileText, Building2, Calendar, AlertCircle, Info } from 'lucide-react';
 import StatsCard from '@/components/home/StatsCard';
 import TrendChart from '@/components/charts/TrendChart';
 import PieChart from '@/components/charts/PieChart';
 import WordCloud from '@/components/charts/WordCloud';
 import GeoChart from '@/components/charts/GeoChart';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { Alert, AlertDescription } from '@/components/ui/alert';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { toast } from 'sonner';
@@ -266,6 +267,16 @@ export default function HomePage() {
               </CardContent>
             </Card>
           </div>
+
+          {/* 统计口径说明 */}
+          <Alert className="bg-muted/30 border-primary/20">
+            <Info className="h-4 w-4 text-primary" />
+            <AlertDescription className="text-sm text-muted-foreground ml-2">
+              <span className="font-semibold text-foreground">统计说明：</span>
+              通报频次按"部门+日期"统计通报活动次数，一次通报活动可能涉及多个应用；
+              涉及应用为被通报的唯一应用数量（去重统计）。
+            </AlertDescription>
+          </Alert>
         </div>
       )}
 
