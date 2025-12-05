@@ -442,7 +442,7 @@ export default function CasesPage() {
                             <div 
                               className="text-sm text-muted-foreground leading-relaxed cursor-help"
                             >
-                              {truncateText(caseItem.violation_content, 25)}
+                              {truncateText(caseItem.violation_content, 20)}
                             </div>
                           </TooltipTrigger>
                           <TooltipContent 
