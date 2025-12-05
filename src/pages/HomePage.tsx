@@ -195,16 +195,23 @@ export default function HomePage() {
               variant="gradient"
               trendLabel={timeDimension === 'month' ? '较上月' : timeDimension === 'quarter' ? '较上季度' : '较上年度'}
               tooltipContent={
-                <div className="space-y-2">
-                  <p className="font-semibold text-foreground">统计口径</p>
-                  <p className="text-xs leading-relaxed">
-                    按"部门+日期"去重统计通报活动次数。同一个部门在同一天发布的通报算作1次通报活动。
-                  </p>
-                  <div className="pt-2 border-t border-border/50 space-y-1">
-                    <p className="text-xs font-medium text-foreground">示例说明</p>
-                    <p className="text-xs text-muted-foreground">
-                      2025-12-04，国家计算机病毒应急处理中心发布通报 → 1次通报活动
-                    </p>
+                <div className="space-y-3">
+                  <p className="font-semibold text-base">统计说明</p>
+                  <div className="space-y-2.5 text-xs leading-relaxed">
+                    <div>
+                      <div className="font-semibold mb-1">📢 通报频次</div>
+                      <div className="text-muted-foreground">按"部门+日期"去重统计通报活动次数。同一个部门在同一天发布的通报算作1次通报活动</div>
+                    </div>
+                    <div>
+                      <div className="font-semibold mb-1">📊 统计维度</div>
+                      <div className="text-muted-foreground">
+                        {timeDimension === 'month' ? '统计当前自然月内的通报活动次数' : timeDimension === 'quarter' ? '统计当前季度内的通报活动次数' : '统计当前自然年内的通报活动次数'}
+                      </div>
+                    </div>
+                    <div>
+                      <div className="font-semibold mb-1">💡 示例说明</div>
+                      <div className="text-muted-foreground">2025-12-04，国家计算机病毒应急处理中心发布通报 → 1次通报活动</div>
+                    </div>
                   </div>
                 </div>
               }
@@ -244,19 +251,23 @@ export default function HomePage() {
               variant="gradient"
               trendLabel={timeDimension === 'month' ? '较上月' : timeDimension === 'quarter' ? '较上季度' : '较上年度'}
               tooltipContent={
-                <div className="space-y-2">
-                  <p className="font-semibold text-foreground">统计口径</p>
-                  <p className="text-xs leading-relaxed">
-                    按应用名称去重统计，同一应用在多个平台被通报只计算1次。
-                  </p>
-                  <div className="pt-2 border-t border-border/50 space-y-1">
-                    <p className="text-xs font-medium text-foreground">数据关系</p>
-                    <p className="text-xs text-muted-foreground">
-                      1次通报活动可能涉及多个应用
-                    </p>
-                    <p className="text-xs text-muted-foreground">
-                      示例：81条记录 → 69个应用（去重后）
-                    </p>
+                <div className="space-y-3">
+                  <p className="font-semibold text-base">统计说明</p>
+                  <div className="space-y-2.5 text-xs leading-relaxed">
+                    <div>
+                      <div className="font-semibold mb-1">📱 通报应用数量</div>
+                      <div className="text-muted-foreground">按应用名称去重统计，同一应用在多个平台被通报只计算1次</div>
+                    </div>
+                    <div>
+                      <div className="font-semibold mb-1">📊 统计维度</div>
+                      <div className="text-muted-foreground">
+                        {timeDimension === 'month' ? '统计当前自然月内涉及的应用数量' : timeDimension === 'quarter' ? '统计当前季度内涉及的应用数量' : '统计当前自然年内涉及的应用数量'}
+                      </div>
+                    </div>
+                    <div>
+                      <div className="font-semibold mb-1">🔗 数据关系</div>
+                      <div className="text-muted-foreground">1次通报活动可能涉及多个应用。示例：81条记录 → 69个应用（去重后）</div>
+                    </div>
                   </div>
                 </div>
               }
