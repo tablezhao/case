@@ -2,15 +2,17 @@ import { useEffect, useRef, ReactNode } from 'react';
 import * as echarts from 'echarts';
 import 'echarts-wordcloud';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import TooltipInfo from '@/components/ui/tooltip-info';
 import { chartPalette } from '@/lib/colors';
 
 interface WordCloudProps {
   data: { name: string; value: number }[];
   title: string;
   children?: ReactNode;
+  tooltipContent?: ReactNode;
 }
 
-export default function WordCloud({ data, title, children }: WordCloudProps) {
+export default function WordCloud({ data, title, children, tooltipContent }: WordCloudProps) {
   const chartRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
@@ -71,7 +73,10 @@ export default function WordCloud({ data, title, children }: WordCloudProps) {
   return (
     <Card>
       <CardHeader>
-        <CardTitle>{title}</CardTitle>
+        <div className="flex items-center gap-1.5">
+          <CardTitle>{title}</CardTitle>
+          {tooltipContent && <TooltipInfo content={tooltipContent} />}
+        </div>
       </CardHeader>
       <CardContent>
         <div ref={chartRef} className="w-full h-80" />

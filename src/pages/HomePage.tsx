@@ -6,6 +6,7 @@ import PieChart from '@/components/charts/PieChart';
 import WordCloud from '@/components/charts/WordCloud';
 import GeoChart from '@/components/charts/GeoChart';
 import StatisticsInfo from '@/components/common/StatisticsInfo';
+import TooltipInfo from '@/components/ui/tooltip-info';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
@@ -319,7 +320,30 @@ export default function HomePage() {
           <CardHeader>
             <div className="flex flex-col gap-4">
               <div className="flex flex-col xl:flex-row xl:items-center xl:justify-between gap-3">
-                <CardTitle className="text-lg sm:text-xl">通报趋势分析</CardTitle>
+                <div className="flex items-center gap-1.5">
+                  <CardTitle className="text-lg sm:text-xl">通报趋势分析</CardTitle>
+                  <TooltipInfo
+                    content={
+                      <div className="space-y-2">
+                        <p className="font-semibold">统计说明</p>
+                        <div className="space-y-1.5 text-xs">
+                          <div>
+                            <span className="font-semibold">📱 通报应用数量：</span>
+                            <span className="text-muted-foreground">按应用名称去重统计，同一应用在多个平台被通报只计算1次</span>
+                          </div>
+                          <div>
+                            <span className="font-semibold">📢 通报频次：</span>
+                            <span className="text-muted-foreground">按"部门+日期"去重统计，同一部门在同一天发布的通报算作1次通报活动</span>
+                          </div>
+                          <div>
+                            <span className="font-semibold">🔗 数据关系：</span>
+                            <span className="text-muted-foreground">1次通报活动可能涉及多个应用</span>
+                          </div>
+                        </div>
+                      </div>
+                    }
+                  />
+                </div>
                 <Tabs value={trendView} onValueChange={(v) => setTrendView(v as 'monthly' | 'yearly')}>
                   <TabsList className="grid grid-cols-2 w-full xl:w-auto xl:min-w-[240px]">
                     <TabsTrigger value="monthly" className="text-sm">月度视图</TabsTrigger>
@@ -357,25 +381,6 @@ export default function HomePage() {
               (trendView === 'yearly' && yearlyAppData.length === 0 && yearlyReportData.length === 0)) && (
               <div className="text-center py-8 text-muted-foreground">暂无数据</div>
             )}
-            <StatisticsInfo
-              items={[
-                {
-                  icon: '📱',
-                  label: '通报应用数量',
-                  description: '按应用名称去重统计，同一应用在多个平台被通报只计算1次'
-                },
-                {
-                  icon: '📢',
-                  label: '通报频次',
-                  description: '按"部门+日期"去重统计，同一部门在同一天发布的通报算作1次通报活动'
-                },
-                {
-                  icon: '🔗',
-                  label: '数据关系',
-                  description: '1次通报活动可能涉及多个应用'
-                }
-              ]}
-            />
           </CardContent>
         </Card>
       )}
@@ -383,7 +388,19 @@ export default function HomePage() {
       {/* 监管趋势分析 - 二层级结构 */}
       <Card>
         <CardHeader>
-          <CardTitle className="text-lg sm:text-xl">监管趋势分析</CardTitle>
+          <div className="flex items-center gap-1.5">
+            <CardTitle className="text-lg sm:text-xl">监管趋势分析</CardTitle>
+            <TooltipInfo
+              content={
+                <div className="space-y-2">
+                  <p className="font-semibold">统计说明</p>
+                  <p className="text-xs text-muted-foreground">
+                    展示各监管部门的通报活动分布情况，包括国家级部门、省级部门以及地域分布统计
+                  </p>
+                </div>
+              }
+            />
+          </div>
         </CardHeader>
         <CardContent className="px-2 sm:px-6">
           <Tabs value={analysisView} onValueChange={(v) => setAnalysisView(v as typeof analysisView)}>
@@ -395,31 +412,43 @@ export default function HomePage() {
             <TabsContent value="department" className="mt-0">
               <Tabs value={deptLevelView} onValueChange={(v) => setDeptLevelView(v as typeof deptLevelView)}>
                 <TabsList className="mb-4 grid grid-cols-2 w-full xl:w-auto xl:min-w-[240px]">
-                  <TabsTrigger value="national" className="text-sm">国家级部门</TabsTrigger>
-                  <TabsTrigger value="provincial" className="text-sm">省级部门</TabsTrigger>
+                  <TabsTrigger value="national" className="text-sm">
+                    <span className="flex items-center gap-1">
+                      国家级部门
+                    </span>
+                  </TabsTrigger>
+                  <TabsTrigger value="provincial" className="text-sm">
+                    <span className="flex items-center gap-1">
+                      省级部门
+                    </span>
+                  </TabsTrigger>
                 </TabsList>
                 
                 <TabsContent value="national" className="mt-0">
                   {nationalDeptData.length > 0 ? (
-                    <>
-                      <div className="w-full">
-                        <PieChart data={nationalDeptData} title="" />
-                      </div>
-                      <StatisticsInfo
-                        items={[
-                          {
-                            icon: '🏛️',
-                            label: '国家级部门',
-                            description: '统计各国家级监管部门发布的通报数量，展示不同部门的监管力度'
-                          },
-                          {
-                            icon: '📊',
-                            label: '数据来源',
-                            description: '基于所有案例记录中的部门信息进行统计'
+                    <div className="w-full">
+                      <div className="mb-3 flex items-center gap-1.5">
+                        <h3 className="text-sm font-semibold text-foreground">国家级部门分布</h3>
+                        <TooltipInfo
+                          content={
+                            <div className="space-y-2">
+                              <p className="font-semibold">统计说明</p>
+                              <div className="space-y-1.5 text-xs">
+                                <div>
+                                  <span className="font-semibold">🏛️ 国家级部门：</span>
+                                  <span className="text-muted-foreground">统计各国家级监管部门发布的通报数量，展示不同部门的监管力度</span>
+                                </div>
+                                <div>
+                                  <span className="font-semibold">📊 数据来源：</span>
+                                  <span className="text-muted-foreground">基于所有案例记录中的部门信息进行统计</span>
+                                </div>
+                              </div>
+                            </div>
                           }
-                        ]}
-                      />
-                    </>
+                        />
+                      </div>
+                      <PieChart data={nationalDeptData} title="" />
+                    </div>
                   ) : (
                     <div className="text-center py-8 text-muted-foreground">暂无国家级部门数据</div>
                   )}
@@ -427,25 +456,29 @@ export default function HomePage() {
                 
                 <TabsContent value="provincial" className="mt-0">
                   {provincialDeptData.length > 0 ? (
-                    <>
-                      <div className="w-full">
-                        <PieChart data={provincialDeptData} title="" />
-                      </div>
-                      <StatisticsInfo
-                        items={[
-                          {
-                            icon: '🏢',
-                            label: '省级部门',
-                            description: '统计各省级监管部门发布的通报数量，展示地方监管活跃度'
-                          },
-                          {
-                            icon: '📊',
-                            label: '数据来源',
-                            description: '基于所有案例记录中的部门信息进行统计'
+                    <div className="w-full">
+                      <div className="mb-3 flex items-center gap-1.5">
+                        <h3 className="text-sm font-semibold text-foreground">省级部门分布</h3>
+                        <TooltipInfo
+                          content={
+                            <div className="space-y-2">
+                              <p className="font-semibold">统计说明</p>
+                              <div className="space-y-1.5 text-xs">
+                                <div>
+                                  <span className="font-semibold">🏢 省级部门：</span>
+                                  <span className="text-muted-foreground">统计各省级监管部门发布的通报数量，展示地方监管活跃度</span>
+                                </div>
+                                <div>
+                                  <span className="font-semibold">📊 数据来源：</span>
+                                  <span className="text-muted-foreground">基于所有案例记录中的部门信息进行统计</span>
+                                </div>
+                              </div>
+                            </div>
                           }
-                        ]}
-                      />
-                    </>
+                        />
+                      </div>
+                      <PieChart data={provincialDeptData} title="" />
+                    </div>
                   ) : (
                     <div className="text-center py-8 text-muted-foreground">暂无省级部门数据</div>
                   )}
@@ -455,25 +488,29 @@ export default function HomePage() {
             
             <TabsContent value="geography" className="mt-0">
               {geoData.length > 0 ? (
-                <>
-                  <div className="w-full">
-                    <GeoChart data={geoData} title="" />
-                  </div>
-                  <StatisticsInfo
-                    items={[
-                      {
-                        icon: '🗺️',
-                        label: '地域分布',
-                        description: '按监管部门所在省份统计通报数量，颜色深浅代表通报数量多少'
-                      },
-                      {
-                        icon: '📍',
-                        label: '统计维度',
-                        description: '基于部门所在地进行统计，非被通报应用的所在地'
+                <div className="w-full">
+                  <div className="mb-3 flex items-center gap-1.5">
+                    <h3 className="text-sm font-semibold text-foreground">地域分布</h3>
+                    <TooltipInfo
+                      content={
+                        <div className="space-y-2">
+                          <p className="font-semibold">统计说明</p>
+                          <div className="space-y-1.5 text-xs">
+                            <div>
+                              <span className="font-semibold">🗺️ 地域分布：</span>
+                              <span className="text-muted-foreground">按监管部门所在省份统计通报数量，颜色深浅代表通报数量多少</span>
+                            </div>
+                            <div>
+                              <span className="font-semibold">📍 统计维度：</span>
+                              <span className="text-muted-foreground">基于部门所在地进行统计，非被通报应用的所在地</span>
+                            </div>
+                          </div>
+                        </div>
                       }
-                    ]}
-                  />
-                </>
+                    />
+                  </div>
+                  <GeoChart data={geoData} title="" />
+                </div>
               ) : (
                 <div className="text-center py-8 text-muted-foreground">暂无数据</div>
               )}
@@ -484,41 +521,47 @@ export default function HomePage() {
 
       <div className="grid gap-4 sm:gap-6 grid-cols-1 2xl:grid-cols-2">
         {isModuleVisible('platform_chart') && platformData.length > 0 && (
-          <PieChart data={platformData.slice(0, 10)} title="应用平台分布">
-            <StatisticsInfo
-              items={[
-                {
-                  icon: '📦',
-                  label: '平台分布',
-                  description: '统计被通报应用的来源平台，展示各平台的应用合规情况'
-                },
-                {
-                  icon: '🔢',
-                  label: '显示数量',
-                  description: '展示通报数量最多的前10个平台，其余平台归入"其他"类别'
-                }
-              ]}
-            />
-          </PieChart>
+          <PieChart 
+            data={platformData.slice(0, 10)} 
+            title="应用平台分布"
+            tooltipContent={
+              <div className="space-y-2">
+                <p className="font-semibold">统计说明</p>
+                <div className="space-y-1.5 text-xs">
+                  <div>
+                    <span className="font-semibold">📦 平台分布：</span>
+                    <span className="text-muted-foreground">统计被通报应用的来源平台，展示各平台的应用合规情况</span>
+                  </div>
+                  <div>
+                    <span className="font-semibold">🔢 显示数量：</span>
+                    <span className="text-muted-foreground">展示通报数量最多的前10个平台，其余平台归入"其他"类别</span>
+                  </div>
+                </div>
+              </div>
+            }
+          />
         )}
 
         {isModuleVisible('wordcloud') && keywords.length > 0 && (
-          <WordCloud data={keywords} title="违规问题词云">
-            <StatisticsInfo
-              items={[
-                {
-                  icon: '☁️',
-                  label: '词云展示',
-                  description: '提取违规问题描述中的关键词，字体大小代表出现频率'
-                },
-                {
-                  icon: '🔍',
-                  label: '热点问题',
-                  description: '快速识别当前监管重点关注的违规问题类型'
-                }
-              ]}
-            />
-          </WordCloud>
+          <WordCloud 
+            data={keywords} 
+            title="违规问题词云"
+            tooltipContent={
+              <div className="space-y-2">
+                <p className="font-semibold">统计说明</p>
+                <div className="space-y-1.5 text-xs">
+                  <div>
+                    <span className="font-semibold">☁️ 词云展示：</span>
+                    <span className="text-muted-foreground">提取违规问题描述中的关键词，字体大小代表出现频率</span>
+                  </div>
+                  <div>
+                    <span className="font-semibold">🔍 热点问题：</span>
+                    <span className="text-muted-foreground">快速识别当前监管重点关注的违规问题类型</span>
+                  </div>
+                </div>
+              </div>
+            }
+          />
         )}
       </div>
 

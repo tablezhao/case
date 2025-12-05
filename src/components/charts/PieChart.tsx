@@ -1,15 +1,17 @@
 import { useEffect, useRef, useState, ReactNode } from 'react';
 import * as echarts from 'echarts';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import TooltipInfo from '@/components/ui/tooltip-info';
 import { chartPalette } from '@/lib/colors';
 
 interface PieChartProps {
   data: { name: string; count: number }[];
   title: string;
   children?: ReactNode;
+  tooltipContent?: ReactNode;
 }
 
-export default function PieChart({ data, title, children }: PieChartProps) {
+export default function PieChart({ data, title, children, tooltipContent }: PieChartProps) {
   const chartRef = useRef<HTMLDivElement>(null);
   const [containerWidth, setContainerWidth] = useState(0);
 
@@ -141,7 +143,10 @@ export default function PieChart({ data, title, children }: PieChartProps) {
   return (
     <Card>
       <CardHeader>
-        <CardTitle>{title}</CardTitle>
+        <div className="flex items-center gap-1.5">
+          <CardTitle>{title}</CardTitle>
+          {tooltipContent && <TooltipInfo content={tooltipContent} />}
+        </div>
       </CardHeader>
       <CardContent>
         <div ref={chartRef} className="w-full h-96" />
