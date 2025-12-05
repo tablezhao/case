@@ -19,8 +19,8 @@ function CustomCaption(props: CaptionProps) {
   const currentYear = displayMonth.getFullYear();
   const currentMonth = displayMonth.getMonth();
 
-  // 生成年份选项（当前年份前后各10年）
-  const years = Array.from({ length: 21 }, (_, i) => currentYear - 10 + i);
+  // 生成年份选项（从2020年到2035年）
+  const years = Array.from({ length: 16 }, (_, i) => 2020 + i);
   
   // 月份选项
   const months = [
