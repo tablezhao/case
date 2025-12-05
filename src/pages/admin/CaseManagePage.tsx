@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
 import { getCases, createCase, updateCase, deleteCase, getDepartments, getPlatforms, createDepartment, createPlatform, batchCreateCasesWithDedup, batchDeleteCases, batchUpdateCases, smartImportCases } from '@/db/api';
-import type { CaseWithDetails, RegulatoryDepartment, AppPlatform } from '@/types/types';
+import type { CaseWithDetails, RegulatoryDepartment, AppPlatform, CaseFilterParams } from '@/types/types';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -10,7 +10,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Checkbox } from '@/components/ui/checkbox';
-import { Plus, Pencil, Trash2, Upload, Download, ArrowLeft } from 'lucide-react';
+import { Plus, Pencil, Trash2, Upload, Download, ArrowLeft, Search, X, Filter } from 'lucide-react';
 import { toast } from 'sonner';
 import * as XLSX from 'xlsx';
 import { useNavigate } from 'react-router-dom';
@@ -30,6 +30,34 @@ export default function CaseManagePage() {
   const [editingCase, setEditingCase] = useState<CaseWithDetails | null>(null);
   const [selectedIds, setSelectedIds] = useState<string[]>([]);
 
+  // 关键词搜索
+  const [keyword, setKeyword] = useState('');
+  const [searchKeyword, setSearchKeyword] = useState('');
+
+  // 筛选条件
+  const [filters, setFilters] = useState<CaseFilterParams>({
+    startDate: '',
+    endDate: '',
+    departmentIds: [],
+    platformIds: [],
+  });
+
+  // 临时筛选条件（用于表单）
+  const [tempFilters, setTempFilters] = useState<{
+    startDate: string;
+    endDate: string;
+    departmentId: string;
+    platformId: string;
+  }>({
+    startDate: '',
+    endDate: '',
+    departmentId: '',
+    platformId: '',
+  });
+
+  // 筛选面板显示状态
+  const [showFilters, setShowFilters] = useState(false);
+
   const [formData, setFormData] = useState({
     report_date: '',
     app_name: '',
@@ -47,21 +75,48 @@ export default function CaseManagePage() {
   });
 
   useEffect(() => {
+    loadInitialData();
+  }, []);
+
+  useEffect(() => {
     loadData();
-  }, [page]);
+  }, [page, filters, searchKeyword]);
+
+  const loadInitialData = async () => {
+    try {
+      const [depts, plats] = await Promise.all([
+        getDepartments(),
+        getPlatforms(),
+      ]);
+      setDepartments(depts);
+      setPlatforms(plats);
+    } catch (error) {
+      console.error('加载基础数据失败:', error);
+    }
+  };
 
   const loadData = async () => {
     try {
       setLoading(true);
-      const [casesResult, depts, plats] = await Promise.all([
-        getCases(page, pageSize),
-        getDepartments(),
-        getPlatforms(),
-      ]);
-      setCases(casesResult.data);
-      setTotal(casesResult.total);
-      setDepartments(depts);
-      setPlatforms(plats);
+      const casesResult = await getCases(page, pageSize, 'report_date', 'desc', filters);
+      
+      // 如果有搜索关键词，进行前端过滤
+      let filteredData = casesResult.data;
+      if (searchKeyword.trim()) {
+        const lowerKeyword = searchKeyword.toLowerCase().trim();
+        filteredData = casesResult.data.filter((caseItem) => {
+          return (
+            caseItem.app_name?.toLowerCase().includes(lowerKeyword) ||
+            caseItem.app_developer?.toLowerCase().includes(lowerKeyword) ||
+            caseItem.department?.name?.toLowerCase().includes(lowerKeyword) ||
+            caseItem.platform?.name?.toLowerCase().includes(lowerKeyword) ||
+            caseItem.violation_content?.toLowerCase().includes(lowerKeyword)
+          );
+        });
+      }
+      
+      setCases(filteredData);
+      setTotal(searchKeyword.trim() ? filteredData.length : casesResult.total);
     } catch (error) {
       console.error('加载数据失败:', error);
       toast.error('加载数据失败');
@@ -69,6 +124,52 @@ export default function CaseManagePage() {
       setLoading(false);
     }
   };
+
+  const handleKeywordSearch = () => {
+    setSearchKeyword(keyword);
+    setPage(1);
+  };
+
+  const handleKeyPress = (e: React.KeyboardEvent) => {
+    if (e.key === 'Enter') {
+      handleKeywordSearch();
+    }
+  };
+
+  const handleApplyFilters = () => {
+    // 将临时筛选条件转换为实际筛选参数
+    const newFilters: CaseFilterParams = {
+      startDate: tempFilters.startDate || undefined,
+      endDate: tempFilters.endDate || undefined,
+      departmentIds: tempFilters.departmentId && tempFilters.departmentId !== 'all' ? [tempFilters.departmentId] : undefined,
+      platformIds: tempFilters.platformId && tempFilters.platformId !== 'all' ? [tempFilters.platformId] : undefined,
+    };
+    setFilters(newFilters);
+    setPage(1);
+  };
+
+  const handleClearFilters = () => {
+    setKeyword('');
+    setSearchKeyword('');
+    setTempFilters({
+      startDate: '',
+      endDate: '',
+      departmentId: '',
+      platformId: '',
+    });
+    setFilters({
+      startDate: '',
+      endDate: '',
+      departmentIds: [],
+      platformIds: [],
+    });
+    setPage(1);
+  };
+
+  // 检查是否有活动的筛选条件
+  const hasActiveFilters = searchKeyword || filters.startDate || filters.endDate || 
+    (filters.departmentIds && filters.departmentIds.length > 0) || 
+    (filters.platformIds && filters.platformIds.length > 0);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -343,9 +444,136 @@ export default function CaseManagePage() {
           <p className="text-sm text-muted-foreground mt-1">
             共 {total} 条案例
             {selectedIds.length > 0 && ` · 已选择 ${selectedIds.length} 条`}
+            {hasActiveFilters && <span className="text-primary ml-2">（已筛选）</span>}
           </p>
         </div>
       </div>
+
+      {/* 搜索和筛选区域 */}
+      <Card className="shadow-sm mb-6">
+        <CardContent className="pt-6">
+          {/* 关键词搜索 */}
+          <div className="flex gap-2 mb-4">
+            <div className="relative flex-1">
+              <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
+              <Input
+                placeholder="搜索应用名称、开发者、监管部门、违规内容..."
+                value={keyword}
+                onChange={(e) => setKeyword(e.target.value)}
+                onKeyPress={handleKeyPress}
+                className="pl-9"
+              />
+            </div>
+            <Button 
+              onClick={handleKeywordSearch}
+              className="gap-2"
+            >
+              <Search className="w-4 h-4" />
+              搜索
+            </Button>
+            {(keyword || searchKeyword) && (
+              <Button 
+                variant="outline"
+                onClick={() => {
+                  setKeyword('');
+                  setSearchKeyword('');
+                  setPage(1);
+                }}
+                className="gap-2"
+                title="清空搜索"
+              >
+                <X className="w-4 h-4" />
+              </Button>
+            )}
+            <Button
+              variant="outline"
+              onClick={() => setShowFilters(!showFilters)}
+              className="gap-2"
+            >
+              <Filter className="w-4 h-4" />
+              {showFilters ? '隐藏筛选' : '显示筛选'}
+            </Button>
+          </div>
+
+          {/* 筛选面板 */}
+          {showFilters && (
+            <div className="p-4 border rounded-lg bg-muted/30 space-y-4">
+              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+                <div className="space-y-2">
+                  <Label htmlFor="filter-startDate">开始日期</Label>
+                  <Input
+                    id="filter-startDate"
+                    type="date"
+                    value={tempFilters.startDate}
+                    onChange={(e) => setTempFilters({ ...tempFilters, startDate: e.target.value })}
+                  />
+                </div>
+
+                <div className="space-y-2">
+                  <Label htmlFor="filter-endDate">结束日期</Label>
+                  <Input
+                    id="filter-endDate"
+                    type="date"
+                    value={tempFilters.endDate}
+                    onChange={(e) => setTempFilters({ ...tempFilters, endDate: e.target.value })}
+                  />
+                </div>
+
+                <div className="space-y-2">
+                  <Label htmlFor="filter-department">监管部门</Label>
+                  <Select
+                    value={tempFilters.departmentId}
+                    onValueChange={(value) => setTempFilters({ ...tempFilters, departmentId: value })}
+                  >
+                    <SelectTrigger id="filter-department">
+                      <SelectValue placeholder="全部部门" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="all">全部部门</SelectItem>
+                      {departments.map((dept) => (
+                        <SelectItem key={dept.id} value={dept.id}>
+                          {dept.name}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+
+                <div className="space-y-2">
+                  <Label htmlFor="filter-platform">应用平台</Label>
+                  <Select
+                    value={tempFilters.platformId}
+                    onValueChange={(value) => setTempFilters({ ...tempFilters, platformId: value })}
+                  >
+                    <SelectTrigger id="filter-platform">
+                      <SelectValue placeholder="全部平台" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="all">全部平台</SelectItem>
+                      {platforms.map((plat) => (
+                        <SelectItem key={plat.id} value={plat.id}>
+                          {plat.name}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+              </div>
+
+              <div className="flex gap-2">
+                <Button onClick={handleApplyFilters} className="gap-2">
+                  <Search className="w-4 h-4" />
+                  应用筛选
+                </Button>
+                <Button variant="outline" onClick={handleClearFilters} className="gap-2">
+                  <X className="w-4 h-4" />
+                  清空所有筛选
+                </Button>
+              </div>
+            </div>
+          )}
+        </CardContent>
+      </Card>
 
       <Card className="shadow-sm hover:shadow-md transition-shadow">
         <CardHeader>
