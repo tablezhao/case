@@ -32,7 +32,7 @@ export default function TooltipInfo({ content, className, iconClassName }: Toolt
         </TooltipTrigger>
         <TooltipContent 
           side="top" 
-          className="max-w-xs sm:max-w-sm p-3 text-sm"
+          className="max-w-xs sm:max-w-sm p-3 text-sm bg-background text-foreground border-2 border-primary/20 shadow-lg"
           sideOffset={5}
         >
           {content}
