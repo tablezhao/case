@@ -796,6 +796,7 @@ export default function CaseManagePage() {
                   </TableHead>
                   <TableHead className="w-[120px]">通报日期</TableHead>
                   <TableHead className="min-w-[180px]">应用名称</TableHead>
+                  <TableHead className="w-[180px]">开发者/运营者</TableHead>
                   <TableHead className="w-[200px]">监管部门</TableHead>
                   <TableHead className="w-[160px]">应用平台</TableHead>
                   <TableHead className="w-[120px] text-right">操作</TableHead>
@@ -804,7 +805,7 @@ export default function CaseManagePage() {
               <TableBody>
                 {cases.length === 0 ? (
                   <TableRow>
-                    <TableCell colSpan={6} className="text-center text-muted-foreground py-8">
+                    <TableCell colSpan={7} className="text-center text-muted-foreground py-8">
                       暂无数据
                     </TableCell>
                   </TableRow>
@@ -825,6 +826,7 @@ export default function CaseManagePage() {
                         </TableCell>
                         <TableCell className="text-sm whitespace-nowrap">{caseItem.report_date}</TableCell>
                         <TableCell className="font-medium text-sm">{caseItem.app_name}</TableCell>
+                        <TableCell className="text-sm">{caseItem.app_developer || '-'}</TableCell>
                         <TableCell className="text-sm">{caseItem.department?.name || '-'}</TableCell>
                         <TableCell className="text-sm">{caseItem.platform?.name || '-'}</TableCell>
                         <TableCell className="text-right">
