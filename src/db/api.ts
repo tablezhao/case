@@ -1523,3 +1523,339 @@ export async function getHighFrequencyPeriods(threshold = 5) {
     }))
     .sort((a, b) => b.totalCount - a.totalCount);
 }
+
+// ============ 违规问题分析 ============
+
+/**
+ * 提取违规问题关键词
+ * @param violationContent 违规内容文本
+ * @returns 违规问题关键词数组
+ */
+function extractViolationKeywords(violationContent: string): string[] {
+  if (!violationContent || violationContent === '未提供违规内容') return [];
+
+  const keywords: string[] = [];
+  
+  // 常见违规问题关键词模式
+  const patterns = [
+    /违规(收集|使用|处理|共享|传输).*?(个人信息|用户信息|隐私信息)/g,
+    /未(经|经过|经用户)同意.*?(收集|使用|处理|共享)/g,
+    /超范围(收集|使用|处理)/g,
+    /强制.*?授权/g,
+    /频繁.*?申请.*?权限/g,
+    /过度.*?(索取|收集).*?权限/g,
+    /未(提供|明示).*?(隐私政策|用户协议)/g,
+    /未(公开|公示).*?(收集|使用)规则/g,
+    /未(提供|设置).*?(注销|删除|撤回).*?功能/g,
+    /未(经|经过).*?同意.*?(推送|发送).*?(信息|消息|广告)/g,
+    /欺骗.*?误导.*?用户/g,
+    /诱导.*?用户/g,
+    /违规.*?(广告|推送|弹窗)/g,
+    /恶意.*?(吸费|扣费)/g,
+    /私自.*?(下载|安装|调用)/g,
+    /捆绑.*?安装/g,
+    /强制.*?更新/g,
+    /违规.*?SDK/g,
+    /第三方.*?SDK.*?违规/g,
+    /未经.*?许可.*?(调用|使用).*?接口/g,
+  ];
+
+  patterns.forEach(pattern => {
+    const matches = violationContent.match(pattern);
+    if (matches) {
+      matches.forEach(match => {
+        // 清理和标准化关键词
+        let keyword = match.trim();
+        // 限制长度
+        if (keyword.length > 30) {
+          keyword = keyword.substring(0, 30) + '...';
+        }
+        if (keyword && !keywords.includes(keyword)) {
+          keywords.push(keyword);
+        }
+      });
+    }
+  });
+
+  // 如果没有匹配到关键词，尝试提取简短的句子
+  if (keywords.length === 0) {
+    const sentences = violationContent.split(/[。；;]/).filter(s => s.trim().length > 0);
+    if (sentences.length > 0) {
+      const firstSentence = sentences[0].trim();
+      if (firstSentence.length <= 50) {
+        keywords.push(firstSentence);
+      } else {
+        keywords.push(firstSentence.substring(0, 50) + '...');
+      }
+    }
+  }
+
+  return keywords;
+}
+
+/**
+ * 获取违规问题类型统计
+ * @param departmentIds 部门ID数组（可选）
+ * @param startDate 开始日期（可选）
+ * @param endDate 结束日期（可选）
+ * @returns 违规问题类型统计数据
+ */
+export async function getViolationTypeAnalysis(
+  departmentIds?: string[],
+  startDate?: string,
+  endDate?: string
+) {
+  let query = supabase
+    .from('cases')
+    .select('violation_content, report_date, department_id');
+
+  // 应用筛选条件
+  if (departmentIds && departmentIds.length > 0) {
+    query = query.in('department_id', departmentIds);
+  }
+  if (startDate) {
+    query = query.gte('report_date', startDate);
+  }
+  if (endDate) {
+    query = query.lte('report_date', endDate);
+  }
+
+  const { data, error } = await query;
+
+  if (error) throw error;
+
+  // 统计违规问题类型
+  const typeCount: Record<string, number> = {};
+  
+  (data || []).forEach(item => {
+    const keywords = extractViolationKeywords(item.violation_content || '');
+    keywords.forEach(keyword => {
+      typeCount[keyword] = (typeCount[keyword] || 0) + 1;
+    });
+  });
+
+  // 转换为数组并排序
+  return Object.entries(typeCount)
+    .map(([type, count]) => ({ type, count }))
+    .sort((a, b) => b.count - a.count);
+}
+
+/**
+ * 获取违规问题时间趋势
+ * @param departmentIds 部门ID数组（可选）
+ * @param year 年份
+ * @param granularity 时间粒度（month/day）
+ * @returns 违规问题时间趋势数据
+ */
+export async function getViolationTimeTrend(
+  departmentIds: string[] | undefined,
+  year: string,
+  granularity: 'month' | 'day' = 'month'
+) {
+  let query = supabase
+    .from('cases')
+    .select('violation_content, report_date')
+    .gte('report_date', `${year}-01-01`)
+    .lte('report_date', `${year}-12-31`);
+
+  if (departmentIds && departmentIds.length > 0) {
+    query = query.in('department_id', departmentIds);
+  }
+
+  const { data, error } = await query;
+
+  if (error) throw error;
+
+  // 按时间粒度统计
+  const timeTrend: Record<string, number> = {};
+
+  (data || []).forEach(item => {
+    const keywords = extractViolationKeywords(item.violation_content || '');
+    if (keywords.length === 0) return;
+
+    let timeKey: string;
+    if (granularity === 'month') {
+      timeKey = item.report_date.substring(0, 7); // YYYY-MM
+    } else {
+      timeKey = item.report_date; // YYYY-MM-DD
+    }
+
+    timeTrend[timeKey] = (timeTrend[timeKey] || 0) + keywords.length;
+  });
+
+  // 转换为数组并排序
+  return Object.entries(timeTrend)
+    .map(([time, count]) => ({ time, count }))
+    .sort((a, b) => a.time.localeCompare(b.time));
+}
+
+/**
+ * 获取违规问题与部门关联分析
+ * @param year 年份
+ * @param topN 返回前N个违规问题
+ * @returns 违规问题与部门关联数据
+ */
+export async function getViolationDepartmentAnalysis(year: string, topN = 10) {
+  const { data, error } = await supabase
+    .from('cases')
+    .select(`
+      violation_content,
+      department_id,
+      department:regulatory_departments(id, name)
+    `)
+    .gte('report_date', `${year}-01-01`)
+    .lte('report_date', `${year}-12-31`);
+
+  if (error) throw error;
+
+  // 统计每个违规问题的部门分布
+  const violationDeptMap: Record<string, Record<string, { name: string; count: number }>> = {};
+
+  (data || []).forEach(item => {
+    if (!item.department_id || !item.department) return;
+
+    const keywords = extractViolationKeywords(item.violation_content || '');
+    const deptId = item.department_id;
+    const deptName = (item.department as any).name;
+
+    keywords.forEach(keyword => {
+      if (!violationDeptMap[keyword]) {
+        violationDeptMap[keyword] = {};
+      }
+      if (!violationDeptMap[keyword][deptId]) {
+        violationDeptMap[keyword][deptId] = { name: deptName, count: 0 };
+      }
+      violationDeptMap[keyword][deptId].count++;
+    });
+  });
+
+  // 计算每个违规问题的总数并排序
+  const violationTotals = Object.entries(violationDeptMap).map(([violation, depts]) => {
+    const total = Object.values(depts).reduce((sum, dept) => sum + dept.count, 0);
+    return { violation, total, departments: depts };
+  });
+
+  violationTotals.sort((a, b) => b.total - a.total);
+
+  // 返回前N个违规问题及其部门分布
+  return violationTotals.slice(0, topN).map(item => ({
+    violation: item.violation,
+    total: item.total,
+    departments: Object.entries(item.departments)
+      .map(([id, dept]) => ({
+        departmentId: id,
+        departmentName: dept.name,
+        count: dept.count,
+      }))
+      .sort((a, b) => b.count - a.count),
+  }));
+}
+
+/**
+ * 获取违规问题严重程度分析（基于频次）
+ * @param year 年份
+ * @returns 违规问题严重程度分级数据
+ */
+export async function getViolationSeverityAnalysis(year: string) {
+  const { data, error } = await supabase
+    .from('cases')
+    .select('violation_content')
+    .gte('report_date', `${year}-01-01`)
+    .lte('report_date', `${year}-12-31`);
+
+  if (error) throw error;
+
+  // 统计违规问题频次
+  const violationCount: Record<string, number> = {};
+
+  (data || []).forEach(item => {
+    const keywords = extractViolationKeywords(item.violation_content || '');
+    keywords.forEach(keyword => {
+      violationCount[keyword] = (violationCount[keyword] || 0) + 1;
+    });
+  });
+
+  // 计算分级阈值
+  const counts = Object.values(violationCount);
+  if (counts.length === 0) {
+    return { high: [], medium: [], low: [] };
+  }
+
+  const maxCount = Math.max(...counts);
+  const highThreshold = maxCount * 0.6; // 高频：超过最大值的60%
+  const mediumThreshold = maxCount * 0.3; // 中频：超过最大值的30%
+
+  // 分级
+  const high: Array<{ violation: string; count: number }> = [];
+  const medium: Array<{ violation: string; count: number }> = [];
+  const low: Array<{ violation: string; count: number }> = [];
+
+  Object.entries(violationCount).forEach(([violation, count]) => {
+    const item = { violation, count };
+    if (count >= highThreshold) {
+      high.push(item);
+    } else if (count >= mediumThreshold) {
+      medium.push(item);
+    } else {
+      low.push(item);
+    }
+  });
+
+  // 排序
+  high.sort((a, b) => b.count - a.count);
+  medium.sort((a, b) => b.count - a.count);
+  low.sort((a, b) => b.count - a.count);
+
+  return { high, medium, low };
+}
+
+/**
+ * 导出违规问题分析数据
+ * @param departmentIds 部门ID数组（可选）
+ * @param startDate 开始日期（可选）
+ * @param endDate 结束日期（可选）
+ * @returns 完整的违规问题分析数据
+ */
+export async function exportViolationAnalysis(
+  departmentIds?: string[],
+  startDate?: string,
+  endDate?: string
+) {
+  let query = supabase
+    .from('cases')
+    .select(`
+      id,
+      report_date,
+      app_name,
+      app_developer,
+      violation_content,
+      department:regulatory_departments(name),
+      platform:app_platforms(name)
+    `);
+
+  if (departmentIds && departmentIds.length > 0) {
+    query = query.in('department_id', departmentIds);
+  }
+  if (startDate) {
+    query = query.gte('report_date', startDate);
+  }
+  if (endDate) {
+    query = query.lte('report_date', endDate);
+  }
+
+  const { data, error } = await query.order('report_date', { ascending: false });
+
+  if (error) throw error;
+
+  // 处理数据，提取违规问题关键词
+  return (data || []).map(item => ({
+    id: item.id,
+    report_date: item.report_date,
+    app_name: item.app_name,
+    app_developer: item.app_developer || '未知',
+    department: (item.department as any)?.name || '未知',
+    platform: (item.platform as any)?.name || '未知',
+    violation_content: item.violation_content || '未提供违规内容',
+    violation_keywords: extractViolationKeywords(item.violation_content || '').join('; '),
+  }));
+}
