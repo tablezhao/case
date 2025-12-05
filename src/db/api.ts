@@ -704,6 +704,105 @@ export async function getStatsOverview(): Promise<StatsOverview> {
 }
 
 // 获取年度趋势数据
+// 获取年度趋势数据（按应用数量统计，去重）
+export async function getYearlyAppTrend() {
+  const { data, error } = await supabase
+    .from('cases')
+    .select('report_date, app_name');
+  
+  if (error) throw error;
+  
+  const yearApps: Record<string, Set<string>> = {};
+  (data || []).forEach(item => {
+    const year = item.report_date.substring(0, 4);
+    if (!yearApps[year]) {
+      yearApps[year] = new Set();
+    }
+    yearApps[year].add(item.app_name);
+  });
+
+  return Object.entries(yearApps)
+    .map(([year, apps]) => ({ year, count: apps.size }))
+    .sort((a, b) => a.year.localeCompare(b.year));
+}
+
+// 获取月度趋势数据（按应用数量统计，去重）
+export async function getMonthlyAppTrend(year?: string) {
+  let query = supabase.from('cases').select('report_date, app_name');
+  
+  if (year) {
+    query = query.gte('report_date', `${year}-01-01`).lte('report_date', `${year}-12-31`);
+  }
+
+  const { data, error } = await query;
+  
+  if (error) throw error;
+  
+  const monthApps: Record<string, Set<string>> = {};
+  (data || []).forEach(item => {
+    const month = item.report_date.substring(0, 7);
+    if (!monthApps[month]) {
+      monthApps[month] = new Set();
+    }
+    monthApps[month].add(item.app_name);
+  });
+
+  return Object.entries(monthApps)
+    .map(([month, apps]) => ({ month, count: apps.size }))
+    .sort((a, b) => a.month.localeCompare(b.month));
+}
+
+// 获取年度通报频次趋势（按部门+日期去重）
+export async function getYearlyReportTrend() {
+  const { data, error } = await supabase
+    .from('cases')
+    .select('report_date, department_id');
+  
+  if (error) throw error;
+  
+  const yearReports: Record<string, Set<string>> = {};
+  (data || []).forEach(item => {
+    const year = item.report_date.substring(0, 4);
+    if (!yearReports[year]) {
+      yearReports[year] = new Set();
+    }
+    const key = `${item.department_id}_${item.report_date}`;
+    yearReports[year].add(key);
+  });
+
+  return Object.entries(yearReports)
+    .map(([year, reports]) => ({ year, count: reports.size }))
+    .sort((a, b) => a.year.localeCompare(b.year));
+}
+
+// 获取月度通报频次趋势（按部门+日期去重）
+export async function getMonthlyReportTrend(year?: string) {
+  let query = supabase.from('cases').select('report_date, department_id');
+  
+  if (year) {
+    query = query.gte('report_date', `${year}-01-01`).lte('report_date', `${year}-12-31`);
+  }
+
+  const { data, error } = await query;
+  
+  if (error) throw error;
+  
+  const monthReports: Record<string, Set<string>> = {};
+  (data || []).forEach(item => {
+    const month = item.report_date.substring(0, 7);
+    if (!monthReports[month]) {
+      monthReports[month] = new Set();
+    }
+    const key = `${item.department_id}_${item.report_date}`;
+    monthReports[month].add(key);
+  });
+
+  return Object.entries(monthReports)
+    .map(([month, reports]) => ({ month, count: reports.size }))
+    .sort((a, b) => a.month.localeCompare(b.month));
+}
+
+// 获取年度趋势数据（原有的，保留用于兼容）
 export async function getYearlyTrend() {
   const { data, error } = await supabase
     .from('cases')
@@ -722,7 +821,7 @@ export async function getYearlyTrend() {
     .sort((a, b) => a.year.localeCompare(b.year));
 }
 
-// 获取月度趋势数据
+// 获取月度趋势数据（原有的，保留用于兼容）
 export async function getMonthlyTrend(year?: string) {
   let query = supabase.from('cases').select('report_date');
   

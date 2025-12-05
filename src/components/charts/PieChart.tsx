@@ -41,6 +41,14 @@ export default function PieChart({ data, title }: PieChartProps) {
       tooltip: {
         trigger: 'item',
         formatter: '{b}: {c} ({d}%)',
+        backgroundColor: 'rgba(255, 255, 255, 0.95)',
+        borderColor: '#ddd',
+        borderWidth: 1,
+        textStyle: {
+          color: '#333',
+          fontSize: 13,
+        },
+        padding: [10, 15],
       },
       legend: {
         // 小屏幕使用底部横向布局，大屏幕使用右侧纵向布局
@@ -76,7 +84,7 @@ export default function PieChart({ data, title }: PieChartProps) {
           center: isSmallScreen ? ['50%', '40%'] : ['40%', '50%'],
           avoidLabelOverlap: false,
           itemStyle: {
-            borderRadius: 4,
+            borderRadius: 6,
             borderColor: '#fff',
             borderWidth: 2,
           },
@@ -90,6 +98,14 @@ export default function PieChart({ data, title }: PieChartProps) {
               fontSize: isSmallScreen ? 16 : 20,
               fontWeight: 'bold',
             },
+            itemStyle: {
+              shadowBlur: 15,
+              shadowOffsetX: 0,
+              shadowOffsetY: 0,
+              shadowColor: 'rgba(0, 0, 0, 0.3)',
+            },
+            scale: true,
+            scaleSize: 10,
           },
           labelLine: {
             show: false,

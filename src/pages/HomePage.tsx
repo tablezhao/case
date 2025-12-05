@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react';
 import { FileText, Building2, Calendar, AlertCircle } from 'lucide-react';
 import StatsCard from '@/components/home/StatsCard';
-import TrendChart from '@/components/charts/TrendChart';
+import TrendComparisonChart from '@/components/charts/TrendComparisonChart';
 import PieChart from '@/components/charts/PieChart';
 import WordCloud from '@/components/charts/WordCloud';
 import GeoChart from '@/components/charts/GeoChart';
@@ -11,8 +11,10 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { toast } from 'sonner';
 import {
   getStatsOverview,
-  getMonthlyTrend,
-  getYearlyTrend,
+  getMonthlyAppTrend,
+  getYearlyAppTrend,
+  getMonthlyReportTrend,
+  getYearlyReportTrend,
   getDepartmentDistribution,
   getNationalDepartmentDistribution,
   getProvincialDepartmentDistribution,
@@ -27,8 +29,10 @@ import { Link } from 'react-router-dom';
 
 export default function HomePage() {
   const [stats, setStats] = useState<StatsOverview | null>(null);
-  const [monthlyData, setMonthlyData] = useState<{ month: string; count: number }[]>([]);
-  const [yearlyData, setYearlyData] = useState<{ year: string; count: number }[]>([]);
+  const [monthlyAppData, setMonthlyAppData] = useState<{ month: string; count: number }[]>([]);
+  const [yearlyAppData, setYearlyAppData] = useState<{ year: string; count: number }[]>([]);
+  const [monthlyReportData, setMonthlyReportData] = useState<{ month: string; count: number }[]>([]);
+  const [yearlyReportData, setYearlyReportData] = useState<{ year: string; count: number }[]>([]);
   const [deptData, setDeptData] = useState<{ name: string; count: number }[]>([]);
   const [nationalDeptData, setNationalDeptData] = useState<{ name: string; count: number }[]>([]);
   const [provincialDeptData, setProvincialDeptData] = useState<{ name: string; count: number }[]>([]);
@@ -39,6 +43,7 @@ export default function HomePage() {
   const [configs, setConfigs] = useState<FrontendConfig[]>([]);
   const [loading, setLoading] = useState(true);
   const [trendView, setTrendView] = useState<'monthly' | 'yearly'>('monthly');
+  const [trendDimension, setTrendDimension] = useState<'app' | 'report' | 'comparison'>('app');
   const [analysisView, setAnalysisView] = useState<'department' | 'geography'>('department');
   const [deptLevelView, setDeptLevelView] = useState<'national' | 'provincial'>('national');
   const [timeDimension, setTimeDimension] = useState<'month' | 'quarter' | 'year'>('month');
@@ -52,8 +57,10 @@ export default function HomePage() {
       setLoading(true);
       const [
         statsData,
-        monthlyTrend,
-        yearlyTrend,
+        monthlyAppTrend,
+        yearlyAppTrend,
+        monthlyReportTrend,
+        yearlyReportTrend,
         deptDist,
         nationalDeptDist,
         provincialDeptDist,
@@ -64,8 +71,10 @@ export default function HomePage() {
         configsData,
       ] = await Promise.all([
         getStatsOverview(),
-        getMonthlyTrend(),
-        getYearlyTrend(),
+        getMonthlyAppTrend(),
+        getYearlyAppTrend(),
+        getMonthlyReportTrend(),
+        getYearlyReportTrend(),
         getDepartmentDistribution(),
         getNationalDepartmentDistribution(),
         getProvincialDepartmentDistribution(),
@@ -78,8 +87,10 @@ export default function HomePage() {
 
       console.log('首页数据加载成功:', {
         statsData,
-        monthlyTrend,
-        yearlyTrend,
+        monthlyAppTrend,
+        yearlyAppTrend,
+        monthlyReportTrend,
+        yearlyReportTrend,
         deptDist,
         nationalDeptDist,
         provincialDeptDist,
@@ -91,8 +102,10 @@ export default function HomePage() {
       });
 
       setStats(statsData);
-      setMonthlyData(monthlyTrend);
-      setYearlyData(yearlyTrend);
+      setMonthlyAppData(monthlyAppTrend);
+      setYearlyAppData(yearlyAppTrend);
+      setMonthlyReportData(monthlyReportTrend);
+      setYearlyReportData(yearlyReportTrend);
       setDeptData(deptDist);
       setNationalDeptData(nationalDeptDist);
       setProvincialDeptData(provincialDeptDist);
@@ -303,27 +316,54 @@ export default function HomePage() {
       {isModuleVisible('trend_chart') && (
         <Card>
           <CardHeader>
-            <div className="flex flex-col xl:flex-row xl:items-center xl:justify-between gap-3">
-              <CardTitle className="text-lg sm:text-xl">通报趋势分析</CardTitle>
-              <Tabs value={trendView} onValueChange={(v) => setTrendView(v as 'monthly' | 'yearly')}>
-                <TabsList className="grid grid-cols-2 w-full xl:w-auto xl:min-w-[240px]">
-                  <TabsTrigger value="monthly" className="text-sm">月度视图</TabsTrigger>
-                  <TabsTrigger value="yearly" className="text-sm">年度视图</TabsTrigger>
+            <div className="flex flex-col gap-4">
+              <div className="flex flex-col xl:flex-row xl:items-center xl:justify-between gap-3">
+                <CardTitle className="text-lg sm:text-xl">通报趋势分析</CardTitle>
+                <Tabs value={trendView} onValueChange={(v) => setTrendView(v as 'monthly' | 'yearly')}>
+                  <TabsList className="grid grid-cols-2 w-full xl:w-auto xl:min-w-[240px]">
+                    <TabsTrigger value="monthly" className="text-sm">月度视图</TabsTrigger>
+                    <TabsTrigger value="yearly" className="text-sm">年度视图</TabsTrigger>
+                  </TabsList>
+                </Tabs>
+              </div>
+              <Tabs value={trendDimension} onValueChange={(v) => setTrendDimension(v as 'app' | 'report' | 'comparison')}>
+                <TabsList className="grid grid-cols-3 w-full">
+                  <TabsTrigger value="app" className="text-sm">通报应用数量</TabsTrigger>
+                  <TabsTrigger value="report" className="text-sm">通报频次</TabsTrigger>
+                  <TabsTrigger value="comparison" className="text-sm">对比分析</TabsTrigger>
                 </TabsList>
               </Tabs>
             </div>
           </CardHeader>
           <CardContent className="px-2 sm:px-6">
-            {trendView === 'monthly' && monthlyData.length > 0 && (
-              <TrendChart data={monthlyData} title="" type="monthly" />
+            {trendView === 'monthly' && (
+              <TrendComparisonChart 
+                appData={monthlyAppData} 
+                reportData={monthlyReportData}
+                type="monthly"
+                mode={trendDimension}
+              />
             )}
-            {trendView === 'yearly' && yearlyData.length > 0 && (
-              <TrendChart data={yearlyData} title="" type="yearly" />
+            {trendView === 'yearly' && (
+              <TrendComparisonChart 
+                appData={yearlyAppData} 
+                reportData={yearlyReportData}
+                type="yearly"
+                mode={trendDimension}
+              />
             )}
-            {((trendView === 'monthly' && monthlyData.length === 0) ||
-              (trendView === 'yearly' && yearlyData.length === 0)) && (
+            {((trendView === 'monthly' && monthlyAppData.length === 0 && monthlyReportData.length === 0) ||
+              (trendView === 'yearly' && yearlyAppData.length === 0 && yearlyReportData.length === 0)) && (
               <div className="text-center py-8 text-muted-foreground">暂无数据</div>
             )}
+            <div className="mt-4 p-4 bg-muted/30 rounded-lg space-y-2">
+              <p className="text-sm font-semibold text-foreground">📊 统计说明</p>
+              <div className="text-xs text-muted-foreground space-y-1">
+                <p>• <span className="font-medium text-foreground">通报应用数量</span>：按应用名称去重统计，同一应用在多个平台被通报只计算1次</p>
+                <p>• <span className="font-medium text-foreground">通报频次</span>：按"部门+日期"去重统计，同一部门在同一天发布的通报算作1次通报活动</p>
+                <p>• <span className="font-medium text-foreground">数据关系</span>：1次通报活动可能涉及多个应用</p>
+              </div>
+            </div>
           </CardContent>
         </Card>
       )}
