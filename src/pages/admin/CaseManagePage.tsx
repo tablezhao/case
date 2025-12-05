@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { getCases, createCase, updateCase, deleteCase, getDepartments, getPlatforms, createDepartment, createPlatform, batchCreateCasesWithDedup, batchDeleteCases, batchUpdateCases } from '@/db/api';
+import { getCases, createCase, updateCase, deleteCase, getDepartments, getPlatforms, createDepartment, createPlatform, batchCreateCasesWithDedup, batchDeleteCases, batchUpdateCases, smartImportCases } from '@/db/api';
 import type { CaseWithDetails, RegulatoryDepartment, AppPlatform } from '@/types/types';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -254,33 +254,51 @@ export default function CaseManagePage() {
     if (!file) return;
 
     try {
+      setLoading(true);
       const data = await file.arrayBuffer();
       const workbook = XLSX.read(data);
       const worksheet = workbook.Sheets[workbook.SheetNames[0]];
       const jsonData = XLSX.utils.sheet_to_json(worksheet);
 
-      const casesToImport = jsonData.map((row: any) => {
-        const dept = departments.find(d => d.name === row['监管部门']);
-        const plat = platforms.find(p => p.name === row['应用平台']);
+      // 转换为智能导入所需的格式
+      const rawData = jsonData.map((row: any) => ({
+        report_date: row['通报日期'],
+        app_name: row['应用名称'],
+        app_developer: row['开发者/运营者'] || null,
+        department_name: row['监管部门'] || '',
+        platform_name: row['应用平台'] || '',
+        violation_content: row['主要违规内容'] || row['违规摘要'] || null,
+        source_url: row['原文链接'] || null,
+      }));
 
-        return {
-          report_date: row['通报日期'],
-          app_name: row['应用名称'],
-          app_developer: row['开发者/运营者'] || null,
-          department_id: dept?.id || null,
-          platform_id: plat?.id || null,
-          violation_content: row['主要违规内容'] || row['违规摘要'] || null,
-          source_url: row['原文链接'] || null,
-        };
+      // 使用智能导入（自动创建不存在的部门和平台）
+      const result = await smartImportCases(rawData);
+      
+      // 构建详细的成功消息
+      let message = `✅ 成功导入 ${result.inserted} 条案例`;
+      
+      if (result.duplicatesRemoved > 0) {
+        message += `\n🔄 去重 ${result.duplicatesRemoved} 条`;
+      }
+      
+      if (result.createdDepartments > 0) {
+        message += `\n🏢 新增监管部门 ${result.createdDepartments} 个：${result.newDepartments.join('、')}`;
+      }
+      
+      if (result.createdPlatforms > 0) {
+        message += `\n📱 新增应用平台 ${result.createdPlatforms} 个：${result.newPlatforms.join('、')}`;
+      }
+      
+      toast.success(message, {
+        duration: 6000,
       });
-
-      // 使用带去重的导入函数
-      const result = await batchCreateCasesWithDedup(casesToImport);
-      toast.success(`成功导入 ${result.inserted} 条案例${result.duplicatesRemoved > 0 ? `，去重 ${result.duplicatesRemoved} 条` : ''}`);
+      
       loadData();
     } catch (error) {
       console.error('导入失败:', error);
-      toast.error('导入失败');
+      toast.error(error instanceof Error ? error.message : '导入失败');
+    } finally {
+      setLoading(false);
     }
 
     e.target.value = '';

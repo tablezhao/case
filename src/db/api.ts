@@ -366,6 +366,108 @@ export async function batchCreateCasesWithDedup(cases: Omit<Case, 'id' | 'create
   };
 }
 
+// 智能导入案例（自动创建不存在的部门和平台）
+export async function smartImportCases(
+  rawData: Array<{
+    report_date: string;
+    app_name: string;
+    app_developer?: string | null;
+    department_name: string;
+    platform_name: string;
+    violation_content?: string | null;
+    source_url?: string | null;
+  }>
+) {
+  // 1. 获取现有的部门和平台
+  const [existingDepartments, existingPlatforms] = await Promise.all([
+    getDepartments(),
+    getPlatforms(),
+  ]);
+
+  // 2. 收集需要创建的新部门和平台
+  const newDepartmentNames = new Set<string>();
+  const newPlatformNames = new Set<string>();
+  const departmentMap = new Map<string, string>(); // name -> id
+  const platformMap = new Map<string, string>(); // name -> id
+
+  // 初始化已存在的部门和平台映射
+  existingDepartments.forEach(dept => {
+    departmentMap.set(dept.name, dept.id);
+  });
+  existingPlatforms.forEach(plat => {
+    platformMap.set(plat.name, plat.id);
+  });
+
+  // 识别需要创建的新部门和平台
+  rawData.forEach(row => {
+    if (row.department_name && !departmentMap.has(row.department_name)) {
+      newDepartmentNames.add(row.department_name);
+    }
+    if (row.platform_name && !platformMap.has(row.platform_name)) {
+      newPlatformNames.add(row.platform_name);
+    }
+  });
+
+  // 3. 批量创建新部门
+  const createdDepartments: RegulatoryDepartment[] = [];
+  for (const deptName of newDepartmentNames) {
+    try {
+      const newDept = await createDepartment({
+        name: deptName,
+        level: 'national', // 默认为国家级
+        province: null,
+      });
+      if (newDept) {
+        createdDepartments.push(newDept);
+        departmentMap.set(newDept.name, newDept.id);
+      }
+    } catch (error) {
+      console.error(`创建部门失败: ${deptName}`, error);
+      throw new Error(`创建部门失败: ${deptName}`);
+    }
+  }
+
+  // 4. 批量创建新平台
+  const createdPlatforms: AppPlatform[] = [];
+  for (const platName of newPlatformNames) {
+    try {
+      const newPlat = await createPlatform({
+        name: platName,
+      });
+      if (newPlat) {
+        createdPlatforms.push(newPlat);
+        platformMap.set(newPlat.name, newPlat.id);
+      }
+    } catch (error) {
+      console.error(`创建平台失败: ${platName}`, error);
+      throw new Error(`创建平台失败: ${platName}`);
+    }
+  }
+
+  // 5. 转换数据并导入案例
+  const casesToImport = rawData.map(row => ({
+    report_date: row.report_date,
+    app_name: row.app_name,
+    app_developer: row.app_developer || null,
+    department_id: departmentMap.get(row.department_name) || null,
+    platform_id: platformMap.get(row.platform_name) || null,
+    violation_content: row.violation_content || null,
+    source_url: row.source_url || null,
+  }));
+
+  // 6. 使用去重导入
+  const importResult = await batchCreateCasesWithDedup(casesToImport);
+
+  // 7. 返回详细结果
+  return {
+    ...importResult,
+    createdDepartments: createdDepartments.length,
+    createdPlatforms: createdPlatforms.length,
+    newDepartments: createdDepartments.map(d => d.name),
+    newPlatforms: createdPlatforms.map(p => p.name),
+  };
+}
+
 // ============ 监管资讯相关 ============
 export async function getNews(page = 1, pageSize = 20, sortBy = 'publish_date', sortOrder: 'asc' | 'desc' = 'desc') {
   const from = (page - 1) * pageSize;
