@@ -8,6 +8,12 @@ import { Label } from '@/components/ui/label';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Badge } from '@/components/ui/badge';
 import {
+  Tooltip,
+  TooltipContent,
+  TooltipProvider,
+  TooltipTrigger,
+} from '@/components/ui/tooltip';
+import {
   Select,
   SelectContent,
   SelectItem,
@@ -317,16 +323,17 @@ export default function CasesPage() {
 
         <CardContent className="px-0 sm:px-6">
           {/* 桌面端表格视图 */}
-          <div className="hidden md:block rounded-md border overflow-x-auto">
-            <Table>
-              <TableHeader>
-                <TableRow className="bg-muted/50">
-                  <TableHead className="w-[100px]">通报日期</TableHead>
-                  <TableHead className="w-[150px]">应用名称</TableHead>
-                  <TableHead className="w-[140px]">开发者/运营者</TableHead>
-                  <TableHead className="w-[180px]">监管部门</TableHead>
-                  <TableHead className="w-[120px]">应用平台</TableHead>
-                  <TableHead>主要违规内容</TableHead>
+          <TooltipProvider delayDuration={300}>
+            <div className="hidden md:block rounded-md border overflow-x-auto">
+              <Table>
+                <TableHeader>
+                  <TableRow className="bg-muted/50">
+                    <TableHead className="w-[100px]">通报日期</TableHead>
+                    <TableHead className="w-[150px]">应用名称</TableHead>
+                    <TableHead className="w-[140px]">开发者/运营者</TableHead>
+                    <TableHead className="w-[180px]">监管部门</TableHead>
+                    <TableHead className="w-[120px]">应用平台</TableHead>
+                    <TableHead>主要违规内容</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
@@ -384,13 +391,25 @@ export default function CasesPage() {
                           <span className="text-sm text-muted-foreground">-</span>
                         )}
                       </TableCell>
-                      <TableCell>
-                        <div 
-                          className="line-clamp-2 text-sm text-muted-foreground leading-relaxed"
-                          title={caseItem.violation_content || '-'}
-                        >
-                          {caseItem.violation_content || '-'}
-                        </div>
+                      <TableCell className="max-w-[300px]">
+                        <Tooltip>
+                          <TooltipTrigger asChild>
+                            <div 
+                              className="line-clamp-2 text-sm text-muted-foreground leading-relaxed cursor-help"
+                            >
+                              {caseItem.violation_content || '-'}
+                            </div>
+                          </TooltipTrigger>
+                          <TooltipContent 
+                            className="max-w-md p-3 text-sm"
+                            side="top"
+                            align="start"
+                          >
+                            <p className="whitespace-pre-wrap">
+                              {caseItem.violation_content || '暂无违规内容'}
+                            </p>
+                          </TooltipContent>
+                        </Tooltip>
                       </TableCell>
                     </TableRow>
                   ))
@@ -398,6 +417,7 @@ export default function CasesPage() {
               </TableBody>
             </Table>
           </div>
+          </TooltipProvider>
 
           {/* 移动端卡片视图 */}
           <div className="md:hidden space-y-3 px-4">
