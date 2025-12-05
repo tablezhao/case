@@ -5,6 +5,7 @@ import CaseDetailPage from './pages/CaseDetailPage';
 import NewsPage from './pages/NewsPage';
 import NewsDetailPage from './pages/NewsDetailPage';
 import DepartmentsPublicPage from './pages/DepartmentsPage';
+import TrendAnalysisPage from './pages/TrendAnalysisPage';
 import LoginPage from './pages/LoginPage';
 import AdminPage from './pages/admin/AdminPage';
 import CaseManagePage from './pages/admin/CaseManagePage';
@@ -58,6 +59,12 @@ const routes: RouteConfig[] = [
     name: '监管部门',
     path: '/departments',
     element: <DepartmentsPublicPage />,
+    visible: true,
+  },
+  {
+    name: '趋势分析',
+    path: '/trend-analysis',
+    element: <TrendAnalysisPage />,
     visible: true,
   },
   {

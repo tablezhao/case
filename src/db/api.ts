@@ -1195,3 +1195,331 @@ export async function deleteFooterSetting(id: string) {
   
   if (error) throw error;
 }
+
+// ============ 多维度关联分析 ============
+
+/**
+ * 获取部门-年度-月度通报频次分析数据
+ * @param departmentIds 部门ID数组（可选，为空则查询所有部门）
+ * @param startYear 开始年份（可选）
+ * @param endYear 结束年份（可选）
+ * @returns 部门-时间维度的通报频次数据
+ */
+export async function getDepartmentTimeTrend(
+  departmentIds?: string[],
+  startYear?: string,
+  endYear?: string
+) {
+  let query = supabase
+    .from('cases')
+    .select(`
+      report_date,
+      department_id,
+      department:regulatory_departments(id, name)
+    `);
+
+  // 应用部门筛选
+  if (departmentIds && departmentIds.length > 0) {
+    query = query.in('department_id', departmentIds);
+  }
+
+  // 应用年份筛选
+  if (startYear) {
+    query = query.gte('report_date', `${startYear}-01-01`);
+  }
+  if (endYear) {
+    query = query.lte('report_date', `${endYear}-12-31`);
+  }
+
+  const { data, error } = await query;
+
+  if (error) throw error;
+
+  // 数据结构：{ departmentId: { departmentName: string, years: { year: { months: { month: count } } } } }
+  const result: Record<string, {
+    departmentName: string;
+    years: Record<string, {
+      total: number;
+      months: Record<string, number>;
+    }>;
+  }> = {};
+
+  // 用于去重的Set：部门+日期
+  const reportKeys = new Set<string>();
+
+  (data || []).forEach(item => {
+    if (!item.department_id || !item.department) return;
+
+    const deptId = item.department_id;
+    const deptName = (item.department as any).name;
+    const year = item.report_date.substring(0, 4);
+    const month = item.report_date.substring(5, 7);
+    const reportKey = `${deptId}_${item.report_date}`;
+
+    // 去重：同一部门同一天只算一次
+    if (reportKeys.has(reportKey)) return;
+    reportKeys.add(reportKey);
+
+    // 初始化部门数据
+    if (!result[deptId]) {
+      result[deptId] = {
+        departmentName: deptName,
+        years: {},
+      };
+    }
+
+    // 初始化年份数据
+    if (!result[deptId].years[year]) {
+      result[deptId].years[year] = {
+        total: 0,
+        months: {},
+      };
+    }
+
+    // 初始化月份数据
+    if (!result[deptId].years[year].months[month]) {
+      result[deptId].years[year].months[month] = 0;
+    }
+
+    // 累加计数
+    result[deptId].years[year].months[month]++;
+    result[deptId].years[year].total++;
+  });
+
+  return result;
+}
+
+/**
+ * 获取年度部门通报排名
+ * @param year 年份
+ * @param limit 返回数量限制
+ * @returns 部门通报频次排名
+ */
+export async function getDepartmentYearlyRanking(year: string, limit = 10) {
+  const { data, error } = await supabase
+    .from('cases')
+    .select(`
+      report_date,
+      department_id,
+      department:regulatory_departments(id, name)
+    `)
+    .gte('report_date', `${year}-01-01`)
+    .lte('report_date', `${year}-12-31`);
+
+  if (error) throw error;
+
+  // 统计每个部门的通报次数（去重）
+  const deptReports: Record<string, { name: string; dates: Set<string> }> = {};
+
+  (data || []).forEach(item => {
+    if (!item.department_id || !item.department) return;
+
+    const deptId = item.department_id;
+    const deptName = (item.department as any).name;
+
+    if (!deptReports[deptId]) {
+      deptReports[deptId] = {
+        name: deptName,
+        dates: new Set(),
+      };
+    }
+
+    deptReports[deptId].dates.add(item.report_date);
+  });
+
+  // 转换为数组并排序
+  return Object.entries(deptReports)
+    .map(([id, info]) => ({
+      departmentId: id,
+      departmentName: info.name,
+      count: info.dates.size,
+    }))
+    .sort((a, b) => b.count - a.count)
+    .slice(0, limit);
+}
+
+/**
+ * 获取月度部门通报排名
+ * @param year 年份
+ * @param month 月份（01-12）
+ * @param limit 返回数量限制
+ * @returns 部门通报频次排名
+ */
+export async function getDepartmentMonthlyRanking(year: string, month: string, limit = 10) {
+  const { data, error } = await supabase
+    .from('cases')
+    .select(`
+      report_date,
+      department_id,
+      department:regulatory_departments(id, name)
+    `)
+    .gte('report_date', `${year}-${month}-01`)
+    .lte('report_date', `${year}-${month}-31`);
+
+  if (error) throw error;
+
+  // 统计每个部门的通报次数（去重）
+  const deptReports: Record<string, { name: string; dates: Set<string> }> = {};
+
+  (data || []).forEach(item => {
+    if (!item.department_id || !item.department) return;
+
+    const deptId = item.department_id;
+    const deptName = (item.department as any).name;
+
+    if (!deptReports[deptId]) {
+      deptReports[deptId] = {
+        name: deptName,
+        dates: new Set(),
+      };
+    }
+
+    deptReports[deptId].dates.add(item.report_date);
+  });
+
+  // 转换为数组并排序
+  return Object.entries(deptReports)
+    .map(([id, info]) => ({
+      departmentId: id,
+      departmentName: info.name,
+      count: info.dates.size,
+    }))
+    .sort((a, b) => b.count - a.count)
+    .slice(0, limit);
+}
+
+/**
+ * 获取多部门对比数据（按月）
+ * @param departmentIds 部门ID数组
+ * @param year 年份
+ * @returns 多部门月度对比数据
+ */
+export async function getMultiDepartmentComparison(departmentIds: string[], year: string) {
+  const { data, error } = await supabase
+    .from('cases')
+    .select(`
+      report_date,
+      department_id,
+      department:regulatory_departments(id, name)
+    `)
+    .in('department_id', departmentIds)
+    .gte('report_date', `${year}-01-01`)
+    .lte('report_date', `${year}-12-31`);
+
+  if (error) throw error;
+
+  // 数据结构：{ departmentId: { name: string, months: { month: count } } }
+  const result: Record<string, {
+    name: string;
+    months: Record<string, number>;
+  }> = {};
+
+  // 用于去重的Set：部门+日期
+  const reportKeys = new Set<string>();
+
+  (data || []).forEach(item => {
+    if (!item.department_id || !item.department) return;
+
+    const deptId = item.department_id;
+    const deptName = (item.department as any).name;
+    const month = item.report_date.substring(5, 7);
+    const reportKey = `${deptId}_${item.report_date}`;
+
+    // 去重：同一部门同一天只算一次
+    if (reportKeys.has(reportKey)) return;
+    reportKeys.add(reportKey);
+
+    // 初始化部门数据
+    if (!result[deptId]) {
+      result[deptId] = {
+        name: deptName,
+        months: {},
+      };
+    }
+
+    // 初始化月份数据
+    if (!result[deptId].months[month]) {
+      result[deptId].months[month] = 0;
+    }
+
+    // 累加计数
+    result[deptId].months[month]++;
+  });
+
+  return result;
+}
+
+/**
+ * 获取高频通报时段分析
+ * @param threshold 阈值（通报次数）
+ * @returns 高频通报的年月及对应的部门
+ */
+export async function getHighFrequencyPeriods(threshold = 5) {
+  const { data, error } = await supabase
+    .from('cases')
+    .select(`
+      report_date,
+      department_id,
+      department:regulatory_departments(id, name)
+    `);
+
+  if (error) throw error;
+
+  // 数据结构：{ yearMonth: { count: number, departments: { deptId: { name: string, count: number } } } }
+  const periods: Record<string, {
+    count: number;
+    departments: Record<string, { name: string; count: number }>;
+  }> = {};
+
+  // 用于去重的Set：部门+日期
+  const reportKeys = new Set<string>();
+
+  (data || []).forEach(item => {
+    if (!item.department_id || !item.department) return;
+
+    const deptId = item.department_id;
+    const deptName = (item.department as any).name;
+    const yearMonth = item.report_date.substring(0, 7);
+    const reportKey = `${deptId}_${item.report_date}`;
+
+    // 去重：同一部门同一天只算一次
+    if (reportKeys.has(reportKey)) return;
+    reportKeys.add(reportKey);
+
+    // 初始化时段数据
+    if (!periods[yearMonth]) {
+      periods[yearMonth] = {
+        count: 0,
+        departments: {},
+      };
+    }
+
+    // 初始化部门数据
+    if (!periods[yearMonth].departments[deptId]) {
+      periods[yearMonth].departments[deptId] = {
+        name: deptName,
+        count: 0,
+      };
+    }
+
+    // 累加计数
+    periods[yearMonth].count++;
+    periods[yearMonth].departments[deptId].count++;
+  });
+
+  // 筛选高频时段
+  return Object.entries(periods)
+    .filter(([, info]) => info.count >= threshold)
+    .map(([yearMonth, info]) => ({
+      yearMonth,
+      totalCount: info.count,
+      departments: Object.entries(info.departments)
+        .map(([id, dept]) => ({
+          departmentId: id,
+          departmentName: dept.name,
+          count: dept.count,
+        }))
+        .sort((a, b) => b.count - a.count),
+    }))
+    .sort((a, b) => b.totalCount - a.totalCount);
+}
