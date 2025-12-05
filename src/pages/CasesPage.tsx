@@ -317,16 +317,16 @@ export default function CasesPage() {
 
         <CardContent className="px-0 sm:px-6">
           {/* 桌面端表格视图 */}
-          <div className="hidden md:block rounded-md border overflow-hidden">
+          <div className="hidden md:block rounded-md border overflow-x-auto">
             <Table>
               <TableHeader>
                 <TableRow className="bg-muted/50">
-                  <TableHead className="w-[110px]">通报日期</TableHead>
-                  <TableHead className="w-[180px]">应用名称</TableHead>
-                  <TableHead className="w-[160px]">开发者/运营者</TableHead>
-                  <TableHead className="w-[200px]">监管部门</TableHead>
-                  <TableHead className="w-[140px]">应用平台</TableHead>
-                  <TableHead className="min-w-[300px]">主要违规内容</TableHead>
+                  <TableHead className="w-[100px]">通报日期</TableHead>
+                  <TableHead className="w-[150px]">应用名称</TableHead>
+                  <TableHead className="w-[140px]">开发者/运营者</TableHead>
+                  <TableHead className="w-[180px]">监管部门</TableHead>
+                  <TableHead className="w-[120px]">应用平台</TableHead>
+                  <TableHead>主要违规内容</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
@@ -355,15 +355,21 @@ export default function CasesPage() {
                         {caseItem.report_date}
                       </TableCell>
                       <TableCell className="font-medium text-sm group-hover:text-primary transition-colors">
-                        {caseItem.app_name}
+                        <div className="line-clamp-2" title={caseItem.app_name}>
+                          {caseItem.app_name}
+                        </div>
                       </TableCell>
                       <TableCell className="text-sm text-muted-foreground">
-                        {caseItem.app_developer || '-'}
+                        <div className="line-clamp-2" title={caseItem.app_developer || '-'}>
+                          {caseItem.app_developer || '-'}
+                        </div>
                       </TableCell>
                       <TableCell>
                         {caseItem.department?.name ? (
-                          <Badge variant="outline" className="font-normal whitespace-nowrap">
-                            {caseItem.department.name}
+                          <Badge variant="outline" className="font-normal text-xs">
+                            <div className="line-clamp-1" title={caseItem.department.name}>
+                              {caseItem.department.name}
+                            </div>
                           </Badge>
                         ) : (
                           <span className="text-sm text-muted-foreground">-</span>
@@ -371,14 +377,14 @@ export default function CasesPage() {
                       </TableCell>
                       <TableCell>
                         {caseItem.platform?.name ? (
-                          <Badge className="font-normal whitespace-nowrap bg-orange-500 hover:bg-orange-600">
+                          <Badge className="font-normal text-xs bg-orange-500 hover:bg-orange-600">
                             {caseItem.platform.name}
                           </Badge>
                         ) : (
                           <span className="text-sm text-muted-foreground">-</span>
                         )}
                       </TableCell>
-                      <TableCell className="max-w-[400px]">
+                      <TableCell>
                         <div 
                           className="line-clamp-2 text-sm text-muted-foreground leading-relaxed"
                           title={caseItem.violation_content || '-'}

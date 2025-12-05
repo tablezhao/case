@@ -203,8 +203,22 @@ export default function CaseDetailPage() {
             {caseData.platform && (
               <div className="flex items-center gap-2 text-muted-foreground">
                 <Smartphone className="w-4 h-4" />
-                <span className="text-sm">{caseData.platform.name}</span>
+                <span className="text-sm">应用来源：{caseData.platform.name}</span>
               </div>
+            )}
+            {/* 原文链接移到这里 */}
+            {caseData.source_url && (
+              <Button variant="outline" size="sm" asChild>
+                <a
+                  href={caseData.source_url}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="flex items-center gap-2"
+                >
+                  <ExternalLink className="w-4 h-4" />
+                  查看原文链接
+                </a>
+              </Button>
             )}
           </div>
 
@@ -226,22 +240,6 @@ export default function CaseDetailPage() {
               {caseData.violation_content || '暂无详细内容'}
             </div>
           </div>
-
-          {/* 原文链接 */}
-          {caseData.source_url && (
-            <div className="mt-8 pt-6 border-t">
-              <Button variant="outline" asChild>
-                <a
-                  href={caseData.source_url}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                >
-                  <ExternalLink className="w-4 h-4 mr-2" />
-                  查看原文链接
-                </a>
-              </Button>
-            </div>
-          )}
         </CardContent>
       </Card>
 
