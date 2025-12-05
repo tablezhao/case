@@ -32,6 +32,13 @@ import { Search, X, Filter } from 'lucide-react';
 import { toast } from 'sonner';
 import { useNavigate } from 'react-router-dom';
 
+// 文本截断函数：限制为25个字符
+const truncateText = (text: string | null | undefined, maxLength: number = 25): string => {
+  if (!text) return '-';
+  if (text.length <= maxLength) return text;
+  return text.substring(0, maxLength) + '...';
+};
+
 export default function CasesPage() {
   const navigate = useNavigate();
   const [cases, setCases] = useState<CaseWithDetails[]>([]);
@@ -362,31 +369,69 @@ export default function CasesPage() {
                         {caseItem.report_date}
                       </TableCell>
                       <TableCell className="font-medium text-sm group-hover:text-primary transition-colors">
-                        <div className="line-clamp-2" title={caseItem.app_name}>
-                          {caseItem.app_name}
-                        </div>
+                        <Tooltip>
+                          <TooltipTrigger asChild>
+                            <div className="cursor-help" title={caseItem.app_name}>
+                              {truncateText(caseItem.app_name, 25)}
+                            </div>
+                          </TooltipTrigger>
+                          <TooltipContent 
+                            className="max-w-md p-3 text-sm bg-slate-50 border-slate-200"
+                            side="top"
+                          >
+                            <p className="text-slate-700">{caseItem.app_name}</p>
+                          </TooltipContent>
+                        </Tooltip>
                       </TableCell>
                       <TableCell className="text-sm text-muted-foreground">
-                        <div className="line-clamp-2" title={caseItem.app_developer || '-'}>
-                          {caseItem.app_developer || '-'}
-                        </div>
+                        <Tooltip>
+                          <TooltipTrigger asChild>
+                            <div className="cursor-help" title={caseItem.app_developer || '-'}>
+                              {truncateText(caseItem.app_developer, 25)}
+                            </div>
+                          </TooltipTrigger>
+                          <TooltipContent 
+                            className="max-w-md p-3 text-sm bg-slate-50 border-slate-200"
+                            side="top"
+                          >
+                            <p className="text-slate-700">{caseItem.app_developer || '暂无信息'}</p>
+                          </TooltipContent>
+                        </Tooltip>
                       </TableCell>
                       <TableCell>
                         {caseItem.department?.name ? (
-                          <Badge variant="outline" className="font-normal text-xs">
-                            <div className="line-clamp-1" title={caseItem.department.name}>
-                              {caseItem.department.name}
-                            </div>
-                          </Badge>
+                          <Tooltip>
+                            <TooltipTrigger asChild>
+                              <Badge variant="outline" className="font-normal text-xs cursor-help">
+                                {truncateText(caseItem.department.name, 25)}
+                              </Badge>
+                            </TooltipTrigger>
+                            <TooltipContent 
+                              className="max-w-md p-3 text-sm bg-slate-50 border-slate-200"
+                              side="top"
+                            >
+                              <p className="text-slate-700">{caseItem.department.name}</p>
+                            </TooltipContent>
+                          </Tooltip>
                         ) : (
                           <span className="text-sm text-muted-foreground">-</span>
                         )}
                       </TableCell>
                       <TableCell>
                         {caseItem.platform?.name ? (
-                          <Badge className="font-normal text-xs bg-orange-500 hover:bg-orange-600">
-                            {caseItem.platform.name}
-                          </Badge>
+                          <Tooltip>
+                            <TooltipTrigger asChild>
+                              <Badge className="font-normal text-xs bg-orange-500 hover:bg-orange-600 cursor-help">
+                                {truncateText(caseItem.platform.name, 25)}
+                              </Badge>
+                            </TooltipTrigger>
+                            <TooltipContent 
+                              className="max-w-md p-3 text-sm bg-slate-50 border-slate-200"
+                              side="top"
+                            >
+                              <p className="text-slate-700">{caseItem.platform.name}</p>
+                            </TooltipContent>
+                          </Tooltip>
                         ) : (
                           <span className="text-sm text-muted-foreground">-</span>
                         )}
@@ -395,9 +440,9 @@ export default function CasesPage() {
                         <Tooltip>
                           <TooltipTrigger asChild>
                             <div 
-                              className="line-clamp-2 text-sm text-muted-foreground leading-relaxed cursor-help"
+                              className="text-sm text-muted-foreground leading-relaxed cursor-help"
                             >
-                              {caseItem.violation_content || '-'}
+                              {truncateText(caseItem.violation_content, 25)}
                             </div>
                           </TooltipTrigger>
                           <TooltipContent 
