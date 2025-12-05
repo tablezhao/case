@@ -28,9 +28,11 @@ import {
   TableHeader,
   TableRow,
 } from '@/components/ui/table';
+import { DateRangePicker } from '@/components/ui/date-range-picker';
 import { Search, X } from 'lucide-react';
 import { toast } from 'sonner';
 import { useNavigate } from 'react-router-dom';
+import { format } from 'date-fns';
 
 // 文本截断函数：限制为25个字符
 const truncateText = (text: string | null | undefined, maxLength: number = 25): string => {
@@ -63,13 +65,11 @@ export default function CasesPage() {
 
   // 临时筛选条件（用于表单）
   const [tempFilters, setTempFilters] = useState<{
-    startDate: string;
-    endDate: string;
+    dateRange: { from?: Date; to?: Date };
     departmentId: string;
     platformId: string;
   }>({
-    startDate: '',
-    endDate: '',
+    dateRange: {},
     departmentId: '',
     platformId: '',
   });
@@ -139,8 +139,8 @@ export default function CasesPage() {
   const handleSearch = () => {
     // 将临时筛选条件转换为实际筛选参数
     const newFilters: CaseFilterParams = {
-      startDate: tempFilters.startDate || undefined,
-      endDate: tempFilters.endDate || undefined,
+      startDate: tempFilters.dateRange.from ? format(tempFilters.dateRange.from, 'yyyy-MM-dd') : undefined,
+      endDate: tempFilters.dateRange.to ? format(tempFilters.dateRange.to, 'yyyy-MM-dd') : undefined,
       departmentIds: tempFilters.departmentId ? [tempFilters.departmentId] : undefined,
       platformIds: tempFilters.platformId ? [tempFilters.platformId] : undefined,
     };
@@ -152,8 +152,7 @@ export default function CasesPage() {
     setKeyword('');
     setSearchKeyword('');
     setTempFilters({
-      startDate: '',
-      endDate: '',
+      dateRange: {},
       departmentId: '',
       platformId: '',
     });
@@ -238,26 +237,13 @@ export default function CasesPage() {
 
             {/* 筛选面板 - 常驻显示 */}
             <div className="p-3 sm:p-4 border rounded-lg bg-muted/30 space-y-3 sm:space-y-4">
-              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4">
-                <div className="space-y-2">
-                  <Label htmlFor="startDate">开始日期</Label>
-                  <Input
-                    id="startDate"
-                    type="date"
-                    value={tempFilters.startDate}
-                    onChange={(e) => setTempFilters({ ...tempFilters, startDate: e.target.value })}
-                    className="min-h-[44px]"
-                  />
-                </div>
-
-                <div className="space-y-2">
-                  <Label htmlFor="endDate">结束日期</Label>
-                  <Input
-                    id="endDate"
-                    type="date"
-                    value={tempFilters.endDate}
-                    onChange={(e) => setTempFilters({ ...tempFilters, endDate: e.target.value })}
-                    className="min-h-[44px]"
+              <div className="grid grid-cols-1 lg:grid-cols-3 gap-3 sm:gap-4">
+                <div className="space-y-2 lg:col-span-1">
+                  <Label>日期范围</Label>
+                  <DateRangePicker
+                    value={tempFilters.dateRange}
+                    onChange={(range) => setTempFilters({ ...tempFilters, dateRange: range })}
+                    placeholder="选择日期范围"
                   />
                 </div>
 
