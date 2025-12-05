@@ -28,7 +28,7 @@ import {
   TableHeader,
   TableRow,
 } from '@/components/ui/table';
-import { Search, X, Filter } from 'lucide-react';
+import { Search, X } from 'lucide-react';
 import { toast } from 'sonner';
 import { useNavigate } from 'react-router-dom';
 
@@ -48,7 +48,6 @@ export default function CasesPage() {
   const [page, setPage] = useState(1);
   const [pageSize] = useState(20);
   const [loading, setLoading] = useState(true);
-  const [showFilters, setShowFilters] = useState(false);
 
   // 关键词搜索
   const [keyword, setKeyword] = useState('');
@@ -200,15 +199,6 @@ export default function CasesPage() {
                   {hasActiveFilters && <span className="text-primary ml-2">（已筛选）</span>}
                 </p>
               </div>
-              <Button
-                variant={showFilters ? 'default' : 'outline'}
-                size="sm"
-                onClick={() => setShowFilters(!showFilters)}
-                className="gap-2 min-h-[44px] w-full sm:w-auto"
-              >
-                <Filter className="w-4 h-4" />
-                {showFilters ? '隐藏筛选' : '显示筛选'}
-              </Button>
             </div>
 
             {/* 关键词搜索 */}
@@ -246,9 +236,8 @@ export default function CasesPage() {
               )}
             </div>
 
-            {/* 筛选面板 */}
-            {showFilters && (
-              <div className="p-3 sm:p-4 border rounded-lg bg-muted/30 space-y-3 sm:space-y-4">
+            {/* 筛选面板 - 常驻显示 */}
+            <div className="p-3 sm:p-4 border rounded-lg bg-muted/30 space-y-3 sm:space-y-4">
               <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4">
                 <div className="space-y-2">
                   <Label htmlFor="startDate">开始日期</Label>
@@ -323,8 +312,7 @@ export default function CasesPage() {
                   清空
                 </Button>
               </div>
-              </div>
-            )}
+            </div>
           </div>
         </CardHeader>
 
@@ -369,69 +357,29 @@ export default function CasesPage() {
                         {caseItem.report_date}
                       </TableCell>
                       <TableCell className="font-medium text-sm group-hover:text-primary transition-colors">
-                        <Tooltip>
-                          <TooltipTrigger asChild>
-                            <div className="cursor-help" title={caseItem.app_name}>
-                              {truncateText(caseItem.app_name, 25)}
-                            </div>
-                          </TooltipTrigger>
-                          <TooltipContent 
-                            className="max-w-md p-3 text-sm bg-slate-50 border-slate-200"
-                            side="top"
-                          >
-                            <p className="text-slate-700">{caseItem.app_name}</p>
-                          </TooltipContent>
-                        </Tooltip>
+                        <div title={caseItem.app_name}>
+                          {truncateText(caseItem.app_name, 25)}
+                        </div>
                       </TableCell>
                       <TableCell className="text-sm text-muted-foreground">
-                        <Tooltip>
-                          <TooltipTrigger asChild>
-                            <div className="cursor-help" title={caseItem.app_developer || '-'}>
-                              {truncateText(caseItem.app_developer, 25)}
-                            </div>
-                          </TooltipTrigger>
-                          <TooltipContent 
-                            className="max-w-md p-3 text-sm bg-slate-50 border-slate-200"
-                            side="top"
-                          >
-                            <p className="text-slate-700">{caseItem.app_developer || '暂无信息'}</p>
-                          </TooltipContent>
-                        </Tooltip>
+                        <div title={caseItem.app_developer || '-'}>
+                          {truncateText(caseItem.app_developer, 25)}
+                        </div>
                       </TableCell>
                       <TableCell>
                         {caseItem.department?.name ? (
-                          <Tooltip>
-                            <TooltipTrigger asChild>
-                              <Badge variant="outline" className="font-normal text-xs cursor-help">
-                                {truncateText(caseItem.department.name, 25)}
-                              </Badge>
-                            </TooltipTrigger>
-                            <TooltipContent 
-                              className="max-w-md p-3 text-sm bg-slate-50 border-slate-200"
-                              side="top"
-                            >
-                              <p className="text-slate-700">{caseItem.department.name}</p>
-                            </TooltipContent>
-                          </Tooltip>
+                          <Badge variant="outline" className="font-normal text-xs" title={caseItem.department.name}>
+                            {truncateText(caseItem.department.name, 25)}
+                          </Badge>
                         ) : (
                           <span className="text-sm text-muted-foreground">-</span>
                         )}
                       </TableCell>
                       <TableCell>
                         {caseItem.platform?.name ? (
-                          <Tooltip>
-                            <TooltipTrigger asChild>
-                              <Badge className="font-normal text-xs bg-orange-500 hover:bg-orange-600 cursor-help">
-                                {truncateText(caseItem.platform.name, 25)}
-                              </Badge>
-                            </TooltipTrigger>
-                            <TooltipContent 
-                              className="max-w-md p-3 text-sm bg-slate-50 border-slate-200"
-                              side="top"
-                            >
-                              <p className="text-slate-700">{caseItem.platform.name}</p>
-                            </TooltipContent>
-                          </Tooltip>
+                          <Badge className="font-normal text-xs bg-orange-500 hover:bg-orange-600" title={caseItem.platform.name}>
+                            {truncateText(caseItem.platform.name, 25)}
+                          </Badge>
                         ) : (
                           <span className="text-sm text-muted-foreground">-</span>
                         )}
