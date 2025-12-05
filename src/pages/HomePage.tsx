@@ -484,10 +484,8 @@ export default function HomePage() {
 
       <div className="grid gap-4 sm:gap-6 grid-cols-1 2xl:grid-cols-2">
         {isModuleVisible('platform_chart') && platformData.length > 0 && (
-          <div className="space-y-0">
-            <PieChart data={platformData.slice(0, 10)} title="应用平台分布" />
+          <PieChart data={platformData.slice(0, 10)} title="应用平台分布">
             <StatisticsInfo
-              className="-mt-4 mx-6 mb-6"
               items={[
                 {
                   icon: '📦',
@@ -501,14 +499,12 @@ export default function HomePage() {
                 }
               ]}
             />
-          </div>
+          </PieChart>
         )}
 
         {isModuleVisible('wordcloud') && keywords.length > 0 && (
-          <div className="space-y-0">
-            <WordCloud data={keywords} title="违规问题词云" />
+          <WordCloud data={keywords} title="违规问题词云">
             <StatisticsInfo
-              className="-mt-4 mx-6 mb-6"
               items={[
                 {
                   icon: '☁️',
@@ -522,7 +518,7 @@ export default function HomePage() {
                 }
               ]}
             />
-          </div>
+          </WordCloud>
         )}
       </div>
 

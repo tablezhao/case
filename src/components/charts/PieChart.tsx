@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useRef, useState, ReactNode } from 'react';
 import * as echarts from 'echarts';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { chartPalette } from '@/lib/colors';
@@ -6,9 +6,10 @@ import { chartPalette } from '@/lib/colors';
 interface PieChartProps {
   data: { name: string; count: number }[];
   title: string;
+  children?: ReactNode;
 }
 
-export default function PieChart({ data, title }: PieChartProps) {
+export default function PieChart({ data, title, children }: PieChartProps) {
   const chartRef = useRef<HTMLDivElement>(null);
   const [containerWidth, setContainerWidth] = useState(0);
 
@@ -144,6 +145,7 @@ export default function PieChart({ data, title }: PieChartProps) {
       </CardHeader>
       <CardContent>
         <div ref={chartRef} className="w-full h-96" />
+        {children}
       </CardContent>
     </Card>
   );

@@ -1,4 +1,4 @@
-import { useEffect, useRef } from 'react';
+import { useEffect, useRef, ReactNode } from 'react';
 import * as echarts from 'echarts';
 import 'echarts-wordcloud';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -7,9 +7,10 @@ import { chartPalette } from '@/lib/colors';
 interface WordCloudProps {
   data: { name: string; value: number }[];
   title: string;
+  children?: ReactNode;
 }
 
-export default function WordCloud({ data, title }: WordCloudProps) {
+export default function WordCloud({ data, title, children }: WordCloudProps) {
   const chartRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
@@ -74,6 +75,7 @@ export default function WordCloud({ data, title }: WordCloudProps) {
       </CardHeader>
       <CardContent>
         <div ref={chartRef} className="w-full h-80" />
+        {children}
       </CardContent>
     </Card>
   );
