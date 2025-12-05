@@ -47,6 +47,13 @@ export function DateRangePicker({
   // 快捷选项
   const quickOptions = [
     {
+      label: '全部日期',
+      getValue: () => ({
+        from: undefined,
+        to: undefined,
+      }),
+    },
+    {
       label: '最近1周',
       getValue: () => ({
         from: subDays(new Date(), 6),
