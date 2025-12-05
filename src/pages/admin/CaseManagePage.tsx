@@ -10,11 +10,13 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Checkbox } from '@/components/ui/checkbox';
-import { Plus, Pencil, Trash2, Upload, Download, ArrowLeft, Search, X, Filter } from 'lucide-react';
+import { Plus, Pencil, Trash2, Upload, Download, ArrowLeft, Search, X } from 'lucide-react';
 import { toast } from 'sonner';
 import * as XLSX from 'xlsx';
 import { useNavigate } from 'react-router-dom';
 import { CreatableCombobox } from '@/components/ui/creatable-combobox';
+import { DateRangePicker } from '@/components/ui/date-range-picker';
+import { format } from 'date-fns';
 
 export default function CaseManagePage() {
   const navigate = useNavigate();
@@ -44,19 +46,14 @@ export default function CaseManagePage() {
 
   // 临时筛选条件（用于表单）
   const [tempFilters, setTempFilters] = useState<{
-    startDate: string;
-    endDate: string;
+    dateRange: { from?: Date; to?: Date };
     departmentId: string;
     platformId: string;
   }>({
-    startDate: '',
-    endDate: '',
+    dateRange: {},
     departmentId: '',
     platformId: '',
   });
-
-  // 筛选面板显示状态
-  const [showFilters, setShowFilters] = useState(false);
 
   const [formData, setFormData] = useState({
     report_date: '',
@@ -139,8 +136,8 @@ export default function CaseManagePage() {
   const handleApplyFilters = () => {
     // 将临时筛选条件转换为实际筛选参数
     const newFilters: CaseFilterParams = {
-      startDate: tempFilters.startDate || undefined,
-      endDate: tempFilters.endDate || undefined,
+      startDate: tempFilters.dateRange.from ? format(tempFilters.dateRange.from, 'yyyy-MM-dd') : undefined,
+      endDate: tempFilters.dateRange.to ? format(tempFilters.dateRange.to, 'yyyy-MM-dd') : undefined,
       departmentIds: tempFilters.departmentId && tempFilters.departmentId !== 'all' ? [tempFilters.departmentId] : undefined,
       platformIds: tempFilters.platformId && tempFilters.platformId !== 'all' ? [tempFilters.platformId] : undefined,
     };
@@ -152,8 +149,7 @@ export default function CaseManagePage() {
     setKeyword('');
     setSearchKeyword('');
     setTempFilters({
-      startDate: '',
-      endDate: '',
+      dateRange: {},
       departmentId: '',
       platformId: '',
     });
@@ -461,12 +457,12 @@ export default function CaseManagePage() {
                 value={keyword}
                 onChange={(e) => setKeyword(e.target.value)}
                 onKeyPress={handleKeyPress}
-                className="pl-9"
+                className="pl-9 min-h-[44px]"
               />
             </div>
             <Button 
               onClick={handleKeywordSearch}
-              className="gap-2"
+              className="gap-2 min-h-[44px]"
             >
               <Search className="w-4 h-4" />
               搜索
@@ -479,99 +475,78 @@ export default function CaseManagePage() {
                   setSearchKeyword('');
                   setPage(1);
                 }}
-                className="gap-2"
+                className="gap-2 min-h-[44px]"
                 title="清空搜索"
               >
                 <X className="w-4 h-4" />
               </Button>
             )}
-            <Button
-              variant="outline"
-              onClick={() => setShowFilters(!showFilters)}
-              className="gap-2"
-            >
-              <Filter className="w-4 h-4" />
-              {showFilters ? '隐藏筛选' : '显示筛选'}
-            </Button>
           </div>
 
-          {/* 筛选面板 */}
-          {showFilters && (
-            <div className="p-4 border rounded-lg bg-muted/30 space-y-4">
-              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-                <div className="space-y-2">
-                  <Label htmlFor="filter-startDate">开始日期</Label>
-                  <Input
-                    id="filter-startDate"
-                    type="date"
-                    value={tempFilters.startDate}
-                    onChange={(e) => setTempFilters({ ...tempFilters, startDate: e.target.value })}
-                  />
-                </div>
-
-                <div className="space-y-2">
-                  <Label htmlFor="filter-endDate">结束日期</Label>
-                  <Input
-                    id="filter-endDate"
-                    type="date"
-                    value={tempFilters.endDate}
-                    onChange={(e) => setTempFilters({ ...tempFilters, endDate: e.target.value })}
-                  />
-                </div>
-
-                <div className="space-y-2">
-                  <Label htmlFor="filter-department">监管部门</Label>
-                  <Select
-                    value={tempFilters.departmentId}
-                    onValueChange={(value) => setTempFilters({ ...tempFilters, departmentId: value })}
-                  >
-                    <SelectTrigger id="filter-department">
-                      <SelectValue placeholder="全部部门" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="all">全部部门</SelectItem>
-                      {departments.map((dept) => (
-                        <SelectItem key={dept.id} value={dept.id}>
-                          {dept.name}
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                </div>
-
-                <div className="space-y-2">
-                  <Label htmlFor="filter-platform">应用平台</Label>
-                  <Select
-                    value={tempFilters.platformId}
-                    onValueChange={(value) => setTempFilters({ ...tempFilters, platformId: value })}
-                  >
-                    <SelectTrigger id="filter-platform">
-                      <SelectValue placeholder="全部平台" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="all">全部平台</SelectItem>
-                      {platforms.map((plat) => (
-                        <SelectItem key={plat.id} value={plat.id}>
-                          {plat.name}
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                </div>
+          {/* 筛选面板 - 常驻显示 */}
+          <div className="p-3 sm:p-4 border rounded-lg bg-muted/30 space-y-3 sm:space-y-4">
+            <div className="grid grid-cols-1 lg:grid-cols-3 gap-3 sm:gap-4">
+              <div className="space-y-2 lg:col-span-1">
+                <Label>日期范围</Label>
+                <DateRangePicker
+                  value={tempFilters.dateRange}
+                  onChange={(range) => setTempFilters({ ...tempFilters, dateRange: range })}
+                  placeholder="选择日期范围"
+                />
               </div>
 
-              <div className="flex gap-2">
-                <Button onClick={handleApplyFilters} className="gap-2">
-                  <Search className="w-4 h-4" />
-                  应用筛选
-                </Button>
-                <Button variant="outline" onClick={handleClearFilters} className="gap-2">
-                  <X className="w-4 h-4" />
-                  清空所有筛选
-                </Button>
+              <div className="space-y-2">
+                <Label htmlFor="filter-department">监管部门</Label>
+                <Select
+                  value={tempFilters.departmentId}
+                  onValueChange={(value) => setTempFilters({ ...tempFilters, departmentId: value })}
+                >
+                  <SelectTrigger id="filter-department">
+                    <SelectValue placeholder="全部部门" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="all">全部部门</SelectItem>
+                    {departments.map((dept) => (
+                      <SelectItem key={dept.id} value={dept.id}>
+                        {dept.name}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+
+              <div className="space-y-2">
+                <Label htmlFor="filter-platform">应用平台</Label>
+                <Select
+                  value={tempFilters.platformId}
+                  onValueChange={(value) => setTempFilters({ ...tempFilters, platformId: value })}
+                >
+                  <SelectTrigger id="filter-platform">
+                    <SelectValue placeholder="全部平台" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="all">全部平台</SelectItem>
+                    {platforms.map((plat) => (
+                      <SelectItem key={plat.id} value={plat.id}>
+                        {plat.name}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
               </div>
             </div>
-          )}
+
+            <div className="flex flex-col sm:flex-row gap-2">
+              <Button onClick={handleApplyFilters} className="gap-2 min-h-[44px] flex-1 sm:flex-initial">
+                <Search className="w-4 h-4" />
+                查询
+              </Button>
+              <Button variant="outline" onClick={handleClearFilters} className="gap-2 min-h-[44px] flex-1 sm:flex-initial">
+                <X className="w-4 h-4" />
+                清空
+              </Button>
+            </div>
+          </div>
         </CardContent>
       </Card>
 
