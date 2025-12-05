@@ -6,6 +6,7 @@ import NewsPage from './pages/NewsPage';
 import NewsDetailPage from './pages/NewsDetailPage';
 import DepartmentsPublicPage from './pages/DepartmentsPage';
 import TrendAnalysisPage from './pages/TrendAnalysisPage';
+import ViolationAnalysisPage from './pages/ViolationAnalysisPage';
 import LoginPage from './pages/LoginPage';
 import AdminPage from './pages/admin/AdminPage';
 import CaseManagePage from './pages/admin/CaseManagePage';
@@ -65,6 +66,12 @@ const routes: RouteConfig[] = [
     name: '趋势分析',
     path: '/trend-analysis',
     element: <TrendAnalysisPage />,
+    visible: true,
+  },
+  {
+    name: '问题分析',
+    path: '/violation-analysis',
+    element: <ViolationAnalysisPage />,
     visible: true,
   },
   {
