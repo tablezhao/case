@@ -324,20 +324,20 @@ export default function HomePage() {
                   <CardTitle className="text-lg sm:text-xl">通报趋势分析</CardTitle>
                   <TooltipInfo
                     content={
-                      <div className="space-y-2">
-                        <p className="font-semibold">统计说明</p>
-                        <div className="space-y-1.5 text-xs">
+                      <div className="space-y-3">
+                        <p className="font-semibold text-base">统计说明</p>
+                        <div className="space-y-2.5 text-xs leading-relaxed">
                           <div>
-                            <span className="font-semibold">📱 通报应用数量：</span>
-                            <span className="text-muted-foreground">按应用名称去重统计，同一应用在多个平台被通报只计算1次</span>
+                            <div className="font-semibold mb-1">📱 通报应用数量</div>
+                            <div className="text-muted-foreground">按应用名称去重统计，同一应用在多个平台被通报只计算1次</div>
                           </div>
                           <div>
-                            <span className="font-semibold">📢 通报频次：</span>
-                            <span className="text-muted-foreground">按"部门+日期"去重统计，同一部门在同一天发布的通报算作1次通报活动</span>
+                            <div className="font-semibold mb-1">📢 通报频次</div>
+                            <div className="text-muted-foreground">按"部门+日期"去重统计，同一部门在同一天发布的通报算作1次通报活动</div>
                           </div>
                           <div>
-                            <span className="font-semibold">🔗 数据关系：</span>
-                            <span className="text-muted-foreground">1次通报活动可能涉及多个应用</span>
+                            <div className="font-semibold mb-1">🔗 数据关系</div>
+                            <div className="text-muted-foreground">1次通报活动可能涉及多个应用</div>
                           </div>
                         </div>
                       </div>
@@ -431,16 +431,16 @@ export default function HomePage() {
                         <h3 className="text-sm font-semibold text-foreground">国家级部门分布</h3>
                         <TooltipInfo
                           content={
-                            <div className="space-y-2">
-                              <p className="font-semibold">统计说明</p>
-                              <div className="space-y-1.5 text-xs">
+                            <div className="space-y-3">
+                              <p className="font-semibold text-base">统计说明</p>
+                              <div className="space-y-2.5 text-xs leading-relaxed">
                                 <div>
-                                  <span className="font-semibold">🏛️ 国家级部门：</span>
-                                  <span className="text-muted-foreground">统计各国家级监管部门发布的通报数量，展示不同部门的监管力度</span>
+                                  <div className="font-semibold mb-1">🏛️ 国家级部门</div>
+                                  <div className="text-muted-foreground">统计各国家级监管部门发布的通报数量，展示不同部门的监管力度</div>
                                 </div>
                                 <div>
-                                  <span className="font-semibold">📊 数据来源：</span>
-                                  <span className="text-muted-foreground">基于所有案例记录中的部门信息进行统计</span>
+                                  <div className="font-semibold mb-1">📊 数据来源</div>
+                                  <div className="text-muted-foreground">基于所有案例记录中的部门信息进行统计</div>
                                 </div>
                               </div>
                             </div>
@@ -461,16 +461,16 @@ export default function HomePage() {
                         <h3 className="text-sm font-semibold text-foreground">省级部门分布</h3>
                         <TooltipInfo
                           content={
-                            <div className="space-y-2">
-                              <p className="font-semibold">统计说明</p>
-                              <div className="space-y-1.5 text-xs">
+                            <div className="space-y-3">
+                              <p className="font-semibold text-base">统计说明</p>
+                              <div className="space-y-2.5 text-xs leading-relaxed">
                                 <div>
-                                  <span className="font-semibold">🏢 省级部门：</span>
-                                  <span className="text-muted-foreground">统计各省级监管部门发布的通报数量，展示地方监管活跃度</span>
+                                  <div className="font-semibold mb-1">🏢 省级部门</div>
+                                  <div className="text-muted-foreground">统计各省级监管部门发布的通报数量，展示地方监管活跃度</div>
                                 </div>
                                 <div>
-                                  <span className="font-semibold">📊 数据来源：</span>
-                                  <span className="text-muted-foreground">基于所有案例记录中的部门信息进行统计</span>
+                                  <div className="font-semibold mb-1">📊 数据来源</div>
+                                  <div className="text-muted-foreground">基于所有案例记录中的部门信息进行统计</div>
                                 </div>
                               </div>
                             </div>
@@ -493,16 +493,16 @@ export default function HomePage() {
                     <h3 className="text-sm font-semibold text-foreground">地域分布</h3>
                     <TooltipInfo
                       content={
-                        <div className="space-y-2">
-                          <p className="font-semibold">统计说明</p>
-                          <div className="space-y-1.5 text-xs">
+                        <div className="space-y-3">
+                          <p className="font-semibold text-base">统计说明</p>
+                          <div className="space-y-2.5 text-xs leading-relaxed">
                             <div>
-                              <span className="font-semibold">🗺️ 地域分布：</span>
-                              <span className="text-muted-foreground">按监管部门所在省份统计通报数量，颜色深浅代表通报数量多少</span>
+                              <div className="font-semibold mb-1">🗺️ 地域分布</div>
+                              <div className="text-muted-foreground">按监管部门所在省份统计通报数量，颜色深浅代表通报数量多少</div>
                             </div>
                             <div>
-                              <span className="font-semibold">📍 统计维度：</span>
-                              <span className="text-muted-foreground">基于部门所在地进行统计，非被通报应用的所在地</span>
+                              <div className="font-semibold mb-1">📍 统计维度</div>
+                              <div className="text-muted-foreground">基于部门所在地进行统计，非被通报应用的所在地</div>
                             </div>
                           </div>
                         </div>
@@ -525,16 +525,16 @@ export default function HomePage() {
             data={platformData.slice(0, 10)} 
             title="应用平台分布"
             tooltipContent={
-              <div className="space-y-2">
-                <p className="font-semibold">统计说明</p>
-                <div className="space-y-1.5 text-xs">
+              <div className="space-y-3">
+                <p className="font-semibold text-base">统计说明</p>
+                <div className="space-y-2.5 text-xs leading-relaxed">
                   <div>
-                    <span className="font-semibold">📦 平台分布：</span>
-                    <span className="text-muted-foreground">统计被通报应用的来源平台，展示各平台的应用合规情况</span>
+                    <div className="font-semibold mb-1">📦 平台分布</div>
+                    <div className="text-muted-foreground">统计被通报应用的来源平台，展示各平台的应用合规情况</div>
                   </div>
                   <div>
-                    <span className="font-semibold">🔢 显示数量：</span>
-                    <span className="text-muted-foreground">展示通报数量最多的前10个平台，其余平台归入"其他"类别</span>
+                    <div className="font-semibold mb-1">🔢 显示数量</div>
+                    <div className="text-muted-foreground">展示通报数量最多的前10个平台，其余平台归入"其他"类别</div>
                   </div>
                 </div>
               </div>
@@ -547,16 +547,16 @@ export default function HomePage() {
             data={keywords} 
             title="违规问题词云"
             tooltipContent={
-              <div className="space-y-2">
-                <p className="font-semibold">统计说明</p>
-                <div className="space-y-1.5 text-xs">
+              <div className="space-y-3">
+                <p className="font-semibold text-base">统计说明</p>
+                <div className="space-y-2.5 text-xs leading-relaxed">
                   <div>
-                    <span className="font-semibold">☁️ 词云展示：</span>
-                    <span className="text-muted-foreground">提取违规问题描述中的关键词，字体大小代表出现频率</span>
+                    <div className="font-semibold mb-1">☁️ 词云展示</div>
+                    <div className="text-muted-foreground">提取违规问题描述中的关键词，字体大小代表出现频率</div>
                   </div>
                   <div>
-                    <span className="font-semibold">🔍 热点问题：</span>
-                    <span className="text-muted-foreground">快速识别当前监管重点关注的违规问题类型</span>
+                    <div className="font-semibold mb-1">🔍 热点问题</div>
+                    <div className="text-muted-foreground">快速识别当前监管重点关注的违规问题类型</div>
                   </div>
                 </div>
               </div>
