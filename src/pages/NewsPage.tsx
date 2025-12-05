@@ -14,7 +14,6 @@ import {
   TableHeader,
   TableRow,
 } from '@/components/ui/table';
-import { ExternalLink, Eye } from 'lucide-react';
 import { toast } from 'sonner';
 
 export default function NewsPage() {
@@ -70,58 +69,35 @@ export default function NewsPage() {
             <Table>
               <TableHeader>
                 <TableRow>
-                  <TableHead>发布日期</TableHead>
+                  <TableHead className="w-[120px]">发布日期</TableHead>
                   <TableHead>标题</TableHead>
-                  <TableHead>监管部门</TableHead>
-                  <TableHead className="text-right">操作</TableHead>
+                  <TableHead className="w-[200px]">监管部门</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
                 {news.length === 0 ? (
                   <TableRow>
-                    <TableCell colSpan={4} className="text-center text-muted-foreground">
+                    <TableCell colSpan={3} className="text-center text-muted-foreground">
                       暂无数据
                     </TableCell>
                   </TableRow>
                 ) : (
                   news.map((newsItem) => (
-                    <TableRow key={newsItem.id} className="hover:bg-muted/50">
-                      <TableCell className="whitespace-nowrap">
+                    <TableRow 
+                      key={newsItem.id} 
+                      className="hover:bg-muted/50 transition-colors cursor-pointer group"
+                      onClick={() => handleViewDetail(newsItem.id)}
+                    >
+                      <TableCell className="whitespace-nowrap text-sm">
                         {newsItem.publish_date}
                       </TableCell>
-                      <TableCell className="font-medium">
+                      <TableCell className="font-medium group-hover:text-primary transition-colors">
                         {newsItem.title}
                       </TableCell>
                       <TableCell>
                         {newsItem.department?.name ? (
                           <Badge variant="outline">{newsItem.department.name}</Badge>
                         ) : '-'}
-                      </TableCell>
-                      <TableCell className="text-right space-x-2">
-                        <Button
-                          variant="ghost"
-                          size="sm"
-                          onClick={() => handleViewDetail(newsItem.id)}
-                        >
-                          <Eye className="w-4 h-4 mr-1" />
-                          查看详情
-                        </Button>
-                        {newsItem.source_url && (
-                          <Button
-                            variant="ghost"
-                            size="sm"
-                            asChild
-                          >
-                            <a
-                              href={newsItem.source_url}
-                              target="_blank"
-                              rel="noopener noreferrer"
-                            >
-                              <ExternalLink className="w-4 h-4 mr-1" />
-                              原文
-                            </a>
-                          </Button>
-                        )}
                       </TableCell>
                     </TableRow>
                   ))
@@ -138,10 +114,14 @@ export default function NewsPage() {
               </div>
             ) : (
               news.map((newsItem) => (
-                <Card key={newsItem.id} className="overflow-hidden">
+                <Card 
+                  key={newsItem.id} 
+                  className="overflow-hidden cursor-pointer hover:shadow-md transition-shadow"
+                  onClick={() => handleViewDetail(newsItem.id)}
+                >
                   <CardContent className="p-4 space-y-3">
                     <div className="flex items-start justify-between gap-2">
-                      <h3 className="font-medium text-base leading-snug flex-1">
+                      <h3 className="font-medium text-base leading-snug flex-1 hover:text-primary transition-colors">
                         {newsItem.title}
                       </h3>
                       <Badge variant="outline" className="shrink-0 text-xs">
@@ -150,39 +130,10 @@ export default function NewsPage() {
                     </div>
 
                     {newsItem.department?.name && (
-                      <Badge variant="secondary" className="text-xs">
+                      <Badge className="text-xs bg-orange-500 hover:bg-orange-600">
                         {newsItem.department.name}
                       </Badge>
                     )}
-
-                    <div className="flex gap-2 pt-2">
-                      <Button
-                        variant="default"
-                        size="sm"
-                        onClick={() => handleViewDetail(newsItem.id)}
-                        className="flex-1 min-h-[44px]"
-                      >
-                        <Eye className="w-4 h-4 mr-1" />
-                        查看详情
-                      </Button>
-                      {newsItem.source_url && (
-                        <Button
-                          variant="outline"
-                          size="sm"
-                          asChild
-                          className="flex-1 min-h-[44px]"
-                        >
-                          <a
-                            href={newsItem.source_url}
-                            target="_blank"
-                            rel="noopener noreferrer"
-                          >
-                            <ExternalLink className="w-4 h-4 mr-1" />
-                            查看原文
-                          </a>
-                        </Button>
-                      )}
-                    </div>
                   </CardContent>
                 </Card>
               ))

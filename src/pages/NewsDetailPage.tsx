@@ -199,6 +199,20 @@ export default function NewsDetailPage() {
               <Calendar className="w-4 h-4" />
               <span className="text-sm">{news.publish_date}</span>
             </div>
+            {/* 原文链接移到这里 */}
+            {news.source_url && (
+              <Button variant="outline" size="sm" asChild>
+                <a
+                  href={news.source_url}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="flex items-center gap-2"
+                >
+                  <ExternalLink className="w-4 h-4" />
+                  查看原文链接
+                </a>
+              </Button>
+            )}
           </div>
 
           {/* 摘要 */}
@@ -218,22 +232,6 @@ export default function NewsDetailPage() {
               {news.content || '暂无详细内容'}
             </div>
           </div>
-
-          {/* 原文链接 */}
-          {news.source_url && (
-            <div className="mt-8 pt-6 border-t">
-              <Button variant="outline" asChild>
-                <a
-                  href={news.source_url}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                >
-                  <ExternalLink className="w-4 h-4 mr-2" />
-                  查看原文链接
-                </a>
-              </Button>
-            </div>
-          )}
         </CardContent>
       </Card>
 
