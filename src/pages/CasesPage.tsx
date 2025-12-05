@@ -55,16 +55,8 @@ export default function CasesPage() {
   const [keyword, setKeyword] = useState('');
   const [searchKeyword, setSearchKeyword] = useState('');
 
-  // 筛选条件
-  const [filters, setFilters] = useState<CaseFilterParams>({
-    startDate: '',
-    endDate: '',
-    departmentIds: [],
-    platformIds: [],
-  });
-
-  // 临时筛选条件（用于表单）
-  const [tempFilters, setTempFilters] = useState<{
+  // 筛选条件 - 直接使用，无需临时状态
+  const [filters, setFilters] = useState<{
     dateRange: { from?: Date; to?: Date };
     departmentId: string;
     platformId: string;
@@ -74,13 +66,34 @@ export default function CasesPage() {
     platformId: '',
   });
 
+  // 用于API调用的筛选参数
+  const [apiFilters, setApiFilters] = useState<CaseFilterParams>({
+    startDate: '',
+    endDate: '',
+    departmentIds: [],
+    platformIds: [],
+  });
+
   useEffect(() => {
     loadInitialData();
   }, []);
 
+  // 监听筛选条件变化，自动触发查询
+  useEffect(() => {
+    // 将filters转换为apiFilters
+    const newApiFilters: CaseFilterParams = {
+      startDate: filters.dateRange.from ? format(filters.dateRange.from, 'yyyy-MM-dd') : undefined,
+      endDate: filters.dateRange.to ? format(filters.dateRange.to, 'yyyy-MM-dd') : undefined,
+      departmentIds: filters.departmentId && filters.departmentId !== 'all' ? [filters.departmentId] : undefined,
+      platformIds: filters.platformId && filters.platformId !== 'all' ? [filters.platformId] : undefined,
+    };
+    setApiFilters(newApiFilters);
+    setPage(1); // 重置到第一页
+  }, [filters]);
+
   useEffect(() => {
     loadCases();
-  }, [page, filters, searchKeyword]);
+  }, [page, apiFilters, searchKeyword]);
 
   const loadInitialData = async () => {
     try {
@@ -98,7 +111,7 @@ export default function CasesPage() {
   const loadCases = async () => {
     try {
       setLoading(true);
-      const result = await getCases(page, pageSize, 'report_date', 'desc', filters);
+      const result = await getCases(page, pageSize, 'report_date', 'desc', apiFilters);
       
       // 如果有搜索关键词，进行前端过滤
       let filteredData = result.data;
@@ -117,9 +130,15 @@ export default function CasesPage() {
       
       setCases(filteredData);
       setTotal(searchKeyword.trim() ? filteredData.length : result.total);
+      
+      // 显示筛选结果提示
+      if (filters.dateRange.from || filters.departmentId || filters.platformId) {
+        toast.success(`已找到 ${searchKeyword.trim() ? filteredData.length : result.total} 条案例`);
+      }
     } catch (error) {
       console.error('加载案例失败:', error);
-      toast.error('加载案例失败');
+      toast.error('加载案例失败，请检查网络连接');
+      // 网络异常时保留原有筛选条件
     } finally {
       setLoading(false);
     }
@@ -136,35 +155,6 @@ export default function CasesPage() {
     }
   };
 
-  const handleSearch = () => {
-    // 将临时筛选条件转换为实际筛选参数
-    const newFilters: CaseFilterParams = {
-      startDate: tempFilters.dateRange.from ? format(tempFilters.dateRange.from, 'yyyy-MM-dd') : undefined,
-      endDate: tempFilters.dateRange.to ? format(tempFilters.dateRange.to, 'yyyy-MM-dd') : undefined,
-      departmentIds: tempFilters.departmentId ? [tempFilters.departmentId] : undefined,
-      platformIds: tempFilters.platformId ? [tempFilters.platformId] : undefined,
-    };
-    setFilters(newFilters);
-    setPage(1); // 重置到第一页
-  };
-
-  const handleClearFilters = () => {
-    setKeyword('');
-    setSearchKeyword('');
-    setTempFilters({
-      dateRange: {},
-      departmentId: '',
-      platformId: '',
-    });
-    setFilters({
-      startDate: '',
-      endDate: '',
-      departmentIds: [],
-      platformIds: [],
-    });
-    setPage(1);
-  };
-
   const handleViewDetail = (caseItem: CaseWithDetails) => {
     // 跳转到详情页
     navigate(`/cases/${caseItem.id}`);
@@ -173,9 +163,7 @@ export default function CasesPage() {
   const totalPages = Math.ceil(total / pageSize);
 
   // 检查是否有活动的筛选条件
-  const hasActiveFilters = searchKeyword || filters.startDate || filters.endDate || 
-    (filters.departmentIds && filters.departmentIds.length > 0) || 
-    (filters.platformIds && filters.platformIds.length > 0);
+  const hasActiveFilters = searchKeyword || filters.dateRange.from || filters.departmentId || filters.platformId;
 
   if (loading && page === 1 && cases.length === 0) {
     return (
@@ -241,8 +229,8 @@ export default function CasesPage() {
                 <div className="space-y-2 lg:col-span-1">
                   <Label>日期范围</Label>
                   <DateRangePicker
-                    value={tempFilters.dateRange}
-                    onChange={(range) => setTempFilters({ ...tempFilters, dateRange: range })}
+                    value={filters.dateRange}
+                    onChange={(range) => setFilters({ ...filters, dateRange: range })}
                     placeholder="选择日期范围"
                   />
                 </div>
@@ -250,8 +238,8 @@ export default function CasesPage() {
                 <div className="space-y-2">
                   <Label htmlFor="department">监管部门</Label>
                   <Select
-                    value={tempFilters.departmentId}
-                    onValueChange={(value) => setTempFilters({ ...tempFilters, departmentId: value })}
+                    value={filters.departmentId}
+                    onValueChange={(value) => setFilters({ ...filters, departmentId: value })}
                   >
                     <SelectTrigger id="department">
                       <SelectValue placeholder="全部部门" />
@@ -270,8 +258,8 @@ export default function CasesPage() {
                 <div className="space-y-2">
                   <Label htmlFor="platform">应用平台</Label>
                   <Select
-                    value={tempFilters.platformId}
-                    onValueChange={(value) => setTempFilters({ ...tempFilters, platformId: value })}
+                    value={filters.platformId}
+                    onValueChange={(value) => setFilters({ ...filters, platformId: value })}
                   >
                     <SelectTrigger id="platform">
                       <SelectValue placeholder="全部平台" />
@@ -287,17 +275,13 @@ export default function CasesPage() {
                   </Select>
                 </div>
               </div>
-
-              <div className="flex flex-col sm:flex-row gap-2">
-                <Button onClick={handleSearch} className="gap-2 min-h-[44px] flex-1 sm:flex-initial">
-                  <Search className="w-4 h-4" />
-                  查询
-                </Button>
-                <Button variant="outline" onClick={handleClearFilters} className="gap-2 min-h-[44px] flex-1 sm:flex-initial">
-                  <X className="w-4 h-4" />
-                  清空
-                </Button>
-              </div>
+              
+              {/* 加载状态提示 */}
+              {loading && (
+                <div className="text-sm text-muted-foreground text-center py-2">
+                  正在加载数据...
+                </div>
+              )}
             </div>
           </div>
         </CardHeader>

@@ -36,15 +36,7 @@ export default function CaseManagePage() {
   const [keyword, setKeyword] = useState('');
   const [searchKeyword, setSearchKeyword] = useState('');
 
-  // 筛选条件
-  const [filters, setFilters] = useState<CaseFilterParams>({
-    startDate: '',
-    endDate: '',
-    departmentIds: [],
-    platformIds: [],
-  });
-
-  // 临时筛选条件（用于表单）
+  // 筛选条件 - 直接使用，无需临时状态
   const [tempFilters, setTempFilters] = useState<{
     dateRange: { from?: Date; to?: Date };
     departmentId: string;
@@ -53,6 +45,14 @@ export default function CaseManagePage() {
     dateRange: {},
     departmentId: '',
     platformId: '',
+  });
+
+  // 用于API调用的筛选参数
+  const [filters, setFilters] = useState<CaseFilterParams>({
+    startDate: '',
+    endDate: '',
+    departmentIds: [],
+    platformIds: [],
   });
 
   const [formData, setFormData] = useState({
@@ -74,6 +74,19 @@ export default function CaseManagePage() {
   useEffect(() => {
     loadInitialData();
   }, []);
+
+  // 监听筛选条件变化，自动触发查询
+  useEffect(() => {
+    // 将tempFilters转换为filters
+    const newFilters: CaseFilterParams = {
+      startDate: tempFilters.dateRange.from ? format(tempFilters.dateRange.from, 'yyyy-MM-dd') : undefined,
+      endDate: tempFilters.dateRange.to ? format(tempFilters.dateRange.to, 'yyyy-MM-dd') : undefined,
+      departmentIds: tempFilters.departmentId && tempFilters.departmentId !== 'all' ? [tempFilters.departmentId] : undefined,
+      platformIds: tempFilters.platformId && tempFilters.platformId !== 'all' ? [tempFilters.platformId] : undefined,
+    };
+    setFilters(newFilters);
+    setPage(1); // 重置到第一页
+  }, [tempFilters]);
 
   useEffect(() => {
     loadData();
@@ -114,9 +127,15 @@ export default function CaseManagePage() {
       
       setCases(filteredData);
       setTotal(searchKeyword.trim() ? filteredData.length : casesResult.total);
+      
+      // 显示筛选结果提示
+      if (tempFilters.dateRange.from || tempFilters.departmentId || tempFilters.platformId) {
+        toast.success(`已找到 ${searchKeyword.trim() ? filteredData.length : casesResult.total} 条案例`);
+      }
     } catch (error) {
       console.error('加载数据失败:', error);
-      toast.error('加载数据失败');
+      toast.error('加载数据失败，请检查网络连接');
+      // 网络异常时保留原有筛选条件
     } finally {
       setLoading(false);
     }
@@ -133,39 +152,8 @@ export default function CaseManagePage() {
     }
   };
 
-  const handleApplyFilters = () => {
-    // 将临时筛选条件转换为实际筛选参数
-    const newFilters: CaseFilterParams = {
-      startDate: tempFilters.dateRange.from ? format(tempFilters.dateRange.from, 'yyyy-MM-dd') : undefined,
-      endDate: tempFilters.dateRange.to ? format(tempFilters.dateRange.to, 'yyyy-MM-dd') : undefined,
-      departmentIds: tempFilters.departmentId && tempFilters.departmentId !== 'all' ? [tempFilters.departmentId] : undefined,
-      platformIds: tempFilters.platformId && tempFilters.platformId !== 'all' ? [tempFilters.platformId] : undefined,
-    };
-    setFilters(newFilters);
-    setPage(1);
-  };
-
-  const handleClearFilters = () => {
-    setKeyword('');
-    setSearchKeyword('');
-    setTempFilters({
-      dateRange: {},
-      departmentId: '',
-      platformId: '',
-    });
-    setFilters({
-      startDate: '',
-      endDate: '',
-      departmentIds: [],
-      platformIds: [],
-    });
-    setPage(1);
-  };
-
   // 检查是否有活动的筛选条件
-  const hasActiveFilters = searchKeyword || filters.startDate || filters.endDate || 
-    (filters.departmentIds && filters.departmentIds.length > 0) || 
-    (filters.platformIds && filters.platformIds.length > 0);
+  const hasActiveFilters = searchKeyword || tempFilters.dateRange.from || tempFilters.departmentId || tempFilters.platformId;
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -535,17 +523,13 @@ export default function CaseManagePage() {
                 </Select>
               </div>
             </div>
-
-            <div className="flex flex-col sm:flex-row gap-2">
-              <Button onClick={handleApplyFilters} className="gap-2 min-h-[44px] flex-1 sm:flex-initial">
-                <Search className="w-4 h-4" />
-                查询
-              </Button>
-              <Button variant="outline" onClick={handleClearFilters} className="gap-2 min-h-[44px] flex-1 sm:flex-initial">
-                <X className="w-4 h-4" />
-                清空
-              </Button>
-            </div>
+            
+            {/* 加载状态提示 */}
+            {loading && (
+              <div className="text-sm text-muted-foreground text-center py-2">
+                正在加载数据...
+              </div>
+            )}
           </div>
         </CardContent>
       </Card>
