@@ -15,13 +15,6 @@ import {
   SelectValue,
 } from '@/components/ui/select';
 import {
-  Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogHeader,
-  DialogTitle,
-} from '@/components/ui/dialog';
-import {
   Table,
   TableBody,
   TableCell,
@@ -29,7 +22,7 @@ import {
   TableHeader,
   TableRow,
 } from '@/components/ui/table';
-import { ExternalLink, Eye, Search, X, Filter } from 'lucide-react';
+import { Search, X, Filter } from 'lucide-react';
 import { toast } from 'sonner';
 import { useNavigate } from 'react-router-dom';
 
@@ -42,9 +35,11 @@ export default function CasesPage() {
   const [page, setPage] = useState(1);
   const [pageSize] = useState(20);
   const [loading, setLoading] = useState(true);
-  const [selectedCase, setSelectedCase] = useState<CaseWithDetails | null>(null);
-  const [dialogOpen, setDialogOpen] = useState(false);
   const [showFilters, setShowFilters] = useState(false);
+
+  // 关键词搜索
+  const [keyword, setKeyword] = useState('');
+  const [searchKeyword, setSearchKeyword] = useState('');
 
   // 筛选条件
   const [filters, setFilters] = useState<CaseFilterParams>({
@@ -73,7 +68,7 @@ export default function CasesPage() {
 
   useEffect(() => {
     loadCases();
-  }, [page, filters]);
+  }, [page, filters, searchKeyword]);
 
   const loadInitialData = async () => {
     try {
@@ -92,13 +87,40 @@ export default function CasesPage() {
     try {
       setLoading(true);
       const result = await getCases(page, pageSize, 'report_date', 'desc', filters);
-      setCases(result.data);
-      setTotal(result.total);
+      
+      // 如果有搜索关键词，进行前端过滤
+      let filteredData = result.data;
+      if (searchKeyword.trim()) {
+        const lowerKeyword = searchKeyword.toLowerCase().trim();
+        filteredData = result.data.filter((caseItem) => {
+          return (
+            caseItem.app_name?.toLowerCase().includes(lowerKeyword) ||
+            caseItem.app_developer?.toLowerCase().includes(lowerKeyword) ||
+            caseItem.department?.name?.toLowerCase().includes(lowerKeyword) ||
+            caseItem.platform?.name?.toLowerCase().includes(lowerKeyword) ||
+            caseItem.violation_content?.toLowerCase().includes(lowerKeyword)
+          );
+        });
+      }
+      
+      setCases(filteredData);
+      setTotal(searchKeyword.trim() ? filteredData.length : result.total);
     } catch (error) {
       console.error('加载案例失败:', error);
       toast.error('加载案例失败');
     } finally {
       setLoading(false);
+    }
+  };
+
+  const handleKeywordSearch = () => {
+    setSearchKeyword(keyword);
+    setPage(1);
+  };
+
+  const handleKeyPress = (e: React.KeyboardEvent) => {
+    if (e.key === 'Enter') {
+      handleKeywordSearch();
     }
   };
 
@@ -115,6 +137,8 @@ export default function CasesPage() {
   };
 
   const handleClearFilters = () => {
+    setKeyword('');
+    setSearchKeyword('');
     setTempFilters({
       startDate: '',
       endDate: '',
@@ -138,7 +162,7 @@ export default function CasesPage() {
   const totalPages = Math.ceil(total / pageSize);
 
   // 检查是否有活动的筛选条件
-  const hasActiveFilters = filters.startDate || filters.endDate || 
+  const hasActiveFilters = searchKeyword || filters.startDate || filters.endDate || 
     (filters.departmentIds && filters.departmentIds.length > 0) || 
     (filters.platformIds && filters.platformIds.length > 0);
 
@@ -154,28 +178,64 @@ export default function CasesPage() {
     <div className="container mx-auto px-4 py-4 sm:px-6 sm:py-6 max-w-7xl">
       <Card className="shadow-sm">
         <CardHeader className="px-4 sm:px-6">
-          <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
-            <div>
-              <CardTitle className="text-xl sm:text-2xl">案例查询</CardTitle>
-              <p className="text-sm text-muted-foreground mt-1">
-                共 {total} 条案例
-                {hasActiveFilters && <span className="text-primary ml-2">（已筛选）</span>}
-              </p>
+          <div className="flex flex-col gap-4">
+            <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
+              <div>
+                <CardTitle className="text-xl sm:text-2xl">案例查询</CardTitle>
+                <p className="text-sm text-muted-foreground mt-1">
+                  共 {total} 条案例
+                  {hasActiveFilters && <span className="text-primary ml-2">（已筛选）</span>}
+                </p>
+              </div>
+              <Button
+                variant={showFilters ? 'default' : 'outline'}
+                size="sm"
+                onClick={() => setShowFilters(!showFilters)}
+                className="gap-2 min-h-[44px] w-full sm:w-auto"
+              >
+                <Filter className="w-4 h-4" />
+                {showFilters ? '隐藏筛选' : '显示筛选'}
+              </Button>
             </div>
-            <Button
-              variant={showFilters ? 'default' : 'outline'}
-              size="sm"
-              onClick={() => setShowFilters(!showFilters)}
-              className="gap-2 min-h-[44px] w-full sm:w-auto"
-            >
-              <Filter className="w-4 h-4" />
-              {showFilters ? '隐藏筛选' : '显示筛选'}
-            </Button>
-          </div>
 
-          {/* 筛选面板 */}
-          {showFilters && (
-            <div className="mt-4 p-3 sm:p-4 border rounded-lg bg-muted/30 space-y-3 sm:space-y-4">
+            {/* 关键词搜索 */}
+            <div className="flex gap-2">
+              <div className="relative flex-1">
+                <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
+                <Input
+                  placeholder="搜索应用名称、开发者、监管部门、违规内容..."
+                  value={keyword}
+                  onChange={(e) => setKeyword(e.target.value)}
+                  onKeyPress={handleKeyPress}
+                  className="pl-9 min-h-[44px]"
+                />
+              </div>
+              <Button 
+                onClick={handleKeywordSearch}
+                className="gap-2 min-h-[44px]"
+              >
+                <Search className="w-4 h-4" />
+                搜索
+              </Button>
+              {(keyword || searchKeyword) && (
+                <Button 
+                  variant="outline"
+                  onClick={() => {
+                    setKeyword('');
+                    setSearchKeyword('');
+                    setPage(1);
+                  }}
+                  className="gap-2 min-h-[44px]"
+                  title="清空搜索"
+                >
+                  <X className="w-4 h-4" />
+                </Button>
+              )}
+            </div>
+
+            {/* 筛选面板 */}
+            {showFilters && (
+              <div className="p-3 sm:p-4 border rounded-lg bg-muted/30 space-y-3 sm:space-y-4">
               <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4">
                 <div className="space-y-2">
                   <Label htmlFor="startDate">开始日期</Label>
@@ -250,8 +310,9 @@ export default function CasesPage() {
                   清空
                 </Button>
               </div>
-            </div>
-          )}
+              </div>
+            )}
+          </div>
         </CardHeader>
 
         <CardContent className="px-0 sm:px-6">
@@ -266,13 +327,12 @@ export default function CasesPage() {
                   <TableHead className="w-[200px]">监管部门</TableHead>
                   <TableHead className="w-[140px]">应用平台</TableHead>
                   <TableHead className="min-w-[300px]">主要违规内容</TableHead>
-                  <TableHead className="w-[140px] text-right">操作</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
                 {loading ? (
                   <TableRow>
-                    <TableCell colSpan={7} className="text-center">
+                    <TableCell colSpan={6} className="text-center">
                       <div className="flex items-center justify-center py-8">
                         <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary"></div>
                       </div>
@@ -280,7 +340,7 @@ export default function CasesPage() {
                   </TableRow>
                 ) : cases.length === 0 ? (
                   <TableRow>
-                    <TableCell colSpan={7} className="text-center text-muted-foreground py-8">
+                    <TableCell colSpan={6} className="text-center text-muted-foreground py-8">
                       暂无数据
                     </TableCell>
                   </TableRow>
@@ -326,40 +386,6 @@ export default function CasesPage() {
                           {caseItem.violation_content || '-'}
                         </div>
                       </TableCell>
-                      <TableCell className="text-right">
-                        <div className="flex items-center justify-end gap-1">
-                          <Button
-                            variant="ghost"
-                            size="sm"
-                            onClick={(e) => {
-                              e.stopPropagation();
-                              handleViewDetail(caseItem);
-                            }}
-                            className="h-8 px-2 hover:bg-primary/10 hover:text-primary"
-                          >
-                            <Eye className="w-4 h-4 mr-1" />
-                            详情
-                          </Button>
-                          {caseItem.source_url && (
-                            <Button
-                              variant="ghost"
-                              size="sm"
-                              asChild
-                              className="h-8 px-2 hover:bg-primary/10 hover:text-primary"
-                            >
-                              <a
-                                href={caseItem.source_url}
-                                target="_blank"
-                                rel="noopener noreferrer"
-                                onClick={(e) => e.stopPropagation()}
-                              >
-                                <ExternalLink className="w-4 h-4 mr-1" />
-                                原文
-                              </a>
-                            </Button>
-                          )}
-                        </div>
-                      </TableCell>
                     </TableRow>
                   ))
                 )}
@@ -379,10 +405,14 @@ export default function CasesPage() {
               </div>
             ) : (
               cases.map((caseItem) => (
-                <Card key={caseItem.id} className="overflow-hidden">
+                <Card 
+                  key={caseItem.id} 
+                  className="overflow-hidden cursor-pointer hover:shadow-md transition-shadow"
+                  onClick={() => handleViewDetail(caseItem)}
+                >
                   <CardContent className="p-4 space-y-3">
                     <div className="flex items-start justify-between gap-2">
-                      <h3 className="font-medium text-base leading-snug flex-1">
+                      <h3 className="font-medium text-base leading-snug flex-1 hover:text-primary transition-colors">
                         {caseItem.app_name}
                       </h3>
                       <Badge variant="outline" className="shrink-0 text-xs">
@@ -404,7 +434,7 @@ export default function CasesPage() {
                         </Badge>
                       )}
                       {caseItem.platform?.name && (
-                        <Badge variant="secondary" className="text-xs">
+                        <Badge className="text-xs bg-orange-500 hover:bg-orange-600">
                           {caseItem.platform.name}
                         </Badge>
                       )}
@@ -415,35 +445,6 @@ export default function CasesPage() {
                         {caseItem.violation_content}
                       </div>
                     )}
-
-                    <div className="flex gap-2 pt-2">
-                      <Button
-                        variant="default"
-                        size="sm"
-                        onClick={() => handleViewDetail(caseItem)}
-                        className="flex-1 min-h-[44px]"
-                      >
-                        <Eye className="w-4 h-4 mr-1" />
-                        查看详情
-                      </Button>
-                      {caseItem.source_url && (
-                        <Button
-                          variant="outline"
-                          size="sm"
-                          asChild
-                          className="flex-1 min-h-[44px]"
-                        >
-                          <a
-                            href={caseItem.source_url}
-                            target="_blank"
-                            rel="noopener noreferrer"
-                          >
-                            <ExternalLink className="w-4 h-4 mr-1" />
-                            查看原文
-                          </a>
-                        </Button>
-                      )}
-                    </div>
                   </CardContent>
                 </Card>
               ))
