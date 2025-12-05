@@ -5,6 +5,7 @@ import TrendComparisonChart from '@/components/charts/TrendComparisonChart';
 import PieChart from '@/components/charts/PieChart';
 import WordCloud from '@/components/charts/WordCloud';
 import GeoChart from '@/components/charts/GeoChart';
+import StatisticsInfo from '@/components/common/StatisticsInfo';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
@@ -356,14 +357,25 @@ export default function HomePage() {
               (trendView === 'yearly' && yearlyAppData.length === 0 && yearlyReportData.length === 0)) && (
               <div className="text-center py-8 text-muted-foreground">暂无数据</div>
             )}
-            <div className="mt-4 p-4 bg-muted/30 rounded-lg space-y-2">
-              <p className="text-sm font-semibold text-foreground">📊 统计说明</p>
-              <div className="text-xs text-muted-foreground space-y-1">
-                <p>• <span className="font-medium text-foreground">通报应用数量</span>：按应用名称去重统计，同一应用在多个平台被通报只计算1次</p>
-                <p>• <span className="font-medium text-foreground">通报频次</span>：按"部门+日期"去重统计，同一部门在同一天发布的通报算作1次通报活动</p>
-                <p>• <span className="font-medium text-foreground">数据关系</span>：1次通报活动可能涉及多个应用</p>
-              </div>
-            </div>
+            <StatisticsInfo
+              items={[
+                {
+                  icon: '📱',
+                  label: '通报应用数量',
+                  description: '按应用名称去重统计，同一应用在多个平台被通报只计算1次'
+                },
+                {
+                  icon: '📢',
+                  label: '通报频次',
+                  description: '按"部门+日期"去重统计，同一部门在同一天发布的通报算作1次通报活动'
+                },
+                {
+                  icon: '🔗',
+                  label: '数据关系',
+                  description: '1次通报活动可能涉及多个应用'
+                }
+              ]}
+            />
           </CardContent>
         </Card>
       )}
@@ -389,9 +401,25 @@ export default function HomePage() {
                 
                 <TabsContent value="national" className="mt-0">
                   {nationalDeptData.length > 0 ? (
-                    <div className="w-full">
-                      <PieChart data={nationalDeptData} title="" />
-                    </div>
+                    <>
+                      <div className="w-full">
+                        <PieChart data={nationalDeptData} title="" />
+                      </div>
+                      <StatisticsInfo
+                        items={[
+                          {
+                            icon: '🏛️',
+                            label: '国家级部门',
+                            description: '统计各国家级监管部门发布的通报数量，展示不同部门的监管力度'
+                          },
+                          {
+                            icon: '📊',
+                            label: '数据来源',
+                            description: '基于所有案例记录中的部门信息进行统计'
+                          }
+                        ]}
+                      />
+                    </>
                   ) : (
                     <div className="text-center py-8 text-muted-foreground">暂无国家级部门数据</div>
                   )}
@@ -399,9 +427,25 @@ export default function HomePage() {
                 
                 <TabsContent value="provincial" className="mt-0">
                   {provincialDeptData.length > 0 ? (
-                    <div className="w-full">
-                      <PieChart data={provincialDeptData} title="" />
-                    </div>
+                    <>
+                      <div className="w-full">
+                        <PieChart data={provincialDeptData} title="" />
+                      </div>
+                      <StatisticsInfo
+                        items={[
+                          {
+                            icon: '🏢',
+                            label: '省级部门',
+                            description: '统计各省级监管部门发布的通报数量，展示地方监管活跃度'
+                          },
+                          {
+                            icon: '📊',
+                            label: '数据来源',
+                            description: '基于所有案例记录中的部门信息进行统计'
+                          }
+                        ]}
+                      />
+                    </>
                   ) : (
                     <div className="text-center py-8 text-muted-foreground">暂无省级部门数据</div>
                   )}
@@ -411,9 +455,25 @@ export default function HomePage() {
             
             <TabsContent value="geography" className="mt-0">
               {geoData.length > 0 ? (
-                <div className="w-full">
-                  <GeoChart data={geoData} title="" />
-                </div>
+                <>
+                  <div className="w-full">
+                    <GeoChart data={geoData} title="" />
+                  </div>
+                  <StatisticsInfo
+                    items={[
+                      {
+                        icon: '🗺️',
+                        label: '地域分布',
+                        description: '按监管部门所在省份统计通报数量，颜色深浅代表通报数量多少'
+                      },
+                      {
+                        icon: '📍',
+                        label: '统计维度',
+                        description: '基于部门所在地进行统计，非被通报应用的所在地'
+                      }
+                    ]}
+                  />
+                </>
               ) : (
                 <div className="text-center py-8 text-muted-foreground">暂无数据</div>
               )}
@@ -424,11 +484,45 @@ export default function HomePage() {
 
       <div className="grid gap-4 sm:gap-6 grid-cols-1 2xl:grid-cols-2">
         {isModuleVisible('platform_chart') && platformData.length > 0 && (
-          <PieChart data={platformData.slice(0, 10)} title="应用平台分布" />
+          <div className="space-y-0">
+            <PieChart data={platformData.slice(0, 10)} title="应用平台分布" />
+            <StatisticsInfo
+              className="-mt-4 mx-6 mb-6"
+              items={[
+                {
+                  icon: '📦',
+                  label: '平台分布',
+                  description: '统计被通报应用的来源平台，展示各平台的应用合规情况'
+                },
+                {
+                  icon: '🔢',
+                  label: '显示数量',
+                  description: '展示通报数量最多的前10个平台，其余平台归入"其他"类别'
+                }
+              ]}
+            />
+          </div>
         )}
 
         {isModuleVisible('wordcloud') && keywords.length > 0 && (
-          <WordCloud data={keywords} title="违规问题词云" />
+          <div className="space-y-0">
+            <WordCloud data={keywords} title="违规问题词云" />
+            <StatisticsInfo
+              className="-mt-4 mx-6 mb-6"
+              items={[
+                {
+                  icon: '☁️',
+                  label: '词云展示',
+                  description: '提取违规问题描述中的关键词，字体大小代表出现频率'
+                },
+                {
+                  icon: '🔍',
+                  label: '热点问题',
+                  description: '快速识别当前监管重点关注的违规问题类型'
+                }
+              ]}
+            />
+          </div>
         )}
       </div>
 
