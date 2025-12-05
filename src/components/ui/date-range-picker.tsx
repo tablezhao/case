@@ -1,5 +1,5 @@
 import * as React from 'react';
-import { format, subDays, startOfWeek, endOfWeek, startOfMonth, endOfMonth, subMonths, startOfQuarter, subQuarters, endOfQuarter } from 'date-fns';
+import { format, subDays, subMonths } from 'date-fns';
 import { zhCN } from 'date-fns/locale';
 import { Calendar as CalendarIcon } from 'lucide-react';
 import { DateRange } from 'react-day-picker';
@@ -47,90 +47,39 @@ export function DateRangePicker({
   // 快捷选项
   const quickOptions = [
     {
-      label: '今天',
-      getValue: () => {
-        const today = new Date();
-        return { from: today, to: today };
-      },
-    },
-    {
-      label: '昨天',
-      getValue: () => {
-        const yesterday = subDays(new Date(), 1);
-        return { from: yesterday, to: yesterday };
-      },
-    },
-    {
-      label: '最近7天',
+      label: '最近1周',
       getValue: () => ({
         from: subDays(new Date(), 6),
         to: new Date(),
       }),
     },
     {
-      label: '最近15天',
+      label: '最近1个月',
       getValue: () => ({
-        from: subDays(new Date(), 14),
+        from: subMonths(new Date(), 1),
         to: new Date(),
       }),
     },
     {
-      label: '最近30天',
+      label: '最近3个月',
       getValue: () => ({
-        from: subDays(new Date(), 29),
+        from: subMonths(new Date(), 3),
         to: new Date(),
       }),
     },
     {
-      label: '本周',
+      label: '最近6个月',
       getValue: () => ({
-        from: startOfWeek(new Date(), { weekStartsOn: 1 }),
-        to: endOfWeek(new Date(), { weekStartsOn: 1 }),
+        from: subMonths(new Date(), 6),
+        to: new Date(),
       }),
     },
     {
-      label: '上周',
-      getValue: () => {
-        const lastWeek = subDays(new Date(), 7);
-        return {
-          from: startOfWeek(lastWeek, { weekStartsOn: 1 }),
-          to: endOfWeek(lastWeek, { weekStartsOn: 1 }),
-        };
-      },
-    },
-    {
-      label: '本月',
+      label: '最近1年',
       getValue: () => ({
-        from: startOfMonth(new Date()),
-        to: endOfMonth(new Date()),
+        from: subMonths(new Date(), 12),
+        to: new Date(),
       }),
-    },
-    {
-      label: '上月',
-      getValue: () => {
-        const lastMonth = subMonths(new Date(), 1);
-        return {
-          from: startOfMonth(lastMonth),
-          to: endOfMonth(lastMonth),
-        };
-      },
-    },
-    {
-      label: '本季度',
-      getValue: () => ({
-        from: startOfQuarter(new Date()),
-        to: endOfQuarter(new Date()),
-      }),
-    },
-    {
-      label: '上季度',
-      getValue: () => {
-        const lastQuarter = subQuarters(new Date(), 1);
-        return {
-          from: startOfQuarter(lastQuarter),
-          to: endOfQuarter(lastQuarter),
-        };
-      },
     },
   ];
 
