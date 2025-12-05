@@ -88,10 +88,10 @@ const Footer = () => {
               </p>
               {aboutSetting.content.email && (
                 <div className="flex items-center gap-2 text-sm text-muted-foreground">
-                  <Mail className="w-4 h-4" />
+                  <Mail className="w-4 h-4 flex-shrink-0" />
                   <a
                     href={`mailto:${aboutSetting.content.email}`}
-                    className="hover:text-primary transition-colors"
+                    className="hover:text-primary transition-colors leading-none"
                   >
                     {aboutSetting.content.email}
                   </a>
