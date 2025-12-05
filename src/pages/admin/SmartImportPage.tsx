@@ -11,7 +11,7 @@ import { Badge } from '@/components/ui/badge';
 import { Loader2, Sparkles, AlertCircle, CheckCircle2, ArrowLeft, ExternalLink, Upload, FileText } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { supabase } from '@/db/supabase';
-import { createCase, getDepartments, getPlatforms } from '@/db/api';
+import { createCase, getDepartments, getPlatforms, createDepartment, createPlatform } from '@/db/api';
 
 interface ParsedCase {
   report_date: string | null;
@@ -217,6 +217,8 @@ export default function SmartImportPage() {
         getPlatforms(),
       ]);
 
+      const createdItems: string[] = [];
+
       // 查找或创建部门
       let departmentId: string | null = null;
       if (editedData.department) {
@@ -224,10 +226,25 @@ export default function SmartImportPage() {
         if (dept) {
           departmentId = dept.id;
         } else {
-          toast({
-            title: '提示',
-            description: `部门"${editedData.department}"不存在，将保存为空`,
-          });
+          // 自动创建新部门
+          try {
+            const newDept = await createDepartment({
+              name: editedData.department,
+              level: 'national',
+              province: null,
+            });
+            if (newDept) {
+              departmentId = newDept.id;
+              createdItems.push(`监管部门"${editedData.department}"`);
+            }
+          } catch (error) {
+            console.error('创建部门失败:', error);
+            toast({
+              title: '创建部门失败',
+              description: `无法创建部门"${editedData.department}"`,
+              variant: 'destructive',
+            });
+          }
         }
       }
 
@@ -238,10 +255,23 @@ export default function SmartImportPage() {
         if (plat) {
           platformId = plat.id;
         } else {
-          toast({
-            title: '提示',
-            description: `平台"${editedData.platform}"不存在，将保存为空`,
-          });
+          // 自动创建新平台
+          try {
+            const newPlat = await createPlatform({
+              name: editedData.platform,
+            });
+            if (newPlat) {
+              platformId = newPlat.id;
+              createdItems.push(`应用平台"${editedData.platform}"`);
+            }
+          } catch (error) {
+            console.error('创建平台失败:', error);
+            toast({
+              title: '创建平台失败',
+              description: `无法创建平台"${editedData.platform}"`,
+              variant: 'destructive',
+            });
+          }
         }
       }
 
@@ -276,9 +306,15 @@ export default function SmartImportPage() {
 
       setImportResult(report);
 
+      // 构建成功消息
+      let successMessage = '案例已成功保存到数据库';
+      if (createdItems.length > 0) {
+        successMessage += `\n\n已自动创建：${createdItems.join('、')}`;
+      }
+
       toast({
         title: '导入成功',
-        description: '案例已成功保存到数据库',
+        description: successMessage,
       });
       
       // 清理临时文件
