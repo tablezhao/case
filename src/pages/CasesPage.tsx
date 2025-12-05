@@ -401,13 +401,15 @@ export default function CasesPage() {
                             </div>
                           </TooltipTrigger>
                           <TooltipContent 
-                            className="max-w-md p-3 text-sm"
+                            className="max-w-2xl w-[600px] p-4 bg-slate-50 border-slate-200 shadow-lg"
                             side="top"
                             align="start"
                           >
-                            <p className="whitespace-pre-wrap">
-                              {caseItem.violation_content || '暂无违规内容'}
-                            </p>
+                            <div className="max-h-[400px] overflow-y-auto pr-2">
+                              <p className="whitespace-pre-wrap text-sm text-slate-700 leading-relaxed">
+                                {caseItem.violation_content || '暂无违规内容'}
+                              </p>
+                            </div>
                           </TooltipContent>
                         </Tooltip>
                       </TableCell>
