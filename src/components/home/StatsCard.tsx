@@ -2,6 +2,7 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { ArrowUp, ArrowDown, Minus, LucideIcon } from 'lucide-react';
 import { cn } from '@/lib/utils';
+import TooltipInfo from '@/components/ui/tooltip-info';
 
 interface StatsCardProps {
   title: string;
@@ -12,7 +13,8 @@ interface StatsCardProps {
   changePercent?: number;
   showTrend?: boolean;
   variant?: 'default' | 'gradient' | 'accent';
-  trendLabel?: string; // 新增：环比标签，如"较上月"、"较上季度"、"较上年度"
+  trendLabel?: string; // 环比标签，如"较上月"、"较上季度"、"较上年度"
+  tooltipContent?: React.ReactNode; // 统计口径说明（Tooltip内容）
 }
 
 export default function StatsCard({ 
@@ -24,7 +26,8 @@ export default function StatsCard({
   changePercent,
   showTrend = false,
   variant = 'gradient',
-  trendLabel = '较上月', // 默认值为"较上月"
+  trendLabel = '较上月',
+  tooltipContent,
 }: StatsCardProps) {
   const getTrendColor = () => {
     if (change === undefined || change === 0) return 'text-muted-foreground';
@@ -70,9 +73,12 @@ export default function StatsCard({
   return (
     <Card className={cn('overflow-hidden', getCardStyles())}>
       <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-        <CardTitle className="text-xs font-semibold text-muted-foreground tracking-wide uppercase">
-          {title}
-        </CardTitle>
+        <div className="flex items-center gap-1.5">
+          <CardTitle className="text-xs font-semibold text-muted-foreground tracking-wide uppercase">
+            {title}
+          </CardTitle>
+          {tooltipContent && <TooltipInfo content={tooltipContent} />}
+        </div>
         <Icon className={getIconStyles()} />
       </CardHeader>
       <CardContent className="space-y-2">
@@ -99,13 +105,13 @@ export default function StatsCard({
         {showTrend && change !== undefined && changePercent !== undefined && (
           <div className="flex items-center gap-1.5 pt-1.5 border-t border-border/50">
             {change === 0 ? (
-              // 当变化为0时，显示"持平"
+              // 当变化为0时，显示"持平 (0%)"
               <Badge 
                 variant="secondary" 
                 className="flex items-center gap-0.5 px-1.5 py-0.5 text-xs"
               >
                 <Minus className="h-2.5 w-2.5" />
-                <span className="font-semibold">持平</span>
+                <span className="font-semibold">持平 (0%)</span>
               </Badge>
             ) : (
               // 当有变化时，显示具体数值

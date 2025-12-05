@@ -1,12 +1,11 @@
 import { useEffect, useState } from 'react';
-import { FileText, Building2, Calendar, AlertCircle, Info } from 'lucide-react';
+import { FileText, Building2, Calendar, AlertCircle } from 'lucide-react';
 import StatsCard from '@/components/home/StatsCard';
 import TrendChart from '@/components/charts/TrendChart';
 import PieChart from '@/components/charts/PieChart';
 import WordCloud from '@/components/charts/WordCloud';
 import GeoChart from '@/components/charts/GeoChart';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { Alert, AlertDescription } from '@/components/ui/alert';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { toast } from 'sonner';
@@ -180,6 +179,20 @@ export default function HomePage() {
               showTrend={true}
               variant="gradient"
               trendLabel={timeDimension === 'month' ? '较上月' : timeDimension === 'quarter' ? '较上季度' : '较上年度'}
+              tooltipContent={
+                <div className="space-y-2">
+                  <p className="font-semibold text-foreground">统计口径</p>
+                  <p className="text-xs leading-relaxed">
+                    按"部门+日期"去重统计通报活动次数。同一个部门在同一天发布的通报算作1次通报活动。
+                  </p>
+                  <div className="pt-2 border-t border-border/50 space-y-1">
+                    <p className="text-xs font-medium text-foreground">示例说明</p>
+                    <p className="text-xs text-muted-foreground">
+                      2025-12-04，国家计算机病毒应急处理中心发布通报 → 1次通报活动
+                    </p>
+                  </div>
+                </div>
+              }
             />
             <StatsCard
               title={timeDimension === 'month' ? '本月涉及应用' : timeDimension === 'quarter' ? '本季度涉及应用' : '本年度涉及应用'}
@@ -215,6 +228,23 @@ export default function HomePage() {
               showTrend={true}
               variant="gradient"
               trendLabel={timeDimension === 'month' ? '较上月' : timeDimension === 'quarter' ? '较上季度' : '较上年度'}
+              tooltipContent={
+                <div className="space-y-2">
+                  <p className="font-semibold text-foreground">统计口径</p>
+                  <p className="text-xs leading-relaxed">
+                    按应用名称去重统计，同一应用在多个平台被通报只计算1次。
+                  </p>
+                  <div className="pt-2 border-t border-border/50 space-y-1">
+                    <p className="text-xs font-medium text-foreground">数据关系</p>
+                    <p className="text-xs text-muted-foreground">
+                      1次通报活动可能涉及多个应用
+                    </p>
+                    <p className="text-xs text-muted-foreground">
+                      示例：81条记录 → 69个应用（去重后）
+                    </p>
+                  </div>
+                </div>
+              }
             />
             <Card className="overflow-hidden bg-gradient-to-br from-background via-background to-primary/5 border-primary/20 hover:border-primary/40 transition-all duration-300 hover:shadow-lg">
               <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
@@ -267,16 +297,6 @@ export default function HomePage() {
               </CardContent>
             </Card>
           </div>
-
-          {/* 统计口径说明 */}
-          <Alert className="bg-muted/30 border-primary/20">
-            <Info className="h-4 w-4 text-primary" />
-            <AlertDescription className="text-sm text-muted-foreground ml-2">
-              <span className="font-semibold text-foreground">统计说明：</span>
-              通报频次按"部门+日期"统计通报活动次数，一次通报活动可能涉及多个应用；
-              涉及应用为被通报的唯一应用数量（去重统计）。
-            </AlertDescription>
-          </Alert>
         </div>
       )}
 
