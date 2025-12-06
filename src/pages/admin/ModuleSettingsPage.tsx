@@ -5,7 +5,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { Button } from '@/components/ui/button';
 import { Switch } from '@/components/ui/switch';
 import { Label } from '@/components/ui/label';
-import { ArrowLeft, Settings, Eye, EyeOff } from 'lucide-react';
+import { ArrowLeft, Eye, EyeOff } from 'lucide-react';
 import { toast } from 'sonner';
 import { useNavigate } from 'react-router-dom';
 
@@ -75,42 +75,26 @@ export default function ModuleSettingsPage() {
   };
 
   return (
-    <div className="container mx-auto p-6 max-w-6xl">
+    <div className="container mx-auto py-6 px-4 max-w-6xl">
       {/* 页面头部 */}
-      <div className="mb-6 flex items-center justify-between">
-        <div className="flex items-center gap-4">
-          <Button
-            variant="ghost"
-            size="sm"
-            onClick={() => navigate('/admin')}
-          >
-            <ArrowLeft className="w-4 h-4 mr-2" />
-            返回后台
-          </Button>
-          <div>
-            <h1 className="text-3xl font-bold flex items-center gap-2">
-              <Settings className="w-8 h-8" />
-              模块可见性控制
-            </h1>
-            <p className="text-muted-foreground mt-1">
-              管理前台各功能模块的显示状态，关闭的模块将在前台完全隐藏
-            </p>
-          </div>
+      <div className="flex items-center gap-4 mb-6">
+        <Button
+          variant="outline"
+          size="sm"
+          onClick={() => navigate(-1)}
+          className="gap-2"
+        >
+          <ArrowLeft className="w-4 h-4" />
+          返回
+        </Button>
+        <div className="h-6 w-px bg-border" />
+        <div className="flex-1">
+          <h1 className="text-2xl font-bold">模块控制</h1>
+          <p className="text-sm text-muted-foreground mt-1">
+            管理前台导航模块的显示状态
+          </p>
         </div>
       </div>
-
-      {/* 说明卡片 */}
-      <Card className="mb-6 border-primary/20 bg-primary/5">
-        <CardHeader>
-          <CardTitle className="text-lg">使用说明</CardTitle>
-        </CardHeader>
-        <CardContent className="space-y-2 text-sm">
-          <p>• <strong>实时生效</strong>：开关状态修改后立即保存并生效，前台用户刷新页面后即可看到变化</p>
-          <p>• <strong>完全隐藏</strong>：关闭的模块将在前台导航菜单、首页和相关页面中完全隐藏</p>
-          <p>• <strong>访问控制</strong>：用户无法通过直接输入URL访问已关闭的模块页面</p>
-          <p>• <strong>布局自适应</strong>：前台界面会自动调整布局，不会出现空白区域</p>
-        </CardContent>
-      </Card>
 
       {/* 模块列表 */}
       {isLoading ? (
@@ -177,21 +161,6 @@ export default function ModuleSettingsPage() {
           ))}
         </div>
       )}
-
-      {/* 底部提示 */}
-      <Card className="mt-6 border-muted">
-        <CardContent className="py-4">
-          <div className="flex items-start gap-3 text-sm text-muted-foreground">
-            <span className="text-lg">💡</span>
-            <div className="space-y-1">
-              <p><strong>提示：</strong></p>
-              <p>• 建议在非高峰时段进行模块调整，以减少对用户的影响</p>
-              <p>• 关闭模块前请确认该功能确实不需要对外展示</p>
-              <p>• 可以随时重新启用已关闭的模块</p>
-            </div>
-          </div>
-        </CardContent>
-      </Card>
     </div>
   );
 }
