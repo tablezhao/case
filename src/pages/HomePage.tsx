@@ -4,7 +4,7 @@ import StatsCard from '@/components/home/StatsCard';
 import TrendComparisonChart from '@/components/charts/TrendComparisonChart';
 import PieChart from '@/components/charts/PieChart';
 import WordCloud from '@/components/charts/WordCloud';
-import GeoChart from '@/components/charts/GeoChart';
+
 import StatisticsInfo from '@/components/common/StatisticsInfo';
 import TooltipInfo from '@/components/ui/tooltip-info';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -21,7 +21,6 @@ import {
   getNationalDepartmentDistribution,
   getProvincialDepartmentDistribution,
   getPlatformDistribution,
-  getGeoDistribution,
   getViolationKeywords,
   getRecentNews,
   getFrontendConfigs,
@@ -41,7 +40,6 @@ export default function HomePage() {
   const [nationalDeptData, setNationalDeptData] = useState<{ name: string; count: number }[]>([]);
   const [provincialDeptData, setProvincialDeptData] = useState<{ name: string; count: number }[]>([]);
   const [platformData, setPlatformData] = useState<{ name: string; count: number }[]>([]);
-  const [geoData, setGeoData] = useState<{ province: string; count: number }[]>([]);
   const [keywords, setKeywords] = useState<{ name: string; value: number }[]>([]);
   const [recentNews, setRecentNews] = useState<RegulatoryNewsWithDetails[]>([]);
   const [configs, setConfigs] = useState<FrontendConfig[]>([]);
@@ -50,7 +48,6 @@ export default function HomePage() {
   const [chartsLoading, setChartsLoading] = useState(true);
   const [trendView, setTrendView] = useState<'monthly' | 'yearly'>('monthly');
   const [trendDimension, setTrendDimension] = useState<'app' | 'report' | 'comparison'>('app');
-  const [analysisView, setAnalysisView] = useState<'department' | 'geography'>('department');
   const [deptLevelView, setDeptLevelView] = useState<'national' | 'provincial'>('national');
   const [timeDimension, setTimeDimension] = useState<'month' | 'quarter' | 'year'>('month');
 
@@ -82,7 +79,6 @@ export default function HomePage() {
         nationalDeptDist,
         provincialDeptDist,
         platformDist,
-        geoDist,
         keywordsData,
         newsData,
       ] = await Promise.all([
@@ -94,7 +90,6 @@ export default function HomePage() {
         getNationalDepartmentDistribution(),
         getProvincialDepartmentDistribution(),
         getPlatformDistribution(),
-        getGeoDistribution(),
         getViolationKeywords(),
         getRecentNews(5),
       ]);
@@ -107,7 +102,6 @@ export default function HomePage() {
       setNationalDeptData(nationalDeptDist);
       setProvincialDeptData(provincialDeptDist);
       setPlatformData(platformDist);
-      setGeoData(geoDist);
       setKeywords(keywordsData);
       setRecentNews(newsData);
       setChartsLoading(false);
@@ -412,7 +406,7 @@ export default function HomePage() {
         </Card>
       )}
 
-      {/* 监管趋势分析 - 二层级结构 */}
+      {/* 监管趋势分析 - 部门分布 */}
       <Card>
         <CardHeader>
           <div className="flex items-center gap-1.5">
@@ -422,7 +416,7 @@ export default function HomePage() {
                 <div className="space-y-2">
                   <p className="font-semibold">统计说明</p>
                   <p className="text-xs text-muted-foreground">
-                    展示各监管部门的通报活动分布情况，包括国家级部门、省级部门以及地域分布统计
+                    展示各监管部门的通报活动分布情况，包括国家级部门和省级部门统计
                   </p>
                 </div>
               }
@@ -430,116 +424,81 @@ export default function HomePage() {
           </div>
         </CardHeader>
         <CardContent className="px-2 sm:px-6">
-          <Tabs value={analysisView} onValueChange={(v) => setAnalysisView(v as typeof analysisView)}>
+          <Tabs value={deptLevelView} onValueChange={(v) => setDeptLevelView(v as typeof deptLevelView)}>
             <TabsList className="mb-4 grid grid-cols-2 w-full xl:w-auto xl:min-w-[240px]">
-              <TabsTrigger value="department" className="text-sm">按部门</TabsTrigger>
-              <TabsTrigger value="geography" className="text-sm">按地域</TabsTrigger>
+              <TabsTrigger value="national" className="text-sm">
+                <span className="flex items-center gap-1">
+                  国家级部门
+                </span>
+              </TabsTrigger>
+              <TabsTrigger value="provincial" className="text-sm">
+                <span className="flex items-center gap-1">
+                  省级部门
+                </span>
+              </TabsTrigger>
             </TabsList>
             
-            <TabsContent value="department" className="mt-0">
-              <Tabs value={deptLevelView} onValueChange={(v) => setDeptLevelView(v as typeof deptLevelView)}>
-                <TabsList className="mb-4 grid grid-cols-2 w-full xl:w-auto xl:min-w-[240px]">
-                  <TabsTrigger value="national" className="text-sm">
-                    <span className="flex items-center gap-1">
-                      国家级部门
-                    </span>
-                  </TabsTrigger>
-                  <TabsTrigger value="provincial" className="text-sm">
-                    <span className="flex items-center gap-1">
-                      省级部门
-                    </span>
-                  </TabsTrigger>
-                </TabsList>
-                
-                <TabsContent value="national" className="mt-0">
-                  {nationalDeptData.length > 0 ? (
-                    <div className="w-full">
-                      <div className="mb-3 flex items-center gap-1.5">
-                        <h3 className="text-sm font-semibold text-foreground">国家级部门分布</h3>
-                        <TooltipInfo
-                          content={
-                            <div className="space-y-3">
-                              <p className="font-semibold text-base">统计说明</p>
-                              <div className="space-y-2.5 text-xs leading-relaxed">
-                                <div>
-                                  <div className="font-semibold mb-1">🏛️ 国家级部门</div>
-                                  <div className="text-muted-foreground">统计各国家级监管部门发布的通报数量，展示不同部门的监管力度</div>
-                                </div>
-                                <div>
-                                  <div className="font-semibold mb-1">📊 数据来源</div>
-                                  <div className="text-muted-foreground">基于所有案例记录中的部门信息进行统计</div>
-                                </div>
-                              </div>
-                            </div>
-                          }
-                        />
-                      </div>
-                      <PieChart data={nationalDeptData} title="" />
-                    </div>
-                  ) : (
-                    <div className="text-center py-8 text-muted-foreground">暂无国家级部门数据</div>
-                  )}
-                </TabsContent>
-                
-                <TabsContent value="provincial" className="mt-0">
-                  {provincialDeptData.length > 0 ? (
-                    <div className="w-full">
-                      <div className="mb-3 flex items-center gap-1.5">
-                        <h3 className="text-sm font-semibold text-foreground">省级部门分布</h3>
-                        <TooltipInfo
-                          content={
-                            <div className="space-y-3">
-                              <p className="font-semibold text-base">统计说明</p>
-                              <div className="space-y-2.5 text-xs leading-relaxed">
-                                <div>
-                                  <div className="font-semibold mb-1">🏢 省级部门</div>
-                                  <div className="text-muted-foreground">统计各省级监管部门发布的通报数量，展示地方监管活跃度</div>
-                                </div>
-                                <div>
-                                  <div className="font-semibold mb-1">📊 数据来源</div>
-                                  <div className="text-muted-foreground">基于所有案例记录中的部门信息进行统计</div>
-                                </div>
-                              </div>
-                            </div>
-                          }
-                        />
-                      </div>
-                      <PieChart data={provincialDeptData} title="" />
-                    </div>
-                  ) : (
-                    <div className="text-center py-8 text-muted-foreground">暂无省级部门数据</div>
-                  )}
-                </TabsContent>
-              </Tabs>
-            </TabsContent>
-            
-            <TabsContent value="geography" className="mt-0">
-              {geoData.length > 0 ? (
+            <TabsContent value="national" className="mt-0">
+              {chartsLoading ? (
+                <Skeleton className="h-80 bg-muted" />
+              ) : nationalDeptData.length > 0 ? (
                 <div className="w-full">
                   <div className="mb-3 flex items-center gap-1.5">
-                    <h3 className="text-sm font-semibold text-foreground">地域分布</h3>
+                    <h3 className="text-sm font-semibold text-foreground">国家级部门分布</h3>
                     <TooltipInfo
                       content={
                         <div className="space-y-3">
                           <p className="font-semibold text-base">统计说明</p>
                           <div className="space-y-2.5 text-xs leading-relaxed">
                             <div>
-                              <div className="font-semibold mb-1">🗺️ 地域分布</div>
-                              <div className="text-muted-foreground">按监管部门所在省份统计通报数量，颜色深浅代表通报数量多少</div>
+                              <div className="font-semibold mb-1">🏛️ 国家级部门</div>
+                              <div className="text-muted-foreground">统计各国家级监管部门发布的通报数量，展示不同部门的监管力度</div>
                             </div>
                             <div>
-                              <div className="font-semibold mb-1">📍 统计维度</div>
-                              <div className="text-muted-foreground">基于部门所在地进行统计，非被通报应用的所在地</div>
+                              <div className="font-semibold mb-1">📊 数据来源</div>
+                              <div className="text-muted-foreground">基于所有案例记录中的部门信息进行统计</div>
                             </div>
                           </div>
                         </div>
                       }
                     />
                   </div>
-                  <GeoChart data={geoData} title="" />
+                  <PieChart data={nationalDeptData} title="" />
                 </div>
               ) : (
-                <div className="text-center py-8 text-muted-foreground">暂无数据</div>
+                <div className="text-center py-8 text-muted-foreground">暂无国家级部门数据</div>
+              )}
+            </TabsContent>
+            
+            <TabsContent value="provincial" className="mt-0">
+              {chartsLoading ? (
+                <Skeleton className="h-80 bg-muted" />
+              ) : provincialDeptData.length > 0 ? (
+                <div className="w-full">
+                  <div className="mb-3 flex items-center gap-1.5">
+                    <h3 className="text-sm font-semibold text-foreground">省级部门分布</h3>
+                    <TooltipInfo
+                      content={
+                        <div className="space-y-3">
+                          <p className="font-semibold text-base">统计说明</p>
+                          <div className="space-y-2.5 text-xs leading-relaxed">
+                            <div>
+                              <div className="font-semibold mb-1">🏢 省级部门</div>
+                              <div className="text-muted-foreground">统计各省级监管部门发布的通报数量，展示地方监管活跃度</div>
+                            </div>
+                            <div>
+                              <div className="font-semibold mb-1">📊 数据来源</div>
+                              <div className="text-muted-foreground">基于所有案例记录中的部门信息进行统计</div>
+                            </div>
+                          </div>
+                        </div>
+                      }
+                    />
+                  </div>
+                  <PieChart data={provincialDeptData} title="" />
+                </div>
+              ) : (
+                <div className="text-center py-8 text-muted-foreground">暂无省级部门数据</div>
               )}
             </TabsContent>
           </Tabs>

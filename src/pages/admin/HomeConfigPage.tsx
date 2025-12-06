@@ -58,7 +58,6 @@ export default function HomeConfigPage() {
     const descriptions: Record<string, string> = {
       stats_overview: '显示累计通报案例、涉及应用、最近通报等核心统计数据',
       trend_chart: '显示年度和月度通报案例数量趋势图表',
-      geo_map: '显示通报部门所在地理分布的中国地图',
       department_chart: '显示各通报部门出现频次的分布图表',
       platform_chart: '显示被通报应用的来源平台分布图',
       wordcloud: '显示热点违规问题的词云图',
