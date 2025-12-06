@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react';
 import { FileText, Building2, Calendar, AlertCircle } from 'lucide-react';
 import StatsCard from '@/components/home/StatsCard';
 import TrendComparisonChart from '@/components/charts/TrendComparisonChart';
+import TrendOverviewChart from '@/components/charts/TrendOverviewChart';
 import PieChart from '@/components/charts/PieChart';
 import WordCloud from '@/components/charts/WordCloud';
 
@@ -17,6 +18,7 @@ import {
   getYearlyAppTrend,
   getMonthlyReportTrend,
   getYearlyReportTrend,
+  getMonthlyTrend,
   getDepartmentDistribution,
   getNationalDepartmentDistribution,
   getProvincialDepartmentDistribution,
@@ -50,6 +52,8 @@ export default function HomePage() {
   const [trendDimension, setTrendDimension] = useState<'app' | 'report' | 'comparison'>('app');
   const [deptLevelView, setDeptLevelView] = useState<'national' | 'provincial'>('national');
   const [timeDimension, setTimeDimension] = useState<'month' | 'quarter' | 'year'>('month');
+  const [trendOverviewData, setTrendOverviewData] = useState<{ month: string; count: number }[]>([]);
+  const [trendOverviewRange, setTrendOverviewRange] = useState<'recent6' | 'thisYear' | 'all'>('recent6');
 
   useEffect(() => {
     loadData();
@@ -75,6 +79,7 @@ export default function HomePage() {
         yearlyAppTrend,
         monthlyReportTrend,
         yearlyReportTrend,
+        monthlyTrend,
         deptDist,
         nationalDeptDist,
         provincialDeptDist,
@@ -86,6 +91,7 @@ export default function HomePage() {
         getYearlyAppTrend(),
         getMonthlyReportTrend(),
         getYearlyReportTrend(),
+        getMonthlyTrend(),
         getDepartmentDistribution(),
         getNationalDepartmentDistribution(),
         getProvincialDepartmentDistribution(),
@@ -98,6 +104,7 @@ export default function HomePage() {
       setYearlyAppData(yearlyAppTrend);
       setMonthlyReportData(monthlyReportTrend);
       setYearlyReportData(yearlyReportTrend);
+      setTrendOverviewData(monthlyTrend);
       setDeptData(deptDist);
       setNationalDeptData(nationalDeptDist);
       setProvincialDeptData(provincialDeptDist);
@@ -329,6 +336,45 @@ export default function HomePage() {
           </div>
         </div>
       )}
+
+      {/* 趋势概览 */}
+      <Card>
+        <CardHeader>
+          <div className="flex flex-col gap-4">
+            <div className="flex flex-col xl:flex-row xl:items-center xl:justify-between gap-3">
+              <div className="flex items-center gap-1.5">
+                <CardTitle className="text-lg sm:text-xl">趋势概览</CardTitle>
+                <TooltipInfo
+                  content={
+                    <div className="space-y-2">
+                      <p className="font-semibold">统计说明</p>
+                      <p className="text-xs text-muted-foreground">
+                        展示通报数量的月度变化趋势，帮助您快速把握整体动态
+                      </p>
+                    </div>
+                  }
+                />
+              </div>
+              <Tabs value={trendOverviewRange} onValueChange={(v) => setTrendOverviewRange(v as 'recent6' | 'thisYear' | 'all')}>
+                <TabsList className="grid grid-cols-3 w-full xl:w-auto xl:min-w-[280px]">
+                  <TabsTrigger value="recent6">近6个月</TabsTrigger>
+                  <TabsTrigger value="thisYear">本年至今</TabsTrigger>
+                  <TabsTrigger value="all">全部</TabsTrigger>
+                </TabsList>
+              </Tabs>
+            </div>
+          </div>
+        </CardHeader>
+        <CardContent>
+          {chartsLoading ? (
+            <div className="space-y-3">
+              <Skeleton className="h-[300px] w-full bg-muted" />
+            </div>
+          ) : (
+            <TrendOverviewChart data={trendOverviewData} timeRange={trendOverviewRange} />
+          )}
+        </CardContent>
+      </Card>
 
       {isModuleVisible('trend_chart') && (
         <Card>
