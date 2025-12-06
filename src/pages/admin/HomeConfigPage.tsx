@@ -57,8 +57,6 @@ export default function HomeConfigPage() {
   const getModuleDescription = (moduleKey: string) => {
     const descriptions: Record<string, string> = {
       stats_overview: '显示累计通报案例、涉及应用、最近通报等核心统计数据',
-      trend_chart: '显示年度和月度通报案例数量趋势图表',
-      department_chart: '显示各通报部门出现频次的分布图表',
       platform_chart: '显示被通报应用的来源平台分布图',
       wordcloud: '显示热点违规问题的词云图',
       recent_news: '显示最近发布的监管资讯列表',
@@ -140,24 +138,6 @@ export default function HomeConfigPage() {
           </Card>
         ))}
       </div>
-
-      {/* 提示信息 */}
-      <Card className="mt-6 border-primary/20 bg-primary/5">
-        <CardContent className="pt-6">
-          <div className="flex gap-3">
-            <div className="w-1 bg-primary rounded-full" />
-            <div className="flex-1">
-              <h3 className="font-semibold text-sm mb-2">💡 使用提示</h3>
-              <ul className="text-sm text-muted-foreground space-y-1">
-                <li>• 关闭模块后，该模块将在首页完全隐藏</li>
-                <li>• 修改会立即生效，用户刷新页面后即可看到变化</li>
-                <li>• 建议至少保留"核心数据总览"模块以提供基本信息</li>
-                <li>• 可以根据业务需求灵活调整模块显示</li>
-              </ul>
-            </div>
-          </div>
-        </CardContent>
-      </Card>
     </div>
   );
 }
