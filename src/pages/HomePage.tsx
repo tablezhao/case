@@ -18,7 +18,7 @@ import {
   getYearlyAppTrend,
   getMonthlyReportTrend,
   getYearlyReportTrend,
-  getMonthlyTrend,
+  getMonthlyAppCountTrend,
   getDepartmentDistribution,
   getNationalDepartmentDistribution,
   getProvincialDepartmentDistribution,
@@ -79,7 +79,7 @@ export default function HomePage() {
         yearlyAppTrend,
         monthlyReportTrend,
         yearlyReportTrend,
-        monthlyTrend,
+        monthlyAppCountTrend,
         deptDist,
         nationalDeptDist,
         provincialDeptDist,
@@ -91,7 +91,7 @@ export default function HomePage() {
         getYearlyAppTrend(),
         getMonthlyReportTrend(),
         getYearlyReportTrend(),
-        getMonthlyTrend(),
+        getMonthlyAppCountTrend(),
         getDepartmentDistribution(),
         getNationalDepartmentDistribution(),
         getProvincialDepartmentDistribution(),
@@ -104,7 +104,7 @@ export default function HomePage() {
       setYearlyAppData(yearlyAppTrend);
       setMonthlyReportData(monthlyReportTrend);
       setYearlyReportData(yearlyReportTrend);
-      setTrendOverviewData(monthlyTrend);
+      setTrendOverviewData(monthlyAppCountTrend);
       setDeptData(deptDist);
       setNationalDeptData(nationalDeptDist);
       setProvincialDeptData(provincialDeptDist);
@@ -349,7 +349,7 @@ export default function HomePage() {
                     <div className="space-y-2">
                       <p className="font-semibold">统计说明</p>
                       <p className="text-xs text-muted-foreground">
-                        展示通报数量的月度变化趋势，帮助您快速把握整体动态
+                        展示每月被通报的应用数量变化趋势，帮助您快速把握整体动态
                       </p>
                     </div>
                   }

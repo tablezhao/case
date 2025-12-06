@@ -49,7 +49,7 @@ export default function TrendOverviewChart({ data, timeRange }: TrendOverviewCha
         <div className="bg-background border border-border rounded-lg shadow-lg px-3 py-2">
           <p className="text-sm font-medium">{formatMonth(payload[0].payload.month)}</p>
           <p className="text-sm text-primary font-semibold">
-            通报数量：{payload[0].value} 次
+            应用数量：{payload[0].value} 个
           </p>
         </div>
       );
@@ -92,7 +92,7 @@ export default function TrendOverviewChart({ data, timeRange }: TrendOverviewCha
             fontSize={12}
             tickLine={false}
             axisLine={{ stroke: 'hsl(var(--border))' }}
-            label={{ value: '通报数量', angle: -90, position: 'insideLeft', style: { fill: 'hsl(var(--muted-foreground))', fontSize: 12 } }}
+            label={{ value: '应用数量', angle: -90, position: 'insideLeft', style: { fill: 'hsl(var(--muted-foreground))', fontSize: 12 } }}
           />
           <Tooltip content={<CustomTooltip />} />
           <Area

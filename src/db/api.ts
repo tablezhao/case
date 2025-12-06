@@ -1167,6 +1167,35 @@ export async function getMonthlyTrend(year?: string) {
     .sort((a, b) => a.month.localeCompare(b.month));
 }
 
+// 获取每月被通报的应用数量趋势
+export async function getMonthlyAppCountTrend(year?: string) {
+  let query = supabase.from('cases').select('report_date, app_name');
+  
+  if (year) {
+    query = query.gte('report_date', `${year}-01-01`).lte('report_date', `${year}-12-31`);
+  }
+
+  const { data, error } = await query;
+  
+  if (error) throw error;
+  
+  // 按月份分组，统计每月不同的应用数量
+  const monthAppSets: Record<string, Set<string>> = {};
+  (data || []).forEach(item => {
+    const month = item.report_date.substring(0, 7);
+    if (!monthAppSets[month]) {
+      monthAppSets[month] = new Set();
+    }
+    if (item.app_name) {
+      monthAppSets[month].add(item.app_name);
+    }
+  });
+
+  return Object.entries(monthAppSets)
+    .map(([month, appSet]) => ({ month, count: appSet.size }))
+    .sort((a, b) => a.month.localeCompare(b.month));
+}
+
 // 获取部门分布数据（所有部门）
 export async function getDepartmentDistribution() {
   const { data, error } = await supabase
