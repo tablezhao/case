@@ -406,11 +406,11 @@ export default function HomePage() {
         </Card>
       )}
 
-      {/* 监管趋势分析 - 部门分布 */}
+      {/* 监管部门分布 */}
       <Card>
         <CardHeader>
           <div className="flex items-center gap-1.5">
-            <CardTitle className="text-lg sm:text-xl">监管趋势分析</CardTitle>
+            <CardTitle className="text-lg sm:text-xl">监管部门分布</CardTitle>
             <TooltipInfo
               content={
                 <div className="space-y-2">
