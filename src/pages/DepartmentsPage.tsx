@@ -3,14 +3,20 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Badge } from '@/components/ui/badge';
-import { Building2, MapPin } from 'lucide-react';
-import { getNationalDepartments, getProvincialDepartments, getProvincesList } from '@/db/api';
+import { Building2, MapPin, FileText, AppWindow } from 'lucide-react';
+import { getNationalDepartmentsWithStats, getProvincialDepartmentsWithStats, getProvincesList } from '@/db/api';
 import type { RegulatoryDepartment } from '@/types/types';
 import { toast } from 'sonner';
 
+// 扩展部门类型以包含统计数据
+interface DepartmentWithStats extends RegulatoryDepartment {
+  case_count?: number;
+  app_count?: number;
+}
+
 export default function DepartmentsPage() {
-  const [nationalDepts, setNationalDepts] = useState<RegulatoryDepartment[]>([]);
-  const [provincialDepts, setProvincialDepts] = useState<RegulatoryDepartment[]>([]);
+  const [nationalDepts, setNationalDepts] = useState<DepartmentWithStats[]>([]);
+  const [provincialDepts, setProvincialDepts] = useState<DepartmentWithStats[]>([]);
   const [provinces, setProvinces] = useState<string[]>([]);
   const [selectedProvince, setSelectedProvince] = useState<string>('all');
   const [isLoading, setIsLoading] = useState(true);
@@ -27,7 +33,7 @@ export default function DepartmentsPage() {
     try {
       setIsLoading(true);
       const [national, provinceList] = await Promise.all([
-        getNationalDepartments(),
+        getNationalDepartmentsWithStats(),
         getProvincesList(),
       ]);
       setNationalDepts(national);
@@ -43,7 +49,7 @@ export default function DepartmentsPage() {
   const loadProvincialDepartments = async () => {
     try {
       const province = selectedProvince === 'all' ? undefined : selectedProvince;
-      const depts = await getProvincialDepartments(province);
+      const depts = await getProvincialDepartmentsWithStats(province);
       setProvincialDepts(depts);
     } catch (error) {
       console.error('加载省级部门失败:', error);
@@ -108,6 +114,34 @@ export default function DepartmentsPage() {
                       </div>
                     </div>
                   </CardHeader>
+                  <CardContent>
+                    <div className="grid grid-cols-2 gap-4">
+                      <div className="flex flex-col items-center p-3 bg-primary/5 rounded-lg">
+                        <div className="flex items-center gap-1.5 mb-1">
+                          <FileText className="w-4 h-4 text-primary" />
+                          <span className="text-xs text-muted-foreground">累计通报</span>
+                        </div>
+                        <div className="flex items-baseline gap-1">
+                          <span className="text-2xl font-bold text-primary">
+                            {dept.case_count || 0}
+                          </span>
+                          <span className="text-xs text-muted-foreground">次</span>
+                        </div>
+                      </div>
+                      <div className="flex flex-col items-center p-3 bg-secondary/5 rounded-lg">
+                        <div className="flex items-center gap-1.5 mb-1">
+                          <AppWindow className="w-4 h-4 text-secondary-foreground" />
+                          <span className="text-xs text-muted-foreground">相关应用</span>
+                        </div>
+                        <div className="flex items-baseline gap-1">
+                          <span className="text-2xl font-bold text-secondary-foreground">
+                            {dept.app_count || 0}
+                          </span>
+                          <span className="text-xs text-muted-foreground">个</span>
+                        </div>
+                      </div>
+                    </div>
+                  </CardContent>
                 </Card>
               ))}
             </div>
@@ -166,6 +200,34 @@ export default function DepartmentsPage() {
                       </div>
                     </div>
                   </CardHeader>
+                  <CardContent>
+                    <div className="grid grid-cols-2 gap-4">
+                      <div className="flex flex-col items-center p-3 bg-primary/5 rounded-lg">
+                        <div className="flex items-center gap-1.5 mb-1">
+                          <FileText className="w-4 h-4 text-primary" />
+                          <span className="text-xs text-muted-foreground">累计通报</span>
+                        </div>
+                        <div className="flex items-baseline gap-1">
+                          <span className="text-2xl font-bold text-primary">
+                            {dept.case_count || 0}
+                          </span>
+                          <span className="text-xs text-muted-foreground">次</span>
+                        </div>
+                      </div>
+                      <div className="flex flex-col items-center p-3 bg-secondary/5 rounded-lg">
+                        <div className="flex items-center gap-1.5 mb-1">
+                          <AppWindow className="w-4 h-4 text-secondary-foreground" />
+                          <span className="text-xs text-muted-foreground">相关应用</span>
+                        </div>
+                        <div className="flex items-baseline gap-1">
+                          <span className="text-2xl font-bold text-secondary-foreground">
+                            {dept.app_count || 0}
+                          </span>
+                          <span className="text-xs text-muted-foreground">个</span>
+                        </div>
+                      </div>
+                    </div>
+                  </CardContent>
                 </Card>
               ))}
             </div>

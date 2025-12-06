@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { getDepartmentsWithStats, createDepartment, updateDepartment, deleteDepartment, getPlatforms, createPlatform, updatePlatform, deletePlatform } from '@/db/api';
+import { getDepartmentsWithStats, createDepartment, updateDepartment, deleteDepartment, getPlatformsWithStats, createPlatform, updatePlatform, deletePlatform } from '@/db/api';
 import type { RegulatoryDepartment, AppPlatform } from '@/types/types';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -20,14 +20,20 @@ interface DepartmentWithStats extends RegulatoryDepartment {
   app_count?: number;
 }
 
+// 扩展平台类型以包含统计数据
+interface PlatformWithStats extends AppPlatform {
+  case_count?: number;
+  app_count?: number;
+}
+
 export default function DepartmentsPage() {
   const navigate = useNavigate();
   const [departments, setDepartments] = useState<DepartmentWithStats[]>([]);
-  const [platforms, setPlatforms] = useState<AppPlatform[]>([]);
+  const [platforms, setPlatforms] = useState<PlatformWithStats[]>([]);
   const [deptDialogOpen, setDeptDialogOpen] = useState(false);
   const [platDialogOpen, setPlatDialogOpen] = useState(false);
   const [editingDept, setEditingDept] = useState<DepartmentWithStats | null>(null);
-  const [editingPlat, setEditingPlat] = useState<AppPlatform | null>(null);
+  const [editingPlat, setEditingPlat] = useState<PlatformWithStats | null>(null);
 
   const [deptForm, setDeptForm] = useState({
     name: '',
@@ -47,7 +53,7 @@ export default function DepartmentsPage() {
     try {
       const [depts, plats] = await Promise.all([
         getDepartmentsWithStats(),
-        getPlatforms(),
+        getPlatformsWithStats(),
       ]);
       setDepartments(depts);
       setPlatforms(plats);
@@ -403,13 +409,15 @@ export default function DepartmentsPage() {
                   <TableHeader>
                     <TableRow>
                       <TableHead>平台名称</TableHead>
+                      <TableHead className="text-center">累计通报频次</TableHead>
+                      <TableHead className="text-center">相关应用总数</TableHead>
                       <TableHead className="text-right">操作</TableHead>
                     </TableRow>
                   </TableHeader>
                   <TableBody>
                     {platforms.length === 0 ? (
                       <TableRow>
-                        <TableCell colSpan={2} className="text-center text-muted-foreground">
+                        <TableCell colSpan={4} className="text-center text-muted-foreground">
                           暂无数据
                         </TableCell>
                       </TableRow>
@@ -417,6 +425,24 @@ export default function DepartmentsPage() {
                       platforms.map((plat) => (
                         <TableRow key={plat.id}>
                           <TableCell className="font-medium">{plat.name}</TableCell>
+                          <TableCell className="text-center">
+                            <div className="flex items-center justify-center gap-1.5">
+                              <FileText className="w-4 h-4 text-primary" />
+                              <span className="font-semibold text-primary">
+                                {plat.case_count || 0}
+                              </span>
+                              <span className="text-xs text-muted-foreground">次</span>
+                            </div>
+                          </TableCell>
+                          <TableCell className="text-center">
+                            <div className="flex items-center justify-center gap-1.5">
+                              <AppWindow className="w-4 h-4 text-secondary-foreground" />
+                              <span className="font-semibold text-secondary-foreground">
+                                {plat.app_count || 0}
+                              </span>
+                              <span className="text-xs text-muted-foreground">个</span>
+                            </div>
+                          </TableCell>
                           <TableCell className="text-right space-x-2">
                             <Button
                               variant="ghost"

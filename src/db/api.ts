@@ -125,6 +125,47 @@ export async function getNationalDepartments() {
   return Array.isArray(data) ? data : [];
 }
 
+// 获取国家级部门（带统计数据）
+export async function getNationalDepartmentsWithStats() {
+  const departments = await getNationalDepartments();
+  
+  if (departments.length === 0) {
+    return [];
+  }
+  
+  // 为每个部门获取统计数据
+  const departmentsWithStats = await Promise.all(
+    departments.map(async (dept) => {
+      // 获取该部门的案例总数
+      const { count: caseCount } = await supabase
+        .from('cases')
+        .select('*', { count: 'exact', head: true })
+        .eq('department_id', dept.id);
+      
+      // 获取该部门的所有应用名称（用于去重计数）
+      const { data: apps } = await supabase
+        .from('cases')
+        .select('app_name')
+        .eq('department_id', dept.id);
+      
+      // 计算去重后的应用总数
+      const uniqueApps = new Set(
+        (Array.isArray(apps) ? apps : [])
+          .map(item => item.app_name)
+          .filter(Boolean)
+      );
+      
+      return {
+        ...dept,
+        case_count: caseCount || 0,
+        app_count: uniqueApps.size,
+      };
+    })
+  );
+  
+  return departmentsWithStats;
+}
+
 export async function getProvincialDepartments(province?: string) {
   let query = supabase
     .from('regulatory_departments')
@@ -141,6 +182,47 @@ export async function getProvincialDepartments(province?: string) {
   
   if (error) throw error;
   return Array.isArray(data) ? data : [];
+}
+
+// 获取省级部门（带统计数据）
+export async function getProvincialDepartmentsWithStats(province?: string) {
+  const departments = await getProvincialDepartments(province);
+  
+  if (departments.length === 0) {
+    return [];
+  }
+  
+  // 为每个部门获取统计数据
+  const departmentsWithStats = await Promise.all(
+    departments.map(async (dept) => {
+      // 获取该部门的案例总数
+      const { count: caseCount } = await supabase
+        .from('cases')
+        .select('*', { count: 'exact', head: true })
+        .eq('department_id', dept.id);
+      
+      // 获取该部门的所有应用名称（用于去重计数）
+      const { data: apps } = await supabase
+        .from('cases')
+        .select('app_name')
+        .eq('department_id', dept.id);
+      
+      // 计算去重后的应用总数
+      const uniqueApps = new Set(
+        (Array.isArray(apps) ? apps : [])
+          .map(item => item.app_name)
+          .filter(Boolean)
+      );
+      
+      return {
+        ...dept,
+        case_count: caseCount || 0,
+        app_count: uniqueApps.size,
+      };
+    })
+  );
+  
+  return departmentsWithStats;
 }
 
 export async function getProvincesList() {
@@ -201,6 +283,61 @@ export async function getPlatforms() {
   
   if (error) throw error;
   return Array.isArray(data) ? data : [];
+}
+
+// 获取平台统计数据（累计通报频次和相关应用总数）
+export async function getPlatformsWithStats() {
+  // 首先获取所有平台
+  const { data: platforms, error: platError } = await supabase
+    .from('app_platforms')
+    .select('*')
+    .order('name', { ascending: true });
+  
+  if (platError) throw platError;
+  
+  if (!Array.isArray(platforms) || platforms.length === 0) {
+    return [];
+  }
+  
+  // 为每个平台获取统计数据
+  const platformsWithStats = await Promise.all(
+    platforms.map(async (plat) => {
+      // 获取该平台的案例总数
+      const { count: caseCount, error: countError } = await supabase
+        .from('cases')
+        .select('*', { count: 'exact', head: true })
+        .eq('platform_id', plat.id);
+      
+      if (countError) {
+        console.error(`获取平台 ${plat.name} 的案例数失败:`, countError);
+      }
+      
+      // 获取该平台的所有应用名称（用于去重计数）
+      const { data: apps, error: appsError } = await supabase
+        .from('cases')
+        .select('app_name')
+        .eq('platform_id', plat.id);
+      
+      if (appsError) {
+        console.error(`获取平台 ${plat.name} 的应用列表失败:`, appsError);
+      }
+      
+      // 计算去重后的应用总数
+      const uniqueApps = new Set(
+        (Array.isArray(apps) ? apps : [])
+          .map(item => item.app_name)
+          .filter(Boolean)
+      );
+      
+      return {
+        ...plat,
+        case_count: caseCount || 0,
+        app_count: uniqueApps.size,
+      };
+    })
+  );
+  
+  return platformsWithStats;
 }
 
 export async function createPlatform(platform: Omit<AppPlatform, 'id' | 'created_at'>) {
