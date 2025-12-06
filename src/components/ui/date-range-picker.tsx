@@ -1,5 +1,5 @@
 import * as React from 'react';
-import { format, subDays, subMonths } from 'date-fns';
+import { format, subDays, subMonths, startOfMonth, endOfMonth } from 'date-fns';
 import { zhCN } from 'date-fns/locale';
 import { Calendar as CalendarIcon } from 'lucide-react';
 import { DateRange } from 'react-day-picker';
@@ -52,6 +52,26 @@ export function DateRangePicker({
         from: undefined,
         to: undefined,
       }),
+    },
+    {
+      label: '本月',
+      getValue: () => {
+        const now = new Date();
+        return {
+          from: startOfMonth(now),
+          to: endOfMonth(now),
+        };
+      },
+    },
+    {
+      label: '上月',
+      getValue: () => {
+        const lastMonth = subMonths(new Date(), 1);
+        return {
+          from: startOfMonth(lastMonth),
+          to: endOfMonth(lastMonth),
+        };
+      },
     },
     {
       label: '最近1周',
