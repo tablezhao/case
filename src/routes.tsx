@@ -16,6 +16,7 @@ import UsersPage from './pages/admin/UsersPage';
 import SmartImportPage from './pages/admin/SmartImportPage';
 import FooterSettingsPage from './pages/admin/FooterSettingsPage';
 import ModuleSettingsPage from './pages/admin/ModuleSettingsPage';
+import HomeConfigPage from './pages/admin/HomeConfigPage';
 import ProtectedModuleRoute from './components/common/ProtectedModuleRoute';
 
 interface RouteConfig {
@@ -170,6 +171,14 @@ const routes: RouteConfig[] = [
     name: '模块设置',
     path: '/admin/module-settings',
     element: <ModuleSettingsPage />,
+    visible: false,
+    requireAuth: true,
+    requireAdmin: true,
+  },
+  {
+    name: '首页配置',
+    path: '/admin/home-config',
+    element: <HomeConfigPage />,
     visible: false,
     requireAuth: true,
     requireAdmin: true,

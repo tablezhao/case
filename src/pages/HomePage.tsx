@@ -46,6 +46,8 @@ export default function HomePage() {
   const [recentNews, setRecentNews] = useState<RegulatoryNewsWithDetails[]>([]);
   const [configs, setConfigs] = useState<FrontendConfig[]>([]);
   const [loading, setLoading] = useState(true);
+  const [statsLoading, setStatsLoading] = useState(true);
+  const [chartsLoading, setChartsLoading] = useState(true);
   const [trendView, setTrendView] = useState<'monthly' | 'yearly'>('monthly');
   const [trendDimension, setTrendDimension] = useState<'app' | 'report' | 'comparison'>('app');
   const [analysisView, setAnalysisView] = useState<'department' | 'geography'>('department');
@@ -59,8 +61,19 @@ export default function HomePage() {
   const loadData = async () => {
     try {
       setLoading(true);
+      
+      // 第一批：加载核心统计数据和配置（优先显示）
+      const [statsData, configsData] = await Promise.all([
+        getStatsOverview(),
+        getFrontendConfigs(),
+      ]);
+      
+      setStats(statsData);
+      setConfigs(configsData);
+      setStatsLoading(false);
+      
+      // 第二批：并行加载所有图表数据
       const [
-        statsData,
         monthlyAppTrend,
         yearlyAppTrend,
         monthlyReportTrend,
@@ -72,9 +85,7 @@ export default function HomePage() {
         geoDist,
         keywordsData,
         newsData,
-        configsData,
       ] = await Promise.all([
-        getStatsOverview(),
         getMonthlyAppTrend(),
         getYearlyAppTrend(),
         getMonthlyReportTrend(),
@@ -86,26 +97,8 @@ export default function HomePage() {
         getGeoDistribution(),
         getViolationKeywords(),
         getRecentNews(5),
-        getFrontendConfigs(),
       ]);
 
-      console.log('首页数据加载成功:', {
-        statsData,
-        monthlyAppTrend,
-        yearlyAppTrend,
-        monthlyReportTrend,
-        yearlyReportTrend,
-        deptDist,
-        nationalDeptDist,
-        provincialDeptDist,
-        platformDist,
-        geoDist,
-        keywordsData,
-        newsData,
-        configsData,
-      });
-
-      setStats(statsData);
       setMonthlyAppData(monthlyAppTrend);
       setYearlyAppData(yearlyAppTrend);
       setMonthlyReportData(monthlyReportTrend);
@@ -117,7 +110,7 @@ export default function HomePage() {
       setGeoData(geoDist);
       setKeywords(keywordsData);
       setRecentNews(newsData);
-      setConfigs(configsData);
+      setChartsLoading(false);
     } catch (error) {
       console.error('加载数据失败:', error);
       toast.error(`加载数据失败: ${error instanceof Error ? error.message : '未知错误'}`);
@@ -144,7 +137,8 @@ export default function HomePage() {
     return config?.is_visible !== false;
   };
 
-  if (loading) {
+  if (loading && statsLoading) {
+    // 初始加载状态：显示完整骨架屏
     return (
       <div className="container mx-auto p-6 space-y-6">
         <div className="grid gap-4 grid-cols-1 md:grid-cols-2 2xl:grid-cols-4">
@@ -152,6 +146,7 @@ export default function HomePage() {
             <Skeleton key={i} className="h-32 bg-muted" />
           ))}
         </div>
+        <Skeleton className="h-96 bg-muted" />
         <Skeleton className="h-96 bg-muted" />
       </div>
     );
@@ -387,25 +382,31 @@ export default function HomePage() {
             </div>
           </CardHeader>
           <CardContent className="px-2 sm:px-6">
-            {trendView === 'monthly' && (
-              <TrendComparisonChart 
-                appData={monthlyAppData} 
-                reportData={monthlyReportData}
-                type="monthly"
-                mode={trendDimension}
-              />
-            )}
-            {trendView === 'yearly' && (
-              <TrendComparisonChart 
-                appData={yearlyAppData} 
-                reportData={yearlyReportData}
-                type="yearly"
-                mode={trendDimension}
-              />
-            )}
-            {((trendView === 'monthly' && monthlyAppData.length === 0 && monthlyReportData.length === 0) ||
-              (trendView === 'yearly' && yearlyAppData.length === 0 && yearlyReportData.length === 0)) && (
-              <div className="text-center py-8 text-muted-foreground">暂无数据</div>
+            {chartsLoading ? (
+              <Skeleton className="h-80 bg-muted" />
+            ) : (
+              <>
+                {trendView === 'monthly' && (
+                  <TrendComparisonChart 
+                    appData={monthlyAppData} 
+                    reportData={monthlyReportData}
+                    type="monthly"
+                    mode={trendDimension}
+                  />
+                )}
+                {trendView === 'yearly' && (
+                  <TrendComparisonChart 
+                    appData={yearlyAppData} 
+                    reportData={yearlyReportData}
+                    type="yearly"
+                    mode={trendDimension}
+                  />
+                )}
+                {((trendView === 'monthly' && monthlyAppData.length === 0 && monthlyReportData.length === 0) ||
+                  (trendView === 'yearly' && yearlyAppData.length === 0 && yearlyReportData.length === 0)) && (
+                  <div className="text-center py-8 text-muted-foreground">暂无数据</div>
+                )}
+              </>
             )}
           </CardContent>
         </Card>
@@ -546,79 +547,111 @@ export default function HomePage() {
       </Card>
 
       <div className="grid gap-4 sm:gap-6 grid-cols-1 2xl:grid-cols-2">
-        {isModuleVisible('platform_chart') && platformData.length > 0 && (
-          <PieChart 
-            data={platformData.slice(0, 10)} 
-            title="应用平台分布"
-            tooltipContent={
-              <div className="space-y-3">
-                <p className="font-semibold text-base">统计说明</p>
-                <div className="space-y-2.5 text-xs leading-relaxed">
-                  <div>
-                    <div className="font-semibold mb-1">📦 平台分布</div>
-                    <div className="text-muted-foreground">统计被通报应用的来源平台，展示各平台的应用合规情况</div>
-                  </div>
-                  <div>
-                    <div className="font-semibold mb-1">🔢 显示数量</div>
-                    <div className="text-muted-foreground">展示通报数量最多的前10个平台，其余平台归入"其他"类别</div>
+        {isModuleVisible('platform_chart') && (
+          chartsLoading ? (
+            <Card>
+              <CardHeader>
+                <CardTitle>应用平台分布</CardTitle>
+              </CardHeader>
+              <CardContent>
+                <Skeleton className="h-80 bg-muted" />
+              </CardContent>
+            </Card>
+          ) : platformData.length > 0 ? (
+            <PieChart 
+              data={platformData.slice(0, 10)} 
+              title="应用平台分布"
+              tooltipContent={
+                <div className="space-y-3">
+                  <p className="font-semibold text-base">统计说明</p>
+                  <div className="space-y-2.5 text-xs leading-relaxed">
+                    <div>
+                      <div className="font-semibold mb-1">📦 平台分布</div>
+                      <div className="text-muted-foreground">统计被通报应用的来源平台，展示各平台的应用合规情况</div>
+                    </div>
+                    <div>
+                      <div className="font-semibold mb-1">🔢 显示数量</div>
+                      <div className="text-muted-foreground">展示通报数量最多的前10个平台，其余平台归入"其他"类别</div>
+                    </div>
                   </div>
                 </div>
-              </div>
-            }
-          />
+              }
+            />
+          ) : null
         )}
 
-        {isModuleVisible('wordcloud') && keywords.length > 0 && (
-          <WordCloud 
-            data={keywords} 
-            title="违规问题词云"
-            tooltipContent={
-              <div className="space-y-3">
-                <p className="font-semibold text-base">统计说明</p>
-                <div className="space-y-2.5 text-xs leading-relaxed">
-                  <div>
-                    <div className="font-semibold mb-1">☁️ 词云展示</div>
-                    <div className="text-muted-foreground">提取违规问题描述中的关键词，字体大小代表出现频率</div>
-                  </div>
-                  <div>
-                    <div className="font-semibold mb-1">🔍 热点问题</div>
-                    <div className="text-muted-foreground">快速识别当前监管重点关注的违规问题类型</div>
+        {isModuleVisible('wordcloud') && (
+          chartsLoading ? (
+            <Card>
+              <CardHeader>
+                <CardTitle>违规问题词云</CardTitle>
+              </CardHeader>
+              <CardContent>
+                <Skeleton className="h-80 bg-muted" />
+              </CardContent>
+            </Card>
+          ) : keywords.length > 0 ? (
+            <WordCloud 
+              data={keywords} 
+              title="违规问题词云"
+              tooltipContent={
+                <div className="space-y-3">
+                  <p className="font-semibold text-base">统计说明</p>
+                  <div className="space-y-2.5 text-xs leading-relaxed">
+                    <div>
+                      <div className="font-semibold mb-1">☁️ 词云展示</div>
+                      <div className="text-muted-foreground">提取违规问题描述中的关键词，字体大小代表出现频率</div>
+                    </div>
+                    <div>
+                      <div className="font-semibold mb-1">🔍 热点问题</div>
+                      <div className="text-muted-foreground">快速识别当前监管重点关注的违规问题类型</div>
+                    </div>
                   </div>
                 </div>
-              </div>
-            }
-          />
+              }
+            />
+          ) : null
         )}
       </div>
 
-      {isModuleVisible('recent_news') && recentNews.length > 0 && (
+      {isModuleVisible('recent_news') && (
         <Card>
           <CardHeader>
             <CardTitle className="text-lg sm:text-xl">近期监管资讯</CardTitle>
           </CardHeader>
           <CardContent className="px-3 sm:px-6">
-            <div className="space-y-3 sm:space-y-4">
-              {recentNews.map((news) => (
-                <div
-                  key={news.id}
-                  className="flex flex-col sm:flex-row sm:items-center sm:justify-between p-3 sm:p-4 border rounded-lg hover:bg-muted/50 transition-colors gap-3"
-                >
-                  <div className="flex-1 min-w-0">
-                    <h3 className="font-medium mb-2 text-base leading-snug">{news.title}</h3>
-                    <div className="flex flex-wrap items-center gap-2 sm:gap-4 text-xs text-muted-foreground">
-                      <span>{news.publish_date}</span>
-                      <span className="truncate max-w-[200px]">{news.department?.name || '未知部门'}</span>
-                    </div>
-                  </div>
-                  <Link
-                    to={`/news/${news.id}`}
-                    className="text-sm text-primary hover:underline min-h-[44px] flex items-center justify-center sm:justify-start sm:ml-4 shrink-0"
+            {chartsLoading ? (
+              <div className="space-y-3">
+                {[...Array(5)].map((_, i) => (
+                  <Skeleton key={i} className="h-24 bg-muted" />
+                ))}
+              </div>
+            ) : recentNews.length > 0 ? (
+              <div className="space-y-3 sm:space-y-4">
+                {recentNews.map((news) => (
+                  <div
+                    key={news.id}
+                    className="flex flex-col sm:flex-row sm:items-center sm:justify-between p-3 sm:p-4 border rounded-lg hover:bg-muted/50 transition-colors gap-3"
                   >
-                    查看详情
-                  </Link>
-                </div>
-              ))}
-            </div>
+                    <div className="flex-1 min-w-0">
+                      <h3 className="font-medium mb-2 text-base leading-snug">{news.title}</h3>
+                      <div className="flex flex-wrap items-center gap-2 sm:gap-4 text-xs text-muted-foreground">
+                        <span>{news.publish_date}</span>
+                        <span className="truncate max-w-[200px]">{news.department?.name || '未知部门'}</span>
+                      </div>
+                    </div>
+                    <Link
+                      to={`/news/${news.id}`}
+                      className="text-sm text-primary hover:underline min-h-[44px] flex items-center justify-center sm:justify-start sm:ml-4 shrink-0"
+                    >
+                      查看详情
+                    </Link>
+                  </div>
+                ))}
+              </div>
+            ) : (
+              <div className="text-center py-8 text-muted-foreground">暂无资讯</div>
+            )}
           </CardContent>
         </Card>
       )}
