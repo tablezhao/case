@@ -78,6 +78,16 @@ export interface StaticContent {
   updated_at: string;
 }
 
+export interface ModuleSetting {
+  id: string;
+  module_key: string;
+  module_name: string;
+  is_enabled: boolean;
+  display_order: number;
+  description: string | null;
+  updated_at: string;
+}
+
 // 扩展类型（用于前端展示，包含关联数据）
 export interface CaseWithDetails extends Case {
   department?: RegulatoryDepartment;

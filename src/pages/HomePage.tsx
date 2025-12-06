@@ -28,8 +28,10 @@ import {
 } from '@/db/api';
 import type { StatsOverview, RegulatoryNewsWithDetails, FrontendConfig } from '@/types/types';
 import { Link } from 'react-router-dom';
+import { useModules } from '@/contexts/ModuleContext';
 
 export default function HomePage() {
+  const { isModuleEnabled } = useModules();
   const [stats, setStats] = useState<StatsOverview | null>(null);
   const [monthlyAppData, setMonthlyAppData] = useState<{ month: string; count: number }[]>([]);
   const [yearlyAppData, setYearlyAppData] = useState<{ year: string; count: number }[]>([]);
@@ -125,6 +127,19 @@ export default function HomePage() {
   };
 
   const isModuleVisible = (moduleKey: string) => {
+    // 新的模块设置系统映射
+    const moduleKeyMap: Record<string, string> = {
+      'trend_chart': 'trends',
+      'wordcloud': 'issues',
+    };
+    
+    // 如果是新系统管理的模块，使用新的模块设置
+    const newModuleKey = moduleKeyMap[moduleKey];
+    if (newModuleKey) {
+      return isModuleEnabled(newModuleKey);
+    }
+    
+    // 其他模块使用旧的frontend_configs系统
     const config = configs.find((c) => c.module_key === moduleKey);
     return config?.is_visible !== false;
   };

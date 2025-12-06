@@ -12,6 +12,7 @@ import type {
   StaticContent,
   StatsOverview,
   CaseFilterParams,
+  ModuleSetting,
 } from '@/types/types';
 
 // ============ 用户相关 ============
@@ -2078,4 +2079,72 @@ export async function exportViolationAnalysis(
     violation_content: item.violation_content || '未提供违规内容',
     violation_keywords: extractViolationKeywords(item.violation_content || '').join('; '),
   }));
+}
+
+// ==================== 模块设置管理 ====================
+
+/**
+ * 获取所有模块设置
+ * @returns 模块设置列表
+ */
+export async function getModuleSettings(): Promise<ModuleSetting[]> {
+  const { data, error } = await supabase
+    .from('module_settings')
+    .select('*')
+    .order('display_order', { ascending: true });
+
+  if (error) {
+    console.error('获取模块设置失败:', error);
+    throw error;
+  }
+
+  return Array.isArray(data) ? data : [];
+}
+
+/**
+ * 更新模块设置状态
+ * @param moduleKey 模块标识符
+ * @param isEnabled 是否启用
+ */
+export async function updateModuleSetting(moduleKey: string, isEnabled: boolean): Promise<void> {
+  const { error } = await supabase
+    .from('module_settings')
+    .update({ is_enabled: isEnabled })
+    .eq('module_key', moduleKey);
+
+  if (error) {
+    console.error('更新模块设置失败:', error);
+    throw error;
+  }
+}
+
+/**
+ * 获取启用的模块列表（用于前台）
+ * @returns 启用的模块键值对 { moduleKey: true }
+ */
+export async function getEnabledModules(): Promise<Record<string, boolean>> {
+  const { data, error } = await supabase
+    .from('module_settings')
+    .select('module_key, is_enabled')
+    .order('display_order', { ascending: true });
+
+  if (error) {
+    console.error('获取启用模块失败:', error);
+    // 返回默认值，所有模块都启用
+    return {
+      cases: true,
+      news: true,
+      departments: true,
+      trends: true,
+      issues: true,
+    };
+  }
+
+  // 转换为键值对格式
+  const modules: Record<string, boolean> = {};
+  (data || []).forEach(item => {
+    modules[item.module_key] = item.is_enabled;
+  });
+
+  return modules;
 }

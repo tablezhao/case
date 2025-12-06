@@ -1,6 +1,6 @@
 import { Link } from 'react-router-dom';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
-import { FileText, Newspaper, Users, Building2, Sparkles, Layout } from 'lucide-react';
+import { FileText, Newspaper, Users, Building2, Sparkles, Layout, Settings } from 'lucide-react';
 
 export default function AdminPage() {
   const menuItems = [
@@ -38,6 +38,13 @@ export default function AdminPage() {
       icon: Users,
       link: '/admin/users',
       color: 'text-chart-5',
+    },
+    {
+      title: '模块设置',
+      description: '控制前台模块可见性',
+      icon: Settings,
+      link: '/admin/module-settings',
+      color: 'text-orange-500',
     },
     {
       title: '页脚配置',

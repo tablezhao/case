@@ -16,13 +16,34 @@ import { getCurrentProfile } from '@/db/api';
 import type { Profile } from '@/types/types';
 import { toast } from 'sonner';
 import routes from '@/routes';
+import { useModules } from '@/contexts/ModuleContext';
+
+// 路由路径到模块key的映射
+const routeToModuleMap: Record<string, string> = {
+  '/cases': 'cases',
+  '/news': 'news',
+  '/departments': 'departments',
+  '/trend-analysis': 'trends',
+  '/violation-analysis': 'issues',
+};
 
 export default function Header() {
   const location = useLocation();
   const navigate = useNavigate();
   const [profile, setProfile] = useState<Profile | null>(null);
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
-  const navigation = routes.filter((route) => route.visible !== false);
+  const { isModuleEnabled } = useModules();
+  
+  // 根据模块设置过滤导航项
+  const navigation = routes
+    .filter((route) => route.visible !== false)
+    .filter((route) => {
+      const moduleKey = routeToModuleMap[route.path];
+      // 如果路由没有对应的模块key（如首页），则始终显示
+      if (!moduleKey) return true;
+      // 否则根据模块设置决定是否显示
+      return isModuleEnabled(moduleKey);
+    });
 
   useEffect(() => {
     loadProfile();

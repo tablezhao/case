@@ -15,6 +15,8 @@ import DepartmentsPage from './pages/admin/DepartmentsPage';
 import UsersPage from './pages/admin/UsersPage';
 import SmartImportPage from './pages/admin/SmartImportPage';
 import FooterSettingsPage from './pages/admin/FooterSettingsPage';
+import ModuleSettingsPage from './pages/admin/ModuleSettingsPage';
+import ProtectedModuleRoute from './components/common/ProtectedModuleRoute';
 
 interface RouteConfig {
   name: string;
@@ -35,43 +37,71 @@ const routes: RouteConfig[] = [
   {
     name: '案例查询',
     path: '/cases',
-    element: <CasesPage />,
+    element: (
+      <ProtectedModuleRoute moduleKey="cases">
+        <CasesPage />
+      </ProtectedModuleRoute>
+    ),
     visible: true,
   },
   {
     name: '案例详情',
     path: '/cases/:id',
-    element: <CaseDetailPage />,
+    element: (
+      <ProtectedModuleRoute moduleKey="cases">
+        <CaseDetailPage />
+      </ProtectedModuleRoute>
+    ),
     visible: false,
   },
   {
     name: '监管资讯',
     path: '/news',
-    element: <NewsPage />,
+    element: (
+      <ProtectedModuleRoute moduleKey="news">
+        <NewsPage />
+      </ProtectedModuleRoute>
+    ),
     visible: true,
   },
   {
     name: '资讯详情',
     path: '/news/:id',
-    element: <NewsDetailPage />,
+    element: (
+      <ProtectedModuleRoute moduleKey="news">
+        <NewsDetailPage />
+      </ProtectedModuleRoute>
+    ),
     visible: false,
   },
   {
     name: '监管部门',
     path: '/departments',
-    element: <DepartmentsPublicPage />,
+    element: (
+      <ProtectedModuleRoute moduleKey="departments">
+        <DepartmentsPublicPage />
+      </ProtectedModuleRoute>
+    ),
     visible: true,
   },
   {
     name: '趋势分析',
     path: '/trend-analysis',
-    element: <TrendAnalysisPage />,
+    element: (
+      <ProtectedModuleRoute moduleKey="trends">
+        <TrendAnalysisPage />
+      </ProtectedModuleRoute>
+    ),
     visible: true,
   },
   {
     name: '问题分析',
     path: '/violation-analysis',
-    element: <ViolationAnalysisPage />,
+    element: (
+      <ProtectedModuleRoute moduleKey="issues">
+        <ViolationAnalysisPage />
+      </ProtectedModuleRoute>
+    ),
     visible: true,
   },
   {
@@ -132,6 +162,14 @@ const routes: RouteConfig[] = [
     name: '页脚配置',
     path: '/admin/footer-settings',
     element: <FooterSettingsPage />,
+    visible: false,
+    requireAuth: true,
+    requireAdmin: true,
+  },
+  {
+    name: '模块设置',
+    path: '/admin/module-settings',
+    element: <ModuleSettingsPage />,
     visible: false,
     requireAuth: true,
     requireAdmin: true,
