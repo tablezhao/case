@@ -61,37 +61,57 @@ export async function getDepartments() {
 
 // 获取部门统计数据（累计通报频次和相关应用总数）
 export async function getDepartmentsWithStats() {
-  const { data, error } = await supabase
+  // 首先获取所有部门
+  const { data: departments, error: deptError } = await supabase
     .from('regulatory_departments')
-    .select(`
-      *,
-      cases:cases(count),
-      unique_apps:cases(app_name)
-    `)
+    .select('*')
     .order('name', { ascending: true });
   
-  if (error) throw error;
+  if (deptError) throw deptError;
   
-  // 处理数据，计算每个部门的统计信息
-  const departments = Array.isArray(data) ? data : [];
-  return departments.map(dept => {
-    // 计算通报频次
-    const caseCount = dept.cases?.[0]?.count || 0;
-    
-    // 计算相关应用总数（去重）
-    const uniqueApps = new Set(
-      (dept.unique_apps || [])
-        .map((item: { app_name: string }) => item.app_name)
-        .filter(Boolean)
-    );
-    const appCount = uniqueApps.size;
-    
-    return {
-      ...dept,
-      case_count: caseCount,
-      app_count: appCount,
-    };
-  });
+  if (!Array.isArray(departments) || departments.length === 0) {
+    return [];
+  }
+  
+  // 为每个部门获取统计数据
+  const departmentsWithStats = await Promise.all(
+    departments.map(async (dept) => {
+      // 获取该部门的案例总数
+      const { count: caseCount, error: countError } = await supabase
+        .from('cases')
+        .select('*', { count: 'exact', head: true })
+        .eq('department_id', dept.id);
+      
+      if (countError) {
+        console.error(`获取部门 ${dept.name} 的案例数失败:`, countError);
+      }
+      
+      // 获取该部门的所有应用名称（用于去重计数）
+      const { data: apps, error: appsError } = await supabase
+        .from('cases')
+        .select('app_name')
+        .eq('department_id', dept.id);
+      
+      if (appsError) {
+        console.error(`获取部门 ${dept.name} 的应用列表失败:`, appsError);
+      }
+      
+      // 计算去重后的应用总数
+      const uniqueApps = new Set(
+        (Array.isArray(apps) ? apps : [])
+          .map(item => item.app_name)
+          .filter(Boolean)
+      );
+      
+      return {
+        ...dept,
+        case_count: caseCount || 0,
+        app_count: uniqueApps.size,
+      };
+    })
+  );
+  
+  return departmentsWithStats;
 }
 
 export async function getNationalDepartments() {
