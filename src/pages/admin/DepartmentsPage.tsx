@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { getDepartments, createDepartment, updateDepartment, deleteDepartment, getPlatforms, createPlatform, updatePlatform, deletePlatform } from '@/db/api';
+import { getDepartmentsWithStats, createDepartment, updateDepartment, deleteDepartment, getPlatforms, createPlatform, updatePlatform, deletePlatform } from '@/db/api';
 import type { RegulatoryDepartment, AppPlatform } from '@/types/types';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -10,17 +10,23 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Badge } from '@/components/ui/badge';
-import { Plus, Pencil, Trash2, ArrowLeft } from 'lucide-react';
+import { Plus, Pencil, Trash2, ArrowLeft, FileText, AppWindow } from 'lucide-react';
 import { toast } from 'sonner';
 import { useNavigate } from 'react-router-dom';
 
+// 扩展部门类型以包含统计数据
+interface DepartmentWithStats extends RegulatoryDepartment {
+  case_count?: number;
+  app_count?: number;
+}
+
 export default function DepartmentsPage() {
   const navigate = useNavigate();
-  const [departments, setDepartments] = useState<RegulatoryDepartment[]>([]);
+  const [departments, setDepartments] = useState<DepartmentWithStats[]>([]);
   const [platforms, setPlatforms] = useState<AppPlatform[]>([]);
   const [deptDialogOpen, setDeptDialogOpen] = useState(false);
   const [platDialogOpen, setPlatDialogOpen] = useState(false);
-  const [editingDept, setEditingDept] = useState<RegulatoryDepartment | null>(null);
+  const [editingDept, setEditingDept] = useState<DepartmentWithStats | null>(null);
   const [editingPlat, setEditingPlat] = useState<AppPlatform | null>(null);
 
   const [deptForm, setDeptForm] = useState({
@@ -40,7 +46,7 @@ export default function DepartmentsPage() {
   const loadData = async () => {
     try {
       const [depts, plats] = await Promise.all([
-        getDepartments(),
+        getDepartmentsWithStats(),
         getPlatforms(),
       ]);
       setDepartments(depts);
@@ -280,13 +286,15 @@ export default function DepartmentsPage() {
                       <TableHead>部门名称</TableHead>
                       <TableHead>级别</TableHead>
                       <TableHead>省份</TableHead>
+                      <TableHead className="text-center">累计通报频次</TableHead>
+                      <TableHead className="text-center">相关应用总数</TableHead>
                       <TableHead className="text-right">操作</TableHead>
                     </TableRow>
                   </TableHeader>
                   <TableBody>
                     {departments.length === 0 ? (
                       <TableRow>
-                        <TableCell colSpan={4} className="text-center text-muted-foreground">
+                        <TableCell colSpan={6} className="text-center text-muted-foreground">
                           暂无数据
                         </TableCell>
                       </TableRow>
@@ -300,6 +308,24 @@ export default function DepartmentsPage() {
                             </Badge>
                           </TableCell>
                           <TableCell>{dept.province || '-'}</TableCell>
+                          <TableCell className="text-center">
+                            <div className="flex items-center justify-center gap-1.5">
+                              <FileText className="w-4 h-4 text-primary" />
+                              <span className="font-semibold text-primary">
+                                {dept.case_count || 0}
+                              </span>
+                              <span className="text-xs text-muted-foreground">次</span>
+                            </div>
+                          </TableCell>
+                          <TableCell className="text-center">
+                            <div className="flex items-center justify-center gap-1.5">
+                              <AppWindow className="w-4 h-4 text-secondary-foreground" />
+                              <span className="font-semibold text-secondary-foreground">
+                                {dept.app_count || 0}
+                              </span>
+                              <span className="text-xs text-muted-foreground">个</span>
+                            </div>
+                          </TableCell>
                           <TableCell className="text-right space-x-2">
                             <Button
                               variant="ghost"

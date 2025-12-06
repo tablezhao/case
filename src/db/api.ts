@@ -59,6 +59,41 @@ export async function getDepartments() {
   return Array.isArray(data) ? data : [];
 }
 
+// 获取部门统计数据（累计通报频次和相关应用总数）
+export async function getDepartmentsWithStats() {
+  const { data, error } = await supabase
+    .from('regulatory_departments')
+    .select(`
+      *,
+      cases:cases(count),
+      unique_apps:cases(app_name)
+    `)
+    .order('name', { ascending: true });
+  
+  if (error) throw error;
+  
+  // 处理数据，计算每个部门的统计信息
+  const departments = Array.isArray(data) ? data : [];
+  return departments.map(dept => {
+    // 计算通报频次
+    const caseCount = dept.cases?.[0]?.count || 0;
+    
+    // 计算相关应用总数（去重）
+    const uniqueApps = new Set(
+      (dept.unique_apps || [])
+        .map((item: { app_name: string }) => item.app_name)
+        .filter(Boolean)
+    );
+    const appCount = uniqueApps.size;
+    
+    return {
+      ...dept,
+      case_count: caseCount,
+      app_count: appCount,
+    };
+  });
+}
+
 export async function getNationalDepartments() {
   const { data, error } = await supabase
     .from('regulatory_departments')
