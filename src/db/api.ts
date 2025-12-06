@@ -76,36 +76,41 @@ export async function getDepartmentsWithStats() {
   // 为每个部门获取统计数据
   const departmentsWithStats = await Promise.all(
     departments.map(async (dept) => {
-      // 获取该部门的案例总数
-      const { count: caseCount, error: countError } = await supabase
+      // 获取该部门的所有案例（包含通报日期）
+      const { data: cases, error: casesError } = await supabase
         .from('cases')
-        .select('*', { count: 'exact', head: true })
+        .select('report_date, app_name')
         .eq('department_id', dept.id);
       
-      if (countError) {
-        console.error(`获取部门 ${dept.name} 的案例数失败:`, countError);
+      if (casesError) {
+        console.error(`获取部门 ${dept.name} 的案例数据失败:`, casesError);
       }
       
-      // 获取该部门的所有应用名称（用于去重计数）
-      const { data: apps, error: appsError } = await supabase
-        .from('cases')
-        .select('app_name')
-        .eq('department_id', dept.id);
+      const casesArray = Array.isArray(cases) ? cases : [];
       
-      if (appsError) {
-        console.error(`获取部门 ${dept.name} 的应用列表失败:`, appsError);
-      }
+      // 计算通报频次：按自然日合并，每日只计1次
+      const uniqueDates = new Set(
+        casesArray
+          .map(item => {
+            if (!item.report_date) return null;
+            // 提取日期部分（YYYY-MM-DD）
+            const date = new Date(item.report_date);
+            return date.toISOString().split('T')[0];
+          })
+          .filter(Boolean)
+      );
+      const caseCount = uniqueDates.size;
       
       // 计算去重后的应用总数
       const uniqueApps = new Set(
-        (Array.isArray(apps) ? apps : [])
+        casesArray
           .map(item => item.app_name)
           .filter(Boolean)
       );
       
       return {
         ...dept,
-        case_count: caseCount || 0,
+        case_count: caseCount,
         app_count: uniqueApps.size,
       };
     })
@@ -136,28 +141,37 @@ export async function getNationalDepartmentsWithStats() {
   // 为每个部门获取统计数据
   const departmentsWithStats = await Promise.all(
     departments.map(async (dept) => {
-      // 获取该部门的案例总数
-      const { count: caseCount } = await supabase
+      // 获取该部门的所有案例（包含通报日期和应用名称）
+      const { data: cases } = await supabase
         .from('cases')
-        .select('*', { count: 'exact', head: true })
+        .select('report_date, app_name')
         .eq('department_id', dept.id);
       
-      // 获取该部门的所有应用名称（用于去重计数）
-      const { data: apps } = await supabase
-        .from('cases')
-        .select('app_name')
-        .eq('department_id', dept.id);
+      const casesArray = Array.isArray(cases) ? cases : [];
+      
+      // 计算通报频次：按自然日合并，每日只计1次
+      const uniqueDates = new Set(
+        casesArray
+          .map(item => {
+            if (!item.report_date) return null;
+            // 提取日期部分（YYYY-MM-DD）
+            const date = new Date(item.report_date);
+            return date.toISOString().split('T')[0];
+          })
+          .filter(Boolean)
+      );
+      const caseCount = uniqueDates.size;
       
       // 计算去重后的应用总数
       const uniqueApps = new Set(
-        (Array.isArray(apps) ? apps : [])
+        casesArray
           .map(item => item.app_name)
           .filter(Boolean)
       );
       
       return {
         ...dept,
-        case_count: caseCount || 0,
+        case_count: caseCount,
         app_count: uniqueApps.size,
       };
     })
@@ -195,28 +209,37 @@ export async function getProvincialDepartmentsWithStats(province?: string) {
   // 为每个部门获取统计数据
   const departmentsWithStats = await Promise.all(
     departments.map(async (dept) => {
-      // 获取该部门的案例总数
-      const { count: caseCount } = await supabase
+      // 获取该部门的所有案例（包含通报日期和应用名称）
+      const { data: cases } = await supabase
         .from('cases')
-        .select('*', { count: 'exact', head: true })
+        .select('report_date, app_name')
         .eq('department_id', dept.id);
       
-      // 获取该部门的所有应用名称（用于去重计数）
-      const { data: apps } = await supabase
-        .from('cases')
-        .select('app_name')
-        .eq('department_id', dept.id);
+      const casesArray = Array.isArray(cases) ? cases : [];
+      
+      // 计算通报频次：按自然日合并，每日只计1次
+      const uniqueDates = new Set(
+        casesArray
+          .map(item => {
+            if (!item.report_date) return null;
+            // 提取日期部分（YYYY-MM-DD）
+            const date = new Date(item.report_date);
+            return date.toISOString().split('T')[0];
+          })
+          .filter(Boolean)
+      );
+      const caseCount = uniqueDates.size;
       
       // 计算去重后的应用总数
       const uniqueApps = new Set(
-        (Array.isArray(apps) ? apps : [])
+        casesArray
           .map(item => item.app_name)
           .filter(Boolean)
       );
       
       return {
         ...dept,
-        case_count: caseCount || 0,
+        case_count: caseCount,
         app_count: uniqueApps.size,
       };
     })
@@ -302,36 +325,41 @@ export async function getPlatformsWithStats() {
   // 为每个平台获取统计数据
   const platformsWithStats = await Promise.all(
     platforms.map(async (plat) => {
-      // 获取该平台的案例总数
-      const { count: caseCount, error: countError } = await supabase
+      // 获取该平台的所有案例（包含通报日期和应用名称）
+      const { data: cases, error: casesError } = await supabase
         .from('cases')
-        .select('*', { count: 'exact', head: true })
+        .select('report_date, app_name')
         .eq('platform_id', plat.id);
       
-      if (countError) {
-        console.error(`获取平台 ${plat.name} 的案例数失败:`, countError);
+      if (casesError) {
+        console.error(`获取平台 ${plat.name} 的案例数据失败:`, casesError);
       }
       
-      // 获取该平台的所有应用名称（用于去重计数）
-      const { data: apps, error: appsError } = await supabase
-        .from('cases')
-        .select('app_name')
-        .eq('platform_id', plat.id);
+      const casesArray = Array.isArray(cases) ? cases : [];
       
-      if (appsError) {
-        console.error(`获取平台 ${plat.name} 的应用列表失败:`, appsError);
-      }
+      // 计算通报频次：按自然日合并，每日只计1次
+      const uniqueDates = new Set(
+        casesArray
+          .map(item => {
+            if (!item.report_date) return null;
+            // 提取日期部分（YYYY-MM-DD）
+            const date = new Date(item.report_date);
+            return date.toISOString().split('T')[0];
+          })
+          .filter(Boolean)
+      );
+      const caseCount = uniqueDates.size;
       
       // 计算去重后的应用总数
       const uniqueApps = new Set(
-        (Array.isArray(apps) ? apps : [])
+        casesArray
           .map(item => item.app_name)
           .filter(Boolean)
       );
       
       return {
         ...plat,
-        case_count: caseCount || 0,
+        case_count: caseCount,
         app_count: uniqueApps.size,
       };
     })

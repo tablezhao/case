@@ -325,8 +325,8 @@ export default function DepartmentsPage() {
                           </TableCell>
                           <TableCell className="text-center">
                             <div className="flex items-center justify-center gap-1.5">
-                              <AppWindow className="w-4 h-4 text-secondary-foreground" />
-                              <span className="font-semibold text-secondary-foreground">
+                              <AppWindow className="w-4 h-4 text-[#1a1a1a] dark:text-white" />
+                              <span className="font-semibold text-[#1a1a1a] dark:text-white">
                                 {dept.app_count || 0}
                               </span>
                               <span className="text-xs text-muted-foreground">个</span>
@@ -436,8 +436,8 @@ export default function DepartmentsPage() {
                           </TableCell>
                           <TableCell className="text-center">
                             <div className="flex items-center justify-center gap-1.5">
-                              <AppWindow className="w-4 h-4 text-secondary-foreground" />
-                              <span className="font-semibold text-secondary-foreground">
+                              <AppWindow className="w-4 h-4 text-[#1a1a1a] dark:text-white" />
+                              <span className="font-semibold text-[#1a1a1a] dark:text-white">
                                 {plat.app_count || 0}
                               </span>
                               <span className="text-xs text-muted-foreground">个</span>

@@ -128,13 +128,13 @@ export default function DepartmentsPage() {
                           <span className="text-xs text-muted-foreground">次</span>
                         </div>
                       </div>
-                      <div className="flex flex-col items-center p-3 bg-secondary/5 rounded-lg">
+                      <div className="flex flex-col items-center p-3 bg-muted/30 rounded-lg border border-border/50">
                         <div className="flex items-center gap-1.5 mb-1">
-                          <AppWindow className="w-4 h-4 text-secondary-foreground" />
+                          <AppWindow className="w-4 h-4 text-[#1a1a1a] dark:text-white" />
                           <span className="text-xs text-muted-foreground">相关应用</span>
                         </div>
                         <div className="flex items-baseline gap-1">
-                          <span className="text-2xl font-bold text-secondary-foreground">
+                          <span className="text-2xl font-bold text-[#1a1a1a] dark:text-white">
                             {dept.app_count || 0}
                           </span>
                           <span className="text-xs text-muted-foreground">个</span>
@@ -214,13 +214,13 @@ export default function DepartmentsPage() {
                           <span className="text-xs text-muted-foreground">次</span>
                         </div>
                       </div>
-                      <div className="flex flex-col items-center p-3 bg-secondary/5 rounded-lg">
+                      <div className="flex flex-col items-center p-3 bg-muted/30 rounded-lg border border-border/50">
                         <div className="flex items-center gap-1.5 mb-1">
-                          <AppWindow className="w-4 h-4 text-secondary-foreground" />
+                          <AppWindow className="w-4 h-4 text-[#1a1a1a] dark:text-white" />
                           <span className="text-xs text-muted-foreground">相关应用</span>
                         </div>
                         <div className="flex items-baseline gap-1">
-                          <span className="text-2xl font-bold text-secondary-foreground">
+                          <span className="text-2xl font-bold text-[#1a1a1a] dark:text-white">
                             {dept.app_count || 0}
                           </span>
                           <span className="text-xs text-muted-foreground">个</span>
