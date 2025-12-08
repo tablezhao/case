@@ -452,106 +452,107 @@ export default function HomePage() {
         </Card>
       )}
 
-      {/* 监管部门分布 */}
-      <Card>
-        <CardHeader>
-          <div className="flex items-center gap-1.5">
-            <CardTitle className="text-lg sm:text-xl">监管部门分布</CardTitle>
-            <TooltipInfo
-              content={
-                <div className="space-y-2">
-                  <p className="font-semibold">统计说明</p>
-                  <p className="text-xs text-muted-foreground">
-                    展示各监管部门的通报活动分布情况，包括国家级部门和省级部门统计
-                  </p>
-                </div>
-              }
-            />
-          </div>
-        </CardHeader>
-        <CardContent className="px-2 sm:px-6">
-          <Tabs value={deptLevelView} onValueChange={(v) => setDeptLevelView(v as typeof deptLevelView)}>
-            <TabsList className="mb-4 grid grid-cols-2 w-full xl:w-auto xl:min-w-[240px]">
-              <TabsTrigger value="national" className="text-sm">
-                <span className="flex items-center gap-1">
-                  国家级部门
-                </span>
-              </TabsTrigger>
-              <TabsTrigger value="provincial" className="text-sm">
-                <span className="flex items-center gap-1">
-                  省级部门
-                </span>
-              </TabsTrigger>
-            </TabsList>
-            
-            <TabsContent value="national" className="mt-0">
-              {chartsLoading ? (
-                <Skeleton className="h-80 bg-muted" />
-              ) : nationalDeptData.length > 0 ? (
-                <div className="w-full">
-                  <div className="mb-3 flex items-center gap-1.5">
-                    <h3 className="text-sm font-semibold text-foreground">国家级部门分布</h3>
-                    <TooltipInfo
-                      content={
-                        <div className="space-y-3">
-                          <p className="font-semibold text-base">统计说明</p>
-                          <div className="space-y-2.5 text-xs leading-relaxed">
-                            <div>
-                              <div className="font-semibold mb-1">🏛️ 国家级部门</div>
-                              <div className="text-muted-foreground">统计各国家级监管部门发布的通报数量，展示不同部门的监管力度</div>
-                            </div>
-                            <div>
-                              <div className="font-semibold mb-1">📊 数据来源</div>
-                              <div className="text-muted-foreground">基于所有案例记录中的部门信息进行统计</div>
-                            </div>
-                          </div>
-                        </div>
-                      }
-                    />
-                  </div>
-                  <PieChart data={nationalDeptData} title="" />
-                </div>
-              ) : (
-                <div className="text-center py-8 text-muted-foreground">暂无国家级部门数据</div>
-              )}
-            </TabsContent>
-            
-            <TabsContent value="provincial" className="mt-0">
-              {chartsLoading ? (
-                <Skeleton className="h-80 bg-muted" />
-              ) : provincialDeptData.length > 0 ? (
-                <div className="w-full">
-                  <div className="mb-3 flex items-center gap-1.5">
-                    <h3 className="text-sm font-semibold text-foreground">省级部门分布</h3>
-                    <TooltipInfo
-                      content={
-                        <div className="space-y-3">
-                          <p className="font-semibold text-base">统计说明</p>
-                          <div className="space-y-2.5 text-xs leading-relaxed">
-                            <div>
-                              <div className="font-semibold mb-1">🏢 省级部门</div>
-                              <div className="text-muted-foreground">统计各省级监管部门发布的通报数量，展示地方监管活跃度</div>
-                            </div>
-                            <div>
-                              <div className="font-semibold mb-1">📊 数据来源</div>
-                              <div className="text-muted-foreground">基于所有案例记录中的部门信息进行统计</div>
-                            </div>
-                          </div>
-                        </div>
-                      }
-                    />
-                  </div>
-                  <PieChart data={provincialDeptData} title="" />
-                </div>
-              ) : (
-                <div className="text-center py-8 text-muted-foreground">暂无省级部门数据</div>
-              )}
-            </TabsContent>
-          </Tabs>
-        </CardContent>
-      </Card>
-
+      {/* 监管部门分布与应用平台分布 */}
       <div className="grid gap-4 sm:gap-6 grid-cols-1 2xl:grid-cols-2">
+        {/* 监管部门分布 */}
+        <Card>
+          <CardHeader>
+            <div className="flex flex-col gap-4">
+              <div className="flex flex-col xl:flex-row xl:items-center xl:justify-between gap-3">
+                <div className="flex items-center gap-1.5">
+                  <CardTitle className="text-lg sm:text-xl">监管部门分布</CardTitle>
+                  <TooltipInfo
+                    content={
+                      <div className="space-y-2">
+                        <p className="font-semibold">统计说明</p>
+                        <p className="text-xs text-muted-foreground">
+                          展示各监管部门的通报活动分布情况，包括国家级部门和省级部门统计
+                        </p>
+                      </div>
+                    }
+                  />
+                </div>
+                <Tabs value={deptLevelView} onValueChange={(v) => setDeptLevelView(v as typeof deptLevelView)}>
+                  <TabsList className="grid grid-cols-2 w-full xl:w-auto xl:min-w-[240px]">
+                    <TabsTrigger value="national">国家级部门</TabsTrigger>
+                    <TabsTrigger value="provincial">省级部门</TabsTrigger>
+                  </TabsList>
+                </Tabs>
+              </div>
+            </div>
+          </CardHeader>
+          <CardContent className="px-2 sm:px-6">
+            {deptLevelView === 'national' && (
+              <>
+                {chartsLoading ? (
+                  <Skeleton className="h-80 bg-muted" />
+                ) : nationalDeptData.length > 0 ? (
+                  <div className="w-full">
+                    <div className="mb-3 flex items-center gap-1.5">
+                      <h3 className="text-sm font-semibold text-foreground">国家级部门分布</h3>
+                      <TooltipInfo
+                        content={
+                          <div className="space-y-3">
+                            <p className="font-semibold text-base">统计说明</p>
+                            <div className="space-y-2.5 text-xs leading-relaxed">
+                              <div>
+                                <div className="font-semibold mb-1">🏛️ 国家级部门</div>
+                                <div className="text-muted-foreground">统计各国家级监管部门发布的通报数量，展示不同部门的监管力度</div>
+                              </div>
+                              <div>
+                                <div className="font-semibold mb-1">📊 数据来源</div>
+                                <div className="text-muted-foreground">基于所有案例记录中的部门信息进行统计</div>
+                              </div>
+                            </div>
+                          </div>
+                        }
+                      />
+                    </div>
+                    <PieChart data={nationalDeptData} title="" />
+                  </div>
+                ) : (
+                  <div className="text-center py-8 text-muted-foreground">暂无国家级部门数据</div>
+                )}
+              </>
+            )}
+            
+            {deptLevelView === 'provincial' && (
+              <>
+                {chartsLoading ? (
+                  <Skeleton className="h-80 bg-muted" />
+                ) : provincialDeptData.length > 0 ? (
+                  <div className="w-full">
+                    <div className="mb-3 flex items-center gap-1.5">
+                      <h3 className="text-sm font-semibold text-foreground">省级部门分布</h3>
+                      <TooltipInfo
+                        content={
+                          <div className="space-y-3">
+                            <p className="font-semibold text-base">统计说明</p>
+                            <div className="space-y-2.5 text-xs leading-relaxed">
+                              <div>
+                                <div className="font-semibold mb-1">🏢 省级部门</div>
+                                <div className="text-muted-foreground">统计各省级监管部门发布的通报数量，展示地方监管活跃度</div>
+                              </div>
+                              <div>
+                                <div className="font-semibold mb-1">📊 数据来源</div>
+                                <div className="text-muted-foreground">基于所有案例记录中的部门信息进行统计</div>
+                              </div>
+                            </div>
+                          </div>
+                        }
+                      />
+                    </div>
+                    <PieChart data={provincialDeptData} title="" />
+                  </div>
+                ) : (
+                  <div className="text-center py-8 text-muted-foreground">暂无省级部门数据</div>
+                )}
+              </>
+            )}
+          </CardContent>
+        </Card>
+
+        {/* 应用平台分布 */}
         {isModuleVisible('platform_chart') && (
           chartsLoading ? (
             <Card>
@@ -584,7 +585,9 @@ export default function HomePage() {
             />
           ) : null
         )}
+      </div>
 
+      <div className="grid gap-4 sm:gap-6 grid-cols-1 2xl:grid-cols-2">
         {isModuleVisible('wordcloud') && (
           chartsLoading ? (
             <Card>
