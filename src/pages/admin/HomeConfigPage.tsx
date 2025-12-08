@@ -4,9 +4,8 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { Button } from '@/components/ui/button';
 import { Switch } from '@/components/ui/switch';
 import { Label } from '@/components/ui/label';
-import { Badge } from '@/components/ui/badge';
 import { toast } from 'sonner';
-import { Loader2, ArrowLeft, Eye, EyeOff, Cloud } from 'lucide-react';
+import { Loader2, ArrowLeft, Eye, EyeOff } from 'lucide-react';
 import { getFrontendConfigs, updateFrontendConfig } from '@/db/api';
 import type { FrontendConfig } from '@/types/types';
 
@@ -100,9 +99,7 @@ export default function HomeConfigPage() {
         {configs.map((config) => (
           <Card 
             key={config.id} 
-            className={`hover:shadow-md transition-shadow ${
-              config.module_key === 'wordcloud' ? 'border-primary/50' : ''
-            }`}
+            className="hover:shadow-md transition-shadow"
           >
             <CardHeader>
               <div className="flex items-start justify-between">
@@ -114,12 +111,6 @@ export default function HomeConfigPage() {
                       <EyeOff className="w-5 h-5 text-muted-foreground" />
                     )}
                     {config.module_name}
-                    {config.module_key === 'wordcloud' && (
-                      <Badge variant="secondary" className="ml-2 gap-1">
-                        <Cloud className="w-3 h-3" />
-                        词云控制
-                      </Badge>
-                    )}
                   </CardTitle>
                   <CardDescription className="mt-2">
                     {getModuleDescription(config.module_key)}
