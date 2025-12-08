@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -8,8 +8,22 @@ import { Textarea } from '@/components/ui/textarea';
 import { Switch } from '@/components/ui/switch';
 import { Badge } from '@/components/ui/badge';
 import { toast } from 'sonner';
-import { Loader2, Save, ArrowLeft, Eye, ChevronDown, CheckCircle2 } from 'lucide-react';
-import { getAllFooterSettings, updateFooterSetting } from '@/db/api';
+import { 
+  Loader2, 
+  Save, 
+  ArrowLeft, 
+  Eye, 
+  CheckCircle2, 
+  GripVertical, 
+  Edit2,
+  Plus,
+  EyeOff,
+  X,
+  Mail,
+  ExternalLink,
+  Sparkles
+} from 'lucide-react';
+import { getAllFooterSettings, updateFooterSetting, batchUpdateFooterSettings } from '@/db/api';
 import type { FooterSettings } from '@/types/types';
 import {
   Dialog,
@@ -17,20 +31,40 @@ import {
   DialogDescription,
   DialogHeader,
   DialogTitle,
-  DialogTrigger,
+  DialogFooter,
 } from '@/components/ui/dialog';
 import {
-  Accordion,
-  AccordionContent,
-  AccordionItem,
-  AccordionTrigger,
-} from '@/components/ui/accordion';
+  DndContext,
+  closestCenter,
+  KeyboardSensor,
+  PointerSensor,
+  useSensor,
+  useSensors,
+  DragEndEvent,
+} from '@dnd-kit/core';
+import {
+  arrayMove,
+  SortableContext,
+  sortableKeyboardCoordinates,
+  useSortable,
+  verticalListSortingStrategy,
+} from '@dnd-kit/sortable';
+import { CSS } from '@dnd-kit/utilities';
 
 export default function FooterSettingsPage() {
   const navigate = useNavigate();
   const [settings, setSettings] = useState<FooterSettings[]>([]);
   const [loading, setLoading] = useState(true);
-  const [saving, setSaving] = useState<string | null>(null);
+  const [saving, setSaving] = useState(false);
+  const [editingSection, setEditingSection] = useState<FooterSettings | null>(null);
+  const [showPreview, setShowPreview] = useState(false);
+
+  const sensors = useSensors(
+    useSensor(PointerSensor),
+    useSensor(KeyboardSensor, {
+      coordinateGetter: sortableKeyboardCoordinates,
+    })
+  );
 
   useEffect(() => {
     loadSettings();
@@ -42,31 +76,52 @@ export default function FooterSettingsPage() {
       const data = await getAllFooterSettings();
       setSettings(data);
     } catch (error: any) {
-      toast.error(error.message || '加载失败');
+      toast.error('加载失败', {
+        description: error.message,
+      });
     } finally {
       setLoading(false);
     }
   };
 
-  const handleSave = async (id: string, updates: any) => {
-    try {
-      setSaving(id);
-      await updateFooterSetting(id, updates);
-      toast.success('保存成功', {
-        description: '页脚配置已更新',
-      });
-      await loadSettings();
-    } catch (error: any) {
-      toast.error('保存失败', {
-        description: error.message,
-      });
-    } finally {
-      setSaving(null);
+  const handleDragEnd = async (event: DragEndEvent) => {
+    const { active, over } = event;
+
+    if (over && active.id !== over.id) {
+      const oldIndex = settings.findIndex((s) => s.id === active.id);
+      const newIndex = settings.findIndex((s) => s.id === over.id);
+
+      const newSettings = arrayMove(settings, oldIndex, newIndex);
+      setSettings(newSettings);
+
+      // 更新display_order
+      try {
+        const updates = newSettings.map((s, index) => ({
+          id: s.id,
+          display_order: index + 1,
+        }));
+        await batchUpdateFooterSettings(updates);
+        toast.success('排序已更新');
+      } catch (error: any) {
+        toast.error('排序更新失败', {
+          description: error.message,
+        });
+        // 恢复原顺序
+        loadSettings();
+      }
     }
   };
 
   const handleToggleActive = async (id: string, currentState: boolean) => {
-    await handleSave(id, { is_active: !currentState });
+    try {
+      await updateFooterSetting(id, { is_active: !currentState });
+      toast.success(currentState ? '已隐藏' : '已显示');
+      await loadSettings();
+    } catch (error: any) {
+      toast.error('操作失败', {
+        description: error.message,
+      });
+    }
   };
 
   const handleBack = () => {
@@ -87,6 +142,21 @@ export default function FooterSettingsPage() {
     return names[section] || section;
   };
 
+  const getSectionIcon = (section: string) => {
+    const icons: Record<string, any> = {
+      about: Mail,
+      navigation: ExternalLink,
+      friendly_links: ExternalLink,
+      social_media: Sparkles,
+      newsletter: Mail,
+      copyright: CheckCircle2,
+      filing: CheckCircle2,
+      disclaimer: CheckCircle2,
+    };
+    const Icon = icons[section] || CheckCircle2;
+    return <Icon className="w-4 h-4" />;
+  };
+
   if (loading) {
     return (
       <div className="flex items-center justify-center h-96">
@@ -96,342 +166,653 @@ export default function FooterSettingsPage() {
   }
 
   return (
-    <div className="container mx-auto py-6 px-4 max-w-5xl">
+    <div className="container mx-auto py-6 px-4 max-w-6xl">
       {/* 顶部导航栏 */}
-      <div className="flex items-center gap-4 mb-6">
+      <div className="flex items-center justify-between mb-6">
+        <div className="flex items-center gap-4">
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={handleBack}
+            className="gap-2"
+          >
+            <ArrowLeft className="w-4 h-4" />
+            返回
+          </Button>
+          <div className="h-6 w-px bg-border" />
+          <div>
+            <h1 className="text-2xl font-bold">页脚配置管理</h1>
+            <p className="text-sm text-muted-foreground mt-1">
+              拖拽调整顺序，点击编辑内容，一键开关显示
+            </p>
+          </div>
+        </div>
         <Button
           variant="outline"
           size="sm"
-          onClick={handleBack}
+          onClick={() => setShowPreview(!showPreview)}
           className="gap-2"
         >
-          <ArrowLeft className="w-4 h-4" />
-          返回
+          {showPreview ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+          {showPreview ? '隐藏预览' : '实时预览'}
         </Button>
-        <div className="h-6 w-px bg-border" />
-        <div className="flex-1">
-          <h1 className="text-2xl font-bold">页脚配置管理</h1>
-          <p className="text-sm text-muted-foreground mt-1">
-            管理网站页脚的各个模块内容，修改后将实时同步到前台展示
-          </p>
-        </div>
       </div>
 
-      {/* 配置列表 */}
-      <div className="space-y-4">
-        <Accordion type="single" collapsible className="w-full space-y-3">
-          {settings.map((setting) => (
-            <AccordionItem
-              key={setting.id}
-              value={setting.id}
-              className="border rounded-lg bg-card shadow-sm hover:shadow-md transition-shadow"
-            >
-              <AccordionTrigger className="hover:no-underline px-6 py-4">
-                <div className="flex items-center justify-between w-full pr-4">
-                  <div className="flex items-center gap-3">
-                    <span className="text-lg font-semibold">
-                      {getSectionName(setting.section)}
-                    </span>
-                    <Badge
-                      variant={setting.is_active ? 'default' : 'secondary'}
-                      className={setting.is_active ? 'bg-green-500 hover:bg-green-600' : ''}
-                    >
-                      {setting.is_active ? (
-                        <>
-                          <CheckCircle2 className="w-3 h-3 mr-1" />
-                          已启用
-                        </>
-                      ) : (
-                        '已禁用'
-                      )}
-                    </Badge>
+      <div className="grid grid-cols-1 xl:grid-cols-3 gap-6">
+        {/* 左侧：配置列表 */}
+        <div className={showPreview ? 'xl:col-span-2' : 'xl:col-span-3'}>
+          <Card>
+            <CardHeader>
+              <CardTitle className="flex items-center gap-2">
+                <GripVertical className="w-5 h-5 text-muted-foreground" />
+                页脚模块列表
+              </CardTitle>
+              <p className="text-sm text-muted-foreground">
+                拖拽左侧图标可调整模块显示顺序
+              </p>
+            </CardHeader>
+            <CardContent>
+              <DndContext
+                sensors={sensors}
+                collisionDetection={closestCenter}
+                onDragEnd={handleDragEnd}
+              >
+                <SortableContext
+                  items={settings.map((s) => s.id)}
+                  strategy={verticalListSortingStrategy}
+                >
+                  <div className="space-y-3">
+                    {settings.map((setting) => (
+                      <SortableItem
+                        key={setting.id}
+                        setting={setting}
+                        getSectionName={getSectionName}
+                        getSectionIcon={getSectionIcon}
+                        onToggleActive={handleToggleActive}
+                        onEdit={setEditingSection}
+                      />
+                    ))}
                   </div>
-                  <ChevronDown className="w-5 h-5 text-muted-foreground transition-transform" />
+                </SortableContext>
+              </DndContext>
+            </CardContent>
+          </Card>
+        </div>
+
+        {/* 右侧：实时预览 */}
+        {showPreview && (
+          <div className="xl:col-span-1">
+            <Card className="sticky top-6">
+              <CardHeader>
+                <CardTitle className="flex items-center gap-2">
+                  <Eye className="w-5 h-5" />
+                  实时预览
+                </CardTitle>
+                <p className="text-sm text-muted-foreground">
+                  前台页脚显示效果
+                </p>
+              </CardHeader>
+              <CardContent>
+                <div className="bg-muted/30 rounded-lg p-4 border">
+                  <FooterPreview settings={settings.filter((s) => s.is_active)} />
                 </div>
-              </AccordionTrigger>
-              <AccordionContent className="px-6 pb-6">
-                <SettingEditor
-                  setting={setting}
-                  onSave={handleSave}
-                  onToggleActive={handleToggleActive}
-                  saving={saving === setting.id}
-                />
-              </AccordionContent>
-            </AccordionItem>
-          ))}
-        </Accordion>
-      </div>
-    </div>
-  );
-}
-
-interface SettingEditorProps {
-  setting: FooterSettings;
-  onSave: (id: string, updates: any) => Promise<void>;
-  onToggleActive: (id: string, currentState: boolean) => Promise<void>;
-  saving: boolean;
-}
-
-function SettingEditor({ setting, onSave, onToggleActive, saving }: SettingEditorProps) {
-  const [title, setTitle] = useState(setting.title);
-  const [content, setContent] = useState(JSON.stringify(setting.content, null, 2));
-  const [displayOrder, setDisplayOrder] = useState(setting.display_order);
-  const [contentError, setContentError] = useState('');
-  const [hasChanges, setHasChanges] = useState(false);
-
-  const handleSave = async () => {
-    // 验证JSON格式
-    try {
-      const parsedContent = JSON.parse(content);
-      setContentError('');
-      await onSave(setting.id, {
-        title,
-        content: parsedContent,
-        display_order: displayOrder,
-      });
-      setHasChanges(false);
-    } catch (error) {
-      setContentError('JSON格式错误，请检查');
-    }
-  };
-
-  const handleContentChange = (value: string) => {
-    setContent(value);
-    setContentError('');
-    setHasChanges(true);
-  };
-
-  const handleTitleChange = (value: string) => {
-    setTitle(value);
-    setHasChanges(true);
-  };
-
-  const handleOrderChange = (value: number) => {
-    setDisplayOrder(value);
-    setHasChanges(true);
-  };
-
-  const renderContentPreview = () => {
-    try {
-      const data = JSON.parse(content);
-      return (
-        <div className="bg-muted/50 p-4 rounded-lg border">
-          <h4 className="text-sm font-semibold mb-2 text-muted-foreground">内容预览</h4>
-          <pre className="text-xs overflow-auto max-h-40 font-mono">
-            {JSON.stringify(data, null, 2)}
-          </pre>
-        </div>
-      );
-    } catch {
-      return null;
-    }
-  };
-
-  return (
-    <div className="space-y-6 pt-4">
-      {/* 启用/禁用开关 */}
-      <div className="flex items-center justify-between p-4 bg-muted/50 rounded-lg border">
-        <div className="flex-1">
-          <Label className="text-base font-semibold">模块状态</Label>
-          <p className="text-sm text-muted-foreground mt-1">
-            {setting.is_active ? '此模块当前在前台显示' : '此模块当前在前台隐藏'}
-          </p>
-        </div>
-        <Switch
-          checked={setting.is_active}
-          onCheckedChange={() => onToggleActive(setting.id, setting.is_active)}
-          disabled={saving}
-          className="data-[state=checked]:bg-green-500"
-        />
-      </div>
-
-      {/* 基本信息 */}
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-        {/* 标题 */}
-        <div className="space-y-2">
-          <Label htmlFor="title" className="font-semibold">
-            模块标题
-          </Label>
-          <Input
-            id="title"
-            value={title}
-            onChange={(e) => handleTitleChange(e.target.value)}
-            placeholder="输入模块标题"
-            className="transition-all focus:ring-2 focus:ring-primary"
-          />
-        </div>
-
-        {/* 显示顺序 */}
-        <div className="space-y-2">
-          <Label htmlFor="order" className="font-semibold">
-            显示顺序
-          </Label>
-          <Input
-            id="order"
-            type="number"
-            value={displayOrder}
-            onChange={(e) => handleOrderChange(parseInt(e.target.value) || 0)}
-            placeholder="数字越小越靠前"
-            className="transition-all focus:ring-2 focus:ring-primary"
-          />
-          <p className="text-xs text-muted-foreground">
-            数字越小，模块在页脚中的位置越靠前
-          </p>
-        </div>
-      </div>
-
-      {/* 内容编辑 */}
-      <div className="space-y-2">
-        <div className="flex items-center justify-between">
-          <Label htmlFor="content" className="font-semibold">
-            模块内容（JSON格式）
-          </Label>
-          <Dialog>
-            <DialogTrigger asChild>
-              <Button variant="outline" size="sm" className="gap-2">
-                <Eye className="w-4 h-4" />
-                查看示例
-              </Button>
-            </DialogTrigger>
-            <DialogContent className="max-w-2xl max-h-[80vh] overflow-auto">
-              <DialogHeader>
-                <DialogTitle>内容格式说明</DialogTitle>
-                <DialogDescription>
-                  根据不同的模块类型，内容格式有所不同
-                </DialogDescription>
-              </DialogHeader>
-              <ContentFormatGuide section={setting.section} />
-            </DialogContent>
-          </Dialog>
-        </div>
-        <Textarea
-          id="content"
-          value={content}
-          onChange={(e) => handleContentChange(e.target.value)}
-          placeholder="输入JSON格式的内容"
-          rows={12}
-          className="font-mono text-sm transition-all focus:ring-2 focus:ring-primary"
-        />
-        {contentError && (
-          <p className="text-sm text-destructive flex items-center gap-2">
-            <span className="w-1 h-1 rounded-full bg-destructive" />
-            {contentError}
-          </p>
+              </CardContent>
+            </Card>
+          </div>
         )}
       </div>
 
-      {/* 内容预览 */}
-      {renderContentPreview()}
+      {/* 编辑对话框 */}
+      {editingSection && (
+        <EditDialog
+          setting={editingSection}
+          onClose={() => setEditingSection(null)}
+          onSave={async (updates) => {
+            try {
+              setSaving(true);
+              await updateFooterSetting(editingSection.id, updates);
+              toast.success('保存成功');
+              await loadSettings();
+              setEditingSection(null);
+            } catch (error: any) {
+              toast.error('保存失败', {
+                description: error.message,
+              });
+            } finally {
+              setSaving(false);
+            }
+          }}
+          saving={saving}
+          getSectionName={getSectionName}
+        />
+      )}
+    </div>
+  );
+}
 
-      {/* 保存按钮 */}
-      <div className="flex justify-end gap-2 pt-4 border-t">
+// 可排序项组件
+interface SortableItemProps {
+  setting: FooterSettings;
+  getSectionName: (section: string) => string;
+  getSectionIcon: (section: string) => React.ReactElement;
+  onToggleActive: (id: string, currentState: boolean) => void;
+  onEdit: (setting: FooterSettings) => void;
+}
+
+function SortableItem({
+  setting,
+  getSectionName,
+  getSectionIcon,
+  onToggleActive,
+  onEdit,
+}: SortableItemProps) {
+  const {
+    attributes,
+    listeners,
+    setNodeRef,
+    transform,
+    transition,
+    isDragging,
+  } = useSortable({ id: setting.id });
+
+  const style = {
+    transform: CSS.Transform.toString(transform),
+    transition,
+    opacity: isDragging ? 0.5 : 1,
+  };
+
+  return (
+    <div
+      ref={setNodeRef}
+      style={style}
+      className="flex items-center gap-3 p-4 bg-card border rounded-lg hover:shadow-md transition-all group"
+    >
+      {/* 拖拽手柄 */}
+      <div
+        {...attributes}
+        {...listeners}
+        className="cursor-grab active:cursor-grabbing text-muted-foreground hover:text-foreground transition-colors"
+      >
+        <GripVertical className="w-5 h-5" />
+      </div>
+
+      {/* 图标 */}
+      <div className="w-10 h-10 rounded-lg bg-primary/10 flex items-center justify-center text-primary flex-shrink-0">
+        {getSectionIcon(setting.section)}
+      </div>
+
+      {/* 信息 */}
+      <div className="flex-1 min-w-0">
+        <div className="flex items-center gap-2">
+          <h3 className="font-semibold truncate">{getSectionName(setting.section)}</h3>
+          <Badge
+            variant={setting.is_active ? 'default' : 'secondary'}
+            className={setting.is_active ? 'bg-green-500 hover:bg-green-600' : ''}
+          >
+            {setting.is_active ? '显示' : '隐藏'}
+          </Badge>
+        </div>
+        <p className="text-sm text-muted-foreground truncate">{setting.title}</p>
+      </div>
+
+      {/* 操作按钮 */}
+      <div className="flex items-center gap-2 opacity-0 group-hover:opacity-100 transition-opacity">
         <Button
-          onClick={handleSave}
-          disabled={saving || !hasChanges}
-          className="gap-2 min-w-[120px]"
+          variant="ghost"
+          size="sm"
+          onClick={() => onEdit(setting)}
+          className="h-8 w-8 p-0"
         >
-          {saving ? (
-            <>
-              <Loader2 className="w-4 h-4 animate-spin" />
-              保存中...
-            </>
-          ) : (
-            <>
-              <Save className="w-4 h-4" />
-              保存修改
-            </>
-          )}
+          <Edit2 className="w-4 h-4" />
         </Button>
+        <Switch
+          checked={setting.is_active}
+          onCheckedChange={() => onToggleActive(setting.id, setting.is_active)}
+          className="data-[state=checked]:bg-green-500"
+        />
       </div>
     </div>
   );
 }
 
-function ContentFormatGuide({ section }: { section: string }) {
-  const guides: Record<string, any> = {
-    about: {
-      description: '关于我们模块包含平台简介和联系邮箱',
-      example: {
-        description: '平台简介文字，建议80字以内',
-        email: 'contact@example.com',
-      },
-    },
-    navigation: {
-      description: '快速导航包含站内链接列表',
-      example: {
-        links: [
-          { name: '首页', path: '/' },
-          { name: '案例查询', path: '/cases' },
-        ],
-      },
-    },
-    friendly_links: {
-      description: '友情链接包含外部网站链接列表',
-      example: {
-        links: [
-          { name: '工业和信息化部', url: 'https://www.miit.gov.cn' },
-          { name: '国家互联网信息办公室', url: 'https://www.cac.gov.cn' },
-        ],
-      },
-    },
-    social_media: {
-      description: '社交媒体包含各平台信息',
-      example: {
-        platforms: [
-          { name: '微信公众号', icon: '微信', qrcode: true },
-          { name: '官方微博', icon: '微博', url: '#' },
-        ],
-      },
-    },
-    newsletter: {
-      description: 'Newsletter订阅模块配置',
-      example: {
-        description: '订阅说明文字',
-        privacy_note: '隐私声明文字',
-        enabled: true,
-      },
-    },
-    copyright: {
-      description: '版权信息配置',
-      example: {
-        company_name: '公司名称',
-        show_year: true,
-      },
-    },
-    filing: {
-      description: '备案信息配置',
-      example: {
-        icp: {
-          number: '京ICP备XXXXXXXX号',
-          url: 'https://beian.miit.gov.cn',
-        },
-        police: {
-          number: '京公网安备XXXXXXXXXXXXX号',
-          url: 'http://www.beian.gov.cn',
-        },
-      },
-    },
-    disclaimer: {
-      description: '免责声明文字',
-      example: {
-        text: '免责声明的完整文字内容',
-      },
-    },
+// 编辑对话框组件
+interface EditDialogProps {
+  setting: FooterSettings;
+  onClose: () => void;
+  onSave: (updates: any) => Promise<void>;
+  saving: boolean;
+  getSectionName: (section: string) => string;
+}
+
+function EditDialog({ setting, onClose, onSave, saving, getSectionName }: EditDialogProps) {
+  const [title, setTitle] = useState(setting.title);
+  const [content, setContent] = useState(setting.content);
+
+  const handleSave = async () => {
+    await onSave({
+      title,
+      content,
+    });
   };
 
-  const guide = guides[section] || { description: '暂无说明', example: {} };
+  return (
+    <Dialog open={true} onOpenChange={onClose}>
+      <DialogContent className="max-w-3xl max-h-[90vh] overflow-y-auto">
+        <DialogHeader>
+          <DialogTitle className="flex items-center gap-2">
+            <Edit2 className="w-5 h-5" />
+            编辑 {getSectionName(setting.section)}
+          </DialogTitle>
+          <DialogDescription>
+            修改模块标题和内容，保存后将立即生效
+          </DialogDescription>
+        </DialogHeader>
+
+        <div className="space-y-4 py-4">
+          {/* 标题 */}
+          <div className="space-y-2">
+            <Label htmlFor="title">模块标题</Label>
+            <Input
+              id="title"
+              value={title}
+              onChange={(e) => setTitle(e.target.value)}
+              placeholder="输入模块标题"
+            />
+          </div>
+
+          {/* 根据section类型渲染不同的编辑表单 */}
+          <ContentEditor
+            section={setting.section}
+            content={content}
+            onChange={setContent}
+          />
+        </div>
+
+        <DialogFooter>
+          <Button variant="outline" onClick={onClose} disabled={saving}>
+            取消
+          </Button>
+          <Button onClick={handleSave} disabled={saving} className="gap-2">
+            {saving && <Loader2 className="w-4 h-4 animate-spin" />}
+            保存
+          </Button>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
+  );
+}
+
+// 内容编辑器组件
+interface ContentEditorProps {
+  section: string;
+  content: any;
+  onChange: (content: any) => void;
+}
+
+function ContentEditor({ section, content, onChange }: ContentEditorProps) {
+  const updateField = (field: string, value: any) => {
+    onChange({ ...content, [field]: value });
+  };
+
+  const updateArrayItem = (arrayName: string, index: number, field: string, value: any) => {
+    const newArray = [...(content[arrayName] || [])];
+    newArray[index] = { ...newArray[index], [field]: value };
+    onChange({ ...content, [arrayName]: newArray });
+  };
+
+  const addArrayItem = (arrayName: string, defaultItem: any) => {
+    const newArray = [...(content[arrayName] || []), defaultItem];
+    onChange({ ...content, [arrayName]: newArray });
+  };
+
+  const removeArrayItem = (arrayName: string, index: number) => {
+    const newArray = (content[arrayName] || []).filter((_: any, i: number) => i !== index);
+    onChange({ ...content, [arrayName]: newArray });
+  };
+
+  // 关于我们
+  if (section === 'about') {
+    return (
+      <div className="space-y-4">
+        <div className="space-y-2">
+          <Label>描述</Label>
+          <Textarea
+            value={content.description || ''}
+            onChange={(e) => updateField('description', e.target.value)}
+            placeholder="输入关于我们的描述"
+            rows={4}
+          />
+        </div>
+        <div className="space-y-2">
+          <Label>联系邮箱</Label>
+          <Input
+            type="email"
+            value={content.email || ''}
+            onChange={(e) => updateField('email', e.target.value)}
+            placeholder="contact@example.com"
+          />
+        </div>
+      </div>
+    );
+  }
+
+  // 快速导航
+  if (section === 'navigation') {
+    return (
+      <div className="space-y-4">
+        <div className="flex items-center justify-between">
+          <Label>导航链接</Label>
+          <Button
+            type="button"
+            variant="outline"
+            size="sm"
+            onClick={() => addArrayItem('links', { name: '', path: '' })}
+            className="gap-2"
+          >
+            <Plus className="w-4 h-4" />
+            添加链接
+          </Button>
+        </div>
+        <div className="space-y-3">
+          {(content.links || []).map((link: any, index: number) => (
+            <div key={index} className="flex gap-2 items-start p-3 border rounded-lg">
+              <div className="flex-1 space-y-2">
+                <Input
+                  value={link.name || ''}
+                  onChange={(e) => updateArrayItem('links', index, 'name', e.target.value)}
+                  placeholder="链接名称"
+                />
+                <Input
+                  value={link.path || ''}
+                  onChange={(e) => updateArrayItem('links', index, 'path', e.target.value)}
+                  placeholder="/path"
+                />
+              </div>
+              <Button
+                type="button"
+                variant="ghost"
+                size="sm"
+                onClick={() => removeArrayItem('links', index)}
+                className="text-destructive hover:text-destructive"
+              >
+                <X className="w-4 h-4" />
+              </Button>
+            </div>
+          ))}
+        </div>
+      </div>
+    );
+  }
+
+  // 友情链接
+  if (section === 'friendly_links') {
+    return (
+      <div className="space-y-4">
+        <div className="flex items-center justify-between">
+          <Label>友情链接</Label>
+          <Button
+            type="button"
+            variant="outline"
+            size="sm"
+            onClick={() => addArrayItem('links', { name: '', url: '' })}
+            className="gap-2"
+          >
+            <Plus className="w-4 h-4" />
+            添加链接
+          </Button>
+        </div>
+        <div className="space-y-3">
+          {(content.links || []).map((link: any, index: number) => (
+            <div key={index} className="flex gap-2 items-start p-3 border rounded-lg">
+              <div className="flex-1 space-y-2">
+                <Input
+                  value={link.name || ''}
+                  onChange={(e) => updateArrayItem('links', index, 'name', e.target.value)}
+                  placeholder="网站名称"
+                />
+                <Input
+                  value={link.url || ''}
+                  onChange={(e) => updateArrayItem('links', index, 'url', e.target.value)}
+                  placeholder="https://example.com"
+                />
+              </div>
+              <Button
+                type="button"
+                variant="ghost"
+                size="sm"
+                onClick={() => removeArrayItem('links', index)}
+                className="text-destructive hover:text-destructive"
+              >
+                <X className="w-4 h-4" />
+              </Button>
+            </div>
+          ))}
+        </div>
+      </div>
+    );
+  }
+
+  // 社交媒体
+  if (section === 'social_media') {
+    return (
+      <div className="space-y-4">
+        <div className="flex items-center justify-between">
+          <Label>社交平台</Label>
+          <Button
+            type="button"
+            variant="outline"
+            size="sm"
+            onClick={() => addArrayItem('platforms', { name: '', icon: '', url: '' })}
+            className="gap-2"
+          >
+            <Plus className="w-4 h-4" />
+            添加平台
+          </Button>
+        </div>
+        <div className="space-y-3">
+          {(content.platforms || []).map((platform: any, index: number) => (
+            <div key={index} className="flex gap-2 items-start p-3 border rounded-lg">
+              <div className="flex-1 space-y-2">
+                <Input
+                  value={platform.name || ''}
+                  onChange={(e) => updateArrayItem('platforms', index, 'name', e.target.value)}
+                  placeholder="平台名称（如：微信）"
+                />
+                <Input
+                  value={platform.icon || ''}
+                  onChange={(e) => updateArrayItem('platforms', index, 'icon', e.target.value)}
+                  placeholder="图标（如：微）"
+                />
+                <Input
+                  value={platform.url || ''}
+                  onChange={(e) => updateArrayItem('platforms', index, 'url', e.target.value)}
+                  placeholder="链接地址"
+                />
+              </div>
+              <Button
+                type="button"
+                variant="ghost"
+                size="sm"
+                onClick={() => removeArrayItem('platforms', index)}
+                className="text-destructive hover:text-destructive"
+              >
+                <X className="w-4 h-4" />
+              </Button>
+            </div>
+          ))}
+        </div>
+      </div>
+    );
+  }
+
+  // 订阅资讯
+  if (section === 'newsletter') {
+    return (
+      <div className="space-y-4">
+        <div className="flex items-center justify-between">
+          <Label>启用订阅功能</Label>
+          <Switch
+            checked={content.enabled || false}
+            onCheckedChange={(checked) => updateField('enabled', checked)}
+          />
+        </div>
+        <div className="space-y-2">
+          <Label>描述文字</Label>
+          <Textarea
+            value={content.description || ''}
+            onChange={(e) => updateField('description', e.target.value)}
+            placeholder="订阅描述"
+            rows={3}
+          />
+        </div>
+        <div className="space-y-2">
+          <Label>隐私说明</Label>
+          <Input
+            value={content.privacy_note || ''}
+            onChange={(e) => updateField('privacy_note', e.target.value)}
+            placeholder="我们尊重您的隐私"
+          />
+        </div>
+      </div>
+    );
+  }
+
+  // 版权信息
+  if (section === 'copyright') {
+    return (
+      <div className="space-y-4">
+        <div className="space-y-2">
+          <Label>公司名称</Label>
+          <Input
+            value={content.company_name || ''}
+            onChange={(e) => updateField('company_name', e.target.value)}
+            placeholder="公司名称"
+          />
+        </div>
+        <div className="flex items-center justify-between">
+          <Label>显示年份</Label>
+          <Switch
+            checked={content.show_year || false}
+            onCheckedChange={(checked) => updateField('show_year', checked)}
+          />
+        </div>
+      </div>
+    );
+  }
+
+  // 备案信息
+  if (section === 'filing') {
+    return (
+      <div className="space-y-4">
+        <div className="space-y-2">
+          <Label>ICP备案号</Label>
+          <Input
+            value={content.icp?.number || ''}
+            onChange={(e) => updateField('icp', { ...content.icp, number: e.target.value })}
+            placeholder="京ICP备xxxxxxxx号"
+          />
+        </div>
+        <div className="space-y-2">
+          <Label>ICP备案链接</Label>
+          <Input
+            value={content.icp?.url || ''}
+            onChange={(e) => updateField('icp', { ...content.icp, url: e.target.value })}
+            placeholder="https://beian.miit.gov.cn"
+          />
+        </div>
+        <div className="space-y-2">
+          <Label>公安备案号</Label>
+          <Input
+            value={content.police?.number || ''}
+            onChange={(e) => updateField('police', { ...content.police, number: e.target.value })}
+            placeholder="京公网安备xxxxxxxx号"
+          />
+        </div>
+        <div className="space-y-2">
+          <Label>公安备案链接</Label>
+          <Input
+            value={content.police?.url || ''}
+            onChange={(e) => updateField('police', { ...content.police, url: e.target.value })}
+            placeholder="http://www.beian.gov.cn"
+          />
+        </div>
+      </div>
+    );
+  }
+
+  // 免责声明
+  if (section === 'disclaimer') {
+    return (
+      <div className="space-y-4">
+        <div className="space-y-2">
+          <Label>免责声明内容</Label>
+          <Textarea
+            value={content.text || ''}
+            onChange={(e) => updateField('text', e.target.value)}
+            placeholder="输入免责声明内容"
+            rows={6}
+          />
+        </div>
+      </div>
+    );
+  }
+
+  // 默认：JSON编辑器
+  return (
+    <div className="space-y-2">
+      <Label>内容（JSON格式）</Label>
+      <Textarea
+        value={JSON.stringify(content, null, 2)}
+        onChange={(e) => {
+          try {
+            onChange(JSON.parse(e.target.value));
+          } catch {
+            // 忽略JSON解析错误
+          }
+        }}
+        rows={10}
+        className="font-mono text-sm"
+      />
+    </div>
+  );
+}
+
+// 页脚预览组件
+interface FooterPreviewProps {
+  settings: FooterSettings[];
+}
+
+function FooterPreview({ settings }: FooterPreviewProps) {
+  const getSetting = (section: string) => {
+    return settings.find((s) => s.section === section);
+  };
+
+  const aboutSetting = getSetting('about');
+  const copyrightSetting = getSetting('copyright');
 
   return (
-    <div className="space-y-4">
-      <div>
-        <h4 className="font-semibold mb-2">说明</h4>
-        <p className="text-sm text-muted-foreground">{guide.description}</p>
-      </div>
-      <div>
-        <h4 className="font-semibold mb-2">示例格式</h4>
-        <pre className="bg-muted p-4 rounded-lg text-xs overflow-auto font-mono border">
-          {JSON.stringify(guide.example, null, 2)}
-        </pre>
+    <div className="space-y-4 text-xs">
+      {/* 简化预览 */}
+      {aboutSetting && (
+        <div>
+          <h4 className="font-semibold mb-2">{aboutSetting.title}</h4>
+          <p className="text-muted-foreground text-xs line-clamp-2">
+            {aboutSetting.content.description}
+          </p>
+        </div>
+      )}
+      
+      {copyrightSetting && (
+        <div className="pt-3 border-t text-center text-muted-foreground">
+          <p className="text-xs">
+            © {copyrightSetting.content.show_year ? new Date().getFullYear() : ''}{' '}
+            {copyrightSetting.content.company_name}
+          </p>
+        </div>
+      )}
+
+      <div className="text-center text-muted-foreground">
+        <p className="text-xs">共 {settings.length} 个模块已启用</p>
       </div>
     </div>
   );

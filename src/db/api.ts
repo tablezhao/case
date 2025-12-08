@@ -1446,6 +1446,21 @@ export async function deleteFooterSetting(id: string) {
   if (error) throw error;
 }
 
+export async function batchUpdateFooterSettings(updates: { id: string; display_order?: number; is_active?: boolean }[]) {
+  const promises = updates.map(update =>
+    supabase
+      .from('footer_settings')
+      .update({ ...update, updated_at: new Date().toISOString() })
+      .eq('id', update.id)
+  );
+  
+  const results = await Promise.all(promises);
+  const errors = results.filter(r => r.error);
+  if (errors.length > 0) {
+    throw new Error('批量更新失败');
+  }
+}
+
 // ============ 多维度关联分析 ============
 
 /**
