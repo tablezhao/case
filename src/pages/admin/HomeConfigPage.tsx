@@ -4,8 +4,9 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { Button } from '@/components/ui/button';
 import { Switch } from '@/components/ui/switch';
 import { Label } from '@/components/ui/label';
+import { Badge } from '@/components/ui/badge';
 import { toast } from 'sonner';
-import { Loader2, ArrowLeft, Eye, EyeOff } from 'lucide-react';
+import { Loader2, ArrowLeft, Eye, EyeOff, Cloud } from 'lucide-react';
 import { getFrontendConfigs, updateFrontendConfig } from '@/db/api';
 import type { FrontendConfig } from '@/types/types';
 
@@ -58,7 +59,7 @@ export default function HomeConfigPage() {
     const descriptions: Record<string, string> = {
       stats_overview: '显示累计通报案例、涉及应用、最近通报等核心统计数据',
       platform_chart: '显示被通报应用的来源平台分布图',
-      wordcloud: '显示热点违规问题的词云图',
+      wordcloud: '显示热点违规问题的词云图，通过词云可视化展示高频违规问题关键词，字体大小代表出现频率',
       recent_news: '显示最近发布的监管资讯列表',
     };
     return descriptions[moduleKey] || '暂无描述';
@@ -97,7 +98,12 @@ export default function HomeConfigPage() {
       {/* 配置列表 */}
       <div className="grid gap-4 grid-cols-1 md:grid-cols-2">
         {configs.map((config) => (
-          <Card key={config.id} className="hover:shadow-md transition-shadow">
+          <Card 
+            key={config.id} 
+            className={`hover:shadow-md transition-shadow ${
+              config.module_key === 'wordcloud' ? 'border-primary/50' : ''
+            }`}
+          >
             <CardHeader>
               <div className="flex items-start justify-between">
                 <div className="flex-1">
@@ -108,6 +114,12 @@ export default function HomeConfigPage() {
                       <EyeOff className="w-5 h-5 text-muted-foreground" />
                     )}
                     {config.module_name}
+                    {config.module_key === 'wordcloud' && (
+                      <Badge variant="secondary" className="ml-2 gap-1">
+                        <Cloud className="w-3 h-3" />
+                        词云控制
+                      </Badge>
+                    )}
                   </CardTitle>
                   <CardDescription className="mt-2">
                     {getModuleDescription(config.module_key)}
