@@ -57,6 +57,7 @@ export default function HomeConfigPage() {
   const getModuleDescription = (moduleKey: string) => {
     const descriptions: Record<string, string> = {
       stats_overview: '显示累计通报案例、涉及应用、最近通报等核心统计数据',
+      trend_chart: '显示年度及月度通报案例数量趋势折线图，支持按通报应用数量、通报频次和对比分析三个维度查看数据',
       platform_chart: '显示被通报应用的来源平台分布图',
       wordcloud: '显示热点违规问题的词云图，通过词云可视化展示高频违规问题关键词，字体大小代表出现频率',
       recent_news: '显示最近发布的监管资讯列表',
