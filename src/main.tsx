@@ -3,11 +3,14 @@ import { createRoot } from "react-dom/client";
 import "./index.css";
 import App from "./App.tsx";
 import { AppWrapper } from "./components/common/PageMeta.tsx";
+import { SiteTitleProvider } from "./components/common/SiteTitleProvider.tsx";
 
 createRoot(document.getElementById("root")!).render(
   <StrictMode>
     <AppWrapper>
-      <App />
+      <SiteTitleProvider>
+        <App />
+      </SiteTitleProvider>
     </AppWrapper>
   </StrictMode>
 );
