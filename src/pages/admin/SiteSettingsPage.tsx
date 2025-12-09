@@ -28,6 +28,7 @@ export default function SiteSettingsPage() {
   
   const [siteTitle, setSiteTitle] = useState('');
   const [siteSubtitle, setSiteSubtitle] = useState('');
+  const [browserTitle, setBrowserTitle] = useState('');
   const [logoUrl, setLogoUrl] = useState<string | null>(null);
   const [logoFile, setLogoFile] = useState<File | null>(null);
   const [logoPreview, setLogoPreview] = useState<string | null>(null);
@@ -46,6 +47,7 @@ export default function SiteSettingsPage() {
         setSettings(data);
         setSiteTitle(data.site_title);
         setSiteSubtitle(data.site_subtitle || '');
+        setBrowserTitle(data.browser_title || '');
         setLogoUrl(data.logo_url);
         setLogoPreview(data.logo_url);
       }
@@ -119,6 +121,11 @@ export default function SiteSettingsPage() {
       return;
     }
 
+    if (browserTitle.length > 100) {
+      toast.error('浏览器标题不能超过100个字符');
+      return;
+    }
+
     try {
       setSaving(true);
 
@@ -164,6 +171,7 @@ export default function SiteSettingsPage() {
       await updateSiteSettings(settings.id, {
         site_title: siteTitle.trim(),
         site_subtitle: siteSubtitle.trim() || null,
+        browser_title: browserTitle.trim() || null,
         logo_url: finalLogoUrl,
       });
 
@@ -271,6 +279,23 @@ export default function SiteSettingsPage() {
             />
             <p className="text-xs text-muted-foreground">
               网站的简短名称或用于特定场景的替代名称，最多100个字符（当前：{siteSubtitle.length}/100）
+            </p>
+          </div>
+
+          {/* 浏览器标题 */}
+          <div className="space-y-2">
+            <Label htmlFor="browser-title">
+              浏览器标题
+            </Label>
+            <Input
+              id="browser-title"
+              value={browserTitle}
+              onChange={(e) => setBrowserTitle(e.target.value)}
+              placeholder="输入在浏览器标签上显示的网站标题（可选，不填写则使用网站主标题）"
+              maxLength={100}
+            />
+            <p className="text-xs text-muted-foreground">
+              在用户浏览器标签页上显示的标题文本，最多100个字符（当前：{browserTitle.length}/100）
             </p>
           </div>
 
