@@ -12,8 +12,8 @@ import {
 } from '@/components/ui/dropdown-menu';
 import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetTrigger } from '@/components/ui/sheet';
 import { supabase } from '@/db/supabase';
-import { getCurrentProfile } from '@/db/api';
-import type { Profile } from '@/types/types';
+import { getCurrentProfile, getSiteSettings } from '@/db/api';
+import type { Profile, SiteSettings } from '@/types/types';
 import { toast } from 'sonner';
 import routes from '@/routes';
 import { useModules } from '@/contexts/ModuleContext';
@@ -32,6 +32,7 @@ export default function Header() {
   const navigate = useNavigate();
   const [profile, setProfile] = useState<Profile | null>(null);
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
+  const [siteSettings, setSiteSettings] = useState<SiteSettings | null>(null);
   const { isModuleEnabled } = useModules();
   
   // 根据模块设置过滤导航项
@@ -47,6 +48,7 @@ export default function Header() {
 
   useEffect(() => {
     loadProfile();
+    loadSiteSettings();
     
     // 监听认证状态变化
     const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
@@ -71,6 +73,15 @@ export default function Header() {
     }
   };
 
+  const loadSiteSettings = async () => {
+    try {
+      const data = await getSiteSettings();
+      setSiteSettings(data);
+    } catch (error) {
+      console.error('加载网站配置失败:', error);
+    }
+  };
+
   const handleLogout = async () => {
     try {
       await supabase.auth.signOut();
@@ -91,10 +102,20 @@ export default function Header() {
           {/* Logo */}
           <div className="flex items-center">
             <Link to="/" className="flex items-center gap-2 min-h-[44px]">
-              <div className="w-8 h-8 rounded bg-primary flex items-center justify-center">
-                <Shield className="w-5 h-5 text-primary-foreground" />
-              </div>
-              <span className="text-xl font-bold text-primary">合规通</span>
+              {siteSettings?.logo_url ? (
+                <img 
+                  src={siteSettings.logo_url} 
+                  alt={siteSettings.site_title}
+                  className="h-8 w-auto object-contain"
+                />
+              ) : (
+                <div className="w-8 h-8 rounded bg-primary flex items-center justify-center">
+                  <Shield className="w-5 h-5 text-primary-foreground" />
+                </div>
+              )}
+              <span className="text-xl font-bold text-primary">
+                {siteSettings?.site_title || '合规通'}
+              </span>
             </Link>
           </div>
 
@@ -204,8 +225,18 @@ export default function Header() {
               <SheetContent side="right" className="w-[280px] sm:w-[320px]">
                 <SheetHeader>
                   <SheetTitle className="flex items-center gap-2">
-                    <Shield className="w-5 h-5 text-primary" />
-                    <span className="text-primary">合规通</span>
+                    {siteSettings?.logo_url ? (
+                      <img 
+                        src={siteSettings.logo_url} 
+                        alt={siteSettings.site_title}
+                        className="h-5 w-auto object-contain"
+                      />
+                    ) : (
+                      <Shield className="w-5 h-5 text-primary" />
+                    )}
+                    <span className="text-primary">
+                      {siteSettings?.site_title || '合规通'}
+                    </span>
                   </SheetTitle>
                 </SheetHeader>
                 <div className="flex flex-col gap-2 mt-6">

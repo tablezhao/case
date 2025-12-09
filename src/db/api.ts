@@ -13,6 +13,7 @@ import type {
   StatsOverview,
   CaseFilterParams,
   ModuleSetting,
+  SiteSettings,
 } from '@/types/types';
 
 // ============ 用户相关 ============
@@ -2191,4 +2192,78 @@ export async function getEnabledModules(): Promise<Record<string, boolean>> {
   });
 
   return modules;
+}
+
+// ============ 网站基本信息配置 ============
+
+/**
+ * 获取网站基本信息配置
+ */
+export async function getSiteSettings(): Promise<SiteSettings | null> {
+  const { data, error } = await supabase
+    .from('site_settings')
+    .select('*')
+    .order('created_at', { ascending: true })
+    .limit(1)
+    .maybeSingle();
+  
+  if (error) throw error;
+  return data;
+}
+
+/**
+ * 更新网站基本信息配置
+ */
+export async function updateSiteSettings(id: string, updates: Partial<SiteSettings>) {
+  const { data, error } = await supabase
+    .from('site_settings')
+    .update(updates)
+    .eq('id', id)
+    .select()
+    .maybeSingle();
+  
+  if (error) throw error;
+  return data;
+}
+
+/**
+ * 上传Logo图片到Supabase Storage
+ * @param file 图片文件
+ * @returns 图片的公开URL
+ */
+export async function uploadLogo(file: File): Promise<string> {
+  const fileExt = file.name.split('.').pop();
+  const fileName = `logo-${Date.now()}.${fileExt}`;
+  const filePath = `${fileName}`;
+
+  const { error: uploadError } = await supabase.storage
+    .from('app-800go8thhcsh_logos')
+    .upload(filePath, file, {
+      cacheControl: '3600',
+      upsert: false
+    });
+
+  if (uploadError) throw uploadError;
+
+  const { data } = supabase.storage
+    .from('app-800go8thhcsh_logos')
+    .getPublicUrl(filePath);
+
+  return data.publicUrl;
+}
+
+/**
+ * 删除Logo图片
+ * @param url Logo图片URL
+ */
+export async function deleteLogo(url: string) {
+  // 从URL中提取文件路径
+  const urlParts = url.split('/');
+  const fileName = urlParts[urlParts.length - 1];
+
+  const { error } = await supabase.storage
+    .from('app-800go8thhcsh_logos')
+    .remove([fileName]);
+
+  if (error) throw error;
 }

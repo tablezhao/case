@@ -157,3 +157,13 @@ export interface CaseFilterParams {
   departmentIds?: string[]; // 监管部门ID列表
   platformIds?: string[]; // 应用平台ID列表
 }
+
+// 网站基本信息配置
+export interface SiteSettings {
+  id: string;
+  site_title: string;
+  site_subtitle: string | null;
+  logo_url: string | null;
+  created_at: string;
+  updated_at: string;
+}

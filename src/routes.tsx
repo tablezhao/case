@@ -17,6 +17,7 @@ import SmartImportPage from './pages/admin/SmartImportPage';
 import FooterSettingsPage from './pages/admin/FooterSettingsPage';
 import ModuleSettingsPage from './pages/admin/ModuleSettingsPage';
 import HomeConfigPage from './pages/admin/HomeConfigPage';
+import SiteSettingsPage from './pages/admin/SiteSettingsPage';
 import ProtectedModuleRoute from './components/common/ProtectedModuleRoute';
 
 interface RouteConfig {
@@ -179,6 +180,14 @@ const routes: RouteConfig[] = [
     name: '首页配置',
     path: '/admin/home-config',
     element: <HomeConfigPage />,
+    visible: false,
+    requireAuth: true,
+    requireAdmin: true,
+  },
+  {
+    name: '网站基本信息',
+    path: '/admin/site-settings',
+    element: <SiteSettingsPage />,
     visible: false,
     requireAuth: true,
     requireAdmin: true,
