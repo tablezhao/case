@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { getCases, createCase, updateCase, deleteCase, getDepartments, getPlatforms, createDepartment, createPlatform, batchCreateCasesWithDedup, batchDeleteCases, batchUpdateCases, smartImportCases, generateSearchSuggestions } from '@/db/api';
+import { searchCases, createCase, updateCase, deleteCase, getDepartments, getPlatforms, createDepartment, createPlatform, batchCreateCasesWithDedup, batchDeleteCases, batchUpdateCases, smartImportCases } from '@/db/api';
 import type { CaseWithDetails, RegulatoryDepartment, AppPlatform, CaseFilterParams } from '@/types/types';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -8,15 +8,23 @@ import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from '@/components/ui/dropdown-menu';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Checkbox } from '@/components/ui/checkbox';
-import { Plus, Pencil, Trash2, Upload, Download, ArrowLeft, Search, X } from 'lucide-react';
+import { Plus, Pencil, Trash2, Upload, Download, ArrowLeft, Search, X, Lightbulb, ChevronDown } from 'lucide-react';
 import { toast } from 'sonner';
 import * as XLSX from 'xlsx';
 import { useNavigate } from 'react-router-dom';
 import { CreatableCombobox } from '@/components/ui/creatable-combobox';
 import { DateRangePicker } from '@/components/ui/date-range-picker';
 import { format } from 'date-fns';
+import { preprocessKeyword, generateSearchSuggestions, formatSearchResultCount } from '@/utils/searchUtils';
+import { parseExcelDate } from '@/lib/utils';
 
 export default function CaseManagePage() {
   const navigate = useNavigate();
@@ -24,7 +32,6 @@ export default function CaseManagePage() {
   const [departments, setDepartments] = useState<RegulatoryDepartment[]>([]);
   const [platforms, setPlatforms] = useState<AppPlatform[]>([]);
   const [total, setTotal] = useState(0);
-  const [formattedTotal, setFormattedTotal] = useState('0');
   const [page, setPage] = useState(1);
   const [pageSize] = useState(20);
   const [loading, setLoading] = useState(false);
@@ -32,14 +39,11 @@ export default function CaseManagePage() {
   const [batchEditDialogOpen, setBatchEditDialogOpen] = useState(false);
   const [editingCase, setEditingCase] = useState<CaseWithDetails | null>(null);
   const [selectedIds, setSelectedIds] = useState<string[]>([]);
-  const [exportLoading, setExportLoading] = useState(false);
-  const [searching, setSearching] = useState(false);
-  const [searchSuggestions, setSearchSuggestions] = useState<string[]>([]);
-  const [showSuggestions, setShowSuggestions] = useState(false);
 
   // 关键词搜索
   const [keyword, setKeyword] = useState('');
   const [searchKeyword, setSearchKeyword] = useState('');
+  const [searchSuggestions, setSearchSuggestions] = useState<string[]>([]);
 
   // 筛选条件 - 直接使用，无需临时状态
   const [tempFilters, setTempFilters] = useState<{
@@ -71,10 +75,10 @@ export default function CaseManagePage() {
   });
 
   const [batchEditData, setBatchEditData] = useState({
+    report_date: '',
     department_id: '',
     platform_id: '',
     violation_content: '',
-    report_date: '',
   });
 
   useEffect(() => {
@@ -97,18 +101,6 @@ export default function CaseManagePage() {
   useEffect(() => {
     loadData();
   }, [page, filters, searchKeyword]);
-  
-  // 监听搜索关键词变化，生成搜索建议
-  useEffect(() => {
-    if (keyword && keyword.length > 1) {
-      const suggestions = generateSearchSuggestions(keyword);
-      setSearchSuggestions(suggestions);
-      setShowSuggestions(suggestions.length > 0);
-    } else {
-      setSearchSuggestions([]);
-      setShowSuggestions(false);
-    }
-  }, [keyword]);
 
   const loadInitialData = async () => {
     try {
@@ -127,48 +119,46 @@ export default function CaseManagePage() {
     try {
       setLoading(true);
       
-      // 使用全文搜索API
-      const casesResult = await getCases(
-        page, 
-        pageSize, 
-        'report_date', 
-        'desc', 
-        filters,
-        searchKeyword // 传递关键词给后端全文搜索
-      );
+      // 预处理关键词
+      const processedKeyword = preprocessKeyword(searchKeyword);
       
-      setCases(Array.isArray(casesResult.data) ? casesResult.data : []);
-      setTotal(casesResult.total || 0);
-      setFormattedTotal(casesResult.formattedTotal || '0');
+      // 使用新的搜索API
+      const result = await searchCases({
+        keyword: processedKeyword,
+        page,
+        pageSize,
+        startDate: filters.startDate,
+        endDate: filters.endDate,
+        departmentIds: filters.departmentIds,
+        platformIds: filters.platformIds,
+      });
+      
+      setCases(result.data);
+      setTotal(result.total);
       
       // 显示搜索结果提示
-      if (tempFilters.dateRange.from || tempFilters.departmentId || tempFilters.platformId || searchKeyword) {
-        if (casesResult.hasResults) {
-          toast.success(`已找到 ${casesResult.total || 0} 条案例`);
+      if (processedKeyword.trim()) {
+        if (result.total === 0) {
+          // 生成搜索建议
+          const suggestions = generateSearchSuggestions(processedKeyword);
+          setSearchSuggestions(suggestions);
+          toast.info('未找到匹配的案例，请尝试其他关键词');
         } else {
-          toast.info('暂无匹配结果，尝试使用其他关键词或清除筛选条件');
+          setSearchSuggestions([]);
+          toast.success(formatSearchResultCount(result.total));
         }
+      } else {
+        setSearchSuggestions([]);
       }
     } catch (error) {
       console.error('加载数据失败:', error);
       toast.error('加载数据失败，请检查网络连接');
-      // 网络异常时保留原有筛选条件
     } finally {
       setLoading(false);
-      setSearching(false);
     }
-  };
-  
-  const handleSuggestionClick = (suggestion: string) => {
-    setKeyword(suggestion);
-    setShowSuggestions(false);
-    setSearchKeyword(suggestion);
-    setPage(1);
   };
 
   const handleKeywordSearch = () => {
-    setSearching(true);
-    setShowSuggestions(false);
     setSearchKeyword(keyword);
     setPage(1);
   };
@@ -337,11 +327,11 @@ export default function CaseManagePage() {
     }
 
     // 构建更新数据（只包含非空字段）
-    const updateData: Partial<{ department_id: string; platform_id: string; violation_content: string; report_date: string }> = {};
+    const updateData: Partial<{ report_date: string; department_id: string; platform_id: string; violation_content: string }> = {};
+    if (batchEditData.report_date) updateData.report_date = batchEditData.report_date;
     if (batchEditData.department_id) updateData.department_id = batchEditData.department_id;
     if (batchEditData.platform_id) updateData.platform_id = batchEditData.platform_id;
     if (batchEditData.violation_content) updateData.violation_content = batchEditData.violation_content;
-    if (batchEditData.report_date) updateData.report_date = batchEditData.report_date;
 
     if (Object.keys(updateData).length === 0) {
       toast.error('请至少填写一个要修改的字段');
@@ -353,7 +343,7 @@ export default function CaseManagePage() {
       await batchUpdateCases(updates);
       toast.success(`成功修改 ${selectedIds.length} 条案例`);
       setBatchEditDialogOpen(false);
-      setBatchEditData({ department_id: '', platform_id: '', violation_content: '', report_date: '' });
+      setBatchEditData({ report_date: '', department_id: '', platform_id: '', violation_content: '' });
       setSelectedIds([]);
       loadData();
     } catch (error) {
@@ -373,19 +363,59 @@ export default function CaseManagePage() {
       const worksheet = workbook.Sheets[workbook.SheetNames[0]];
       const jsonData = XLSX.utils.sheet_to_json(worksheet);
 
-      // 转换为智能导入所需的格式
-      const rawData = jsonData.map((row: any) => ({
-        report_date: row['通报日期'],
-        app_name: row['应用名称'],
-        app_developer: row['开发者/运营者'] || null,
-        department_name: row['监管部门'] || '',
-        platform_name: row['应用平台'] || '',
-        violation_content: row['主要违规内容'] || row['违规摘要'] || null,
-        source_url: row['原文链接'] || null,
-      }));
+      if (jsonData.length === 0) {
+        toast.error('Excel文件中没有数据');
+        return;
+      }
+
+      // 验证必需字段
+      const errors: string[] = [];
+      const rawData = jsonData.map((row: any, index: number) => {
+        const rowNum = index + 2; // Excel行号（从2开始，因为第1行是表头）
+        
+        // 解析日期
+        const reportDate = parseExcelDate(row['通报日期']);
+        if (!reportDate) {
+          errors.push(`第${rowNum}行：通报日期格式错误或为空`);
+        }
+        
+        // 验证应用名称
+        const appName = row['应用名称'];
+        if (!appName || String(appName).trim() === '') {
+          errors.push(`第${rowNum}行：应用名称不能为空`);
+        }
+        
+        return {
+          report_date: reportDate || '',
+          app_name: String(appName || '').trim(),
+          app_developer: row['开发者/运营者'] ? String(row['开发者/运营者']).trim() : null,
+          department_name: row['监管部门'] ? String(row['监管部门']).trim() : '',
+          platform_name: row['应用平台'] ? String(row['应用平台']).trim() : '',
+          violation_content: row['主要违规内容'] || row['违规摘要'] ? String(row['主要违规内容'] || row['违规摘要']).trim() : null,
+          source_url: row['原文链接'] ? String(row['原文链接']).trim() : null,
+        };
+      });
+
+      // 如果有错误，显示前5个错误
+      if (errors.length > 0) {
+        const errorMessage = errors.slice(0, 5).join('\n');
+        const moreErrors = errors.length > 5 ? `\n...还有 ${errors.length - 5} 个错误` : '';
+        toast.error(`数据验证失败：\n${errorMessage}${moreErrors}`, {
+          duration: 8000,
+        });
+        return;
+      }
+
+      // 过滤掉无效数据
+      const validData = rawData.filter(row => row.report_date && row.app_name);
+
+      if (validData.length === 0) {
+        toast.error('没有有效的数据可以导入');
+        return;
+      }
 
       // 使用智能导入（自动创建不存在的部门和平台）
-      const result = await smartImportCases(rawData);
+      const result = await smartImportCases(validData);
       
       // 构建详细的成功消息
       let message = `✅ 成功导入 ${result.inserted} 条案例`;
@@ -402,6 +432,11 @@ export default function CaseManagePage() {
         message += `\n📱 新增应用平台 ${result.createdPlatforms} 个：${result.newPlatforms.join('、')}`;
       }
       
+      if (validData.length > result.inserted + result.duplicatesRemoved) {
+        const skipped = validData.length - result.inserted - result.duplicatesRemoved;
+        message += `\n⚠️ 跳过 ${skipped} 条（可能因为数据错误）`;
+      }
+      
       toast.success(message, {
         duration: 6000,
       });
@@ -409,7 +444,10 @@ export default function CaseManagePage() {
       loadData();
     } catch (error) {
       console.error('导入失败:', error);
-      toast.error(error instanceof Error ? error.message : '导入失败');
+      const errorMessage = error instanceof Error ? error.message : '导入失败';
+      toast.error(`导入失败：${errorMessage}`, {
+        duration: 5000,
+      });
     } finally {
       setLoading(false);
     }
@@ -417,6 +455,7 @@ export default function CaseManagePage() {
     e.target.value = '';
   };
 
+  // 导出当前页案例
   const handleExport = () => {
     const exportData = cases.map(c => ({
       '通报日期': c.report_date,
@@ -431,34 +470,31 @@ export default function CaseManagePage() {
     const worksheet = XLSX.utils.json_to_sheet(exportData);
     const workbook = XLSX.utils.book_new();
     XLSX.utils.book_append_sheet(workbook, worksheet, '案例数据');
-    XLSX.writeFile(workbook, '案例数据.xlsx');
+    XLSX.writeFile(workbook, `案例数据_第${page}页.xlsx`);
+    toast.success(`已导出当前页 ${cases.length} 条案例`);
   };
 
-  // 导出全部案例数据
-  const handleExportAllCases = async () => {
-    setExportLoading(true);
-    toast.info('正在获取全部案例数据，请稍候...');
-    
+  // 导出全部案例
+  const handleExportAll = async () => {
     try {
-      let allCases: CaseWithDetails[] = [];
-      let currentPage = 1;
-      const pageSize = 100; // 每页获取的数据量
+      setLoading(true);
+      toast.info('正在导出全部案例，请稍候...');
       
-      // 分批获取所有数据
-      while (true) {
-        const { data, total } = await getCases(currentPage, pageSize, 'report_date', 'desc');
-        allCases = [...allCases, ...data];
-        
-        // 如果已经获取了所有数据，或者数据量小于请求的每页数量，则退出循环
-        if (allCases.length >= total || data.length < pageSize) {
-          break;
-        }
-        
-        currentPage++;
-      }
+      // 预处理关键词
+      const processedKeyword = preprocessKeyword(searchKeyword);
       
-      // 转换数据格式
-      const exportData = allCases.map(c => ({
+      // 获取全部案例数据
+      const result = await searchCases({
+        keyword: processedKeyword,
+        page: 1,
+        pageSize: total, // 获取全部数据
+        startDate: filters.startDate,
+        endDate: filters.endDate,
+        departmentIds: filters.departmentIds,
+        platformIds: filters.platformIds,
+      });
+
+      const exportData = result.data.map(c => ({
         '通报日期': c.report_date,
         '应用名称': c.app_name,
         '开发者/运营者': c.app_developer || '',
@@ -468,22 +504,19 @@ export default function CaseManagePage() {
         '原文链接': c.source_url || '',
       }));
 
-      // 创建并下载Excel文件
       const worksheet = XLSX.utils.json_to_sheet(exportData);
       const workbook = XLSX.utils.book_new();
-      XLSX.utils.book_append_sheet(workbook, worksheet, '全部案例数据');
+      XLSX.utils.book_append_sheet(workbook, worksheet, '案例数据');
       
-      // 生成文件名（包含日期时间）
-      const timestamp = new Date().toISOString().replace(/[:.]/g, '-').slice(0, 19);
-      const filename = `全部案例数据_${timestamp}.xlsx`;
+      const timestamp = new Date().toISOString().slice(0, 10);
+      XLSX.writeFile(workbook, `案例数据_全部_${timestamp}.xlsx`);
       
-      XLSX.writeFile(workbook, filename);
-      toast.success(`成功导出 ${allCases.length} 条案例数据`);
+      toast.success(`✅ 成功导出全部 ${result.total} 条案例`);
     } catch (error) {
-      console.error('导出全部案例失败:', error);
+      console.error('导出失败:', error);
       toast.error('导出失败，请重试');
     } finally {
-      setExportLoading(false);
+      setLoading(false);
     }
   };
 
@@ -509,9 +542,7 @@ export default function CaseManagePage() {
           <p className="text-sm text-muted-foreground mt-1">
             共 {total} 条案例
             {selectedIds.length > 0 && ` · 已选择 ${selectedIds.length} 条`}
-            {searchKeyword && ` · ${formattedTotal} 条搜索结果`}
             {hasActiveFilters && <span className="text-primary ml-2">（已筛选）</span>}
-            {searching && <span className="ml-2 text-xs text-muted-foreground">搜索中...</span>}
           </p>
         </div>
       </div>
@@ -520,66 +551,31 @@ export default function CaseManagePage() {
       <Card className="shadow-sm mb-6">
         <CardContent className="pt-6">
           {/* 关键词搜索 */}
-          <div className="relative flex-1 mb-4">
-            <div className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground">
-              <Search className={searching ? "animate-pulse" : ""} />
+          <div className="flex gap-2 mb-4">
+            <div className="relative flex-1">
+              <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
+              <Input
+                placeholder="搜索应用名称、开发者、监管部门、违规内容..."
+                value={keyword}
+                onChange={(e) => setKeyword(e.target.value)}
+                onKeyPress={handleKeyPress}
+                className="pl-9 min-h-[44px]"
+              />
             </div>
-            <Input
-              placeholder="搜索应用名称、开发者、监管部门、违规内容..."
-              value={keyword}
-              onChange={(e) => setKeyword(e.target.value)}
-              onKeyPress={handleKeyPress}
-              onFocus={() => searchSuggestions.length > 0 && setShowSuggestions(true)}
-              onBlur={() => setTimeout(() => setShowSuggestions(false), 200)}
-              className="pl-9 pr-10 min-h-[44px]"
-              disabled={searching}
-            />
-            {keyword && (
-              <button
-                onClick={() => {
-                  setKeyword('');
-                  setSearchKeyword('');
-                  setSearchSuggestions([]);
-                  setShowSuggestions(false);
-                  setPage(1);
-                }}
-                className="absolute right-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground hover:text-muted transition-colors"
-                aria-label="清空搜索"
-              >
-                <X className="w-4 h-4" />
-              </button>
-            )}
-            
-            {/* 搜索建议下拉框 */}
-            {showSuggestions && searchSuggestions.length > 0 && (
-              <div className="absolute z-10 left-0 right-0 mt-1 bg-background border border-border rounded-md shadow-lg max-h-60 overflow-y-auto">
-                <p className="px-3 py-1 text-xs text-muted-foreground bg-muted">搜索建议:</p>
-                {searchSuggestions.map((suggestion, index) => (
-                  <button
-                    key={index}
-                    onClick={() => handleSuggestionClick(suggestion)}
-                    className="w-full text-left px-3 py-2 text-sm hover:bg-muted transition-colors"
-                  >
-                    {suggestion}
-                  </button>
-                ))}
-              </div>
-            )}
-          </div>
-          <Button 
-            onClick={handleKeywordSearch}
-            className="gap-2 min-h-[44px] mb-4"
-            disabled={searching}
-          >
-            <Search className="w-4 h-4" />
-            {searching ? '搜索中...' : '搜索'}
-          </Button>
+            <Button 
+              onClick={handleKeywordSearch}
+              className="gap-2 min-h-[44px]"
+            >
+              <Search className="w-4 h-4" />
+              搜索
+            </Button>
             {(keyword || searchKeyword) && (
               <Button 
                 variant="outline"
                 onClick={() => {
                   setKeyword('');
                   setSearchKeyword('');
+                  setSearchSuggestions([]);
                   setPage(1);
                 }}
                 className="gap-2 min-h-[44px]"
@@ -587,72 +583,98 @@ export default function CaseManagePage() {
               >
                 <X className="w-4 h-4" />
               </Button>
-              )}
-            </CardContent>
-          </Card>
+            )}
+          </div>
+
+          {/* 搜索建议 */}
+          {searchSuggestions.length > 0 && (
+            <div className="p-3 border rounded-lg bg-blue-50 dark:bg-blue-950/20 space-y-2 mb-4">
+              <div className="flex items-center gap-2 text-sm font-medium text-blue-700 dark:text-blue-300">
+                <Lightbulb className="w-4 h-4" />
+                您可以尝试搜索：
+              </div>
+              <div className="flex flex-wrap gap-2">
+                {searchSuggestions.map((suggestion, index) => (
+                  <Button
+                    key={index}
+                    variant="outline"
+                    size="sm"
+                    onClick={() => {
+                      setKeyword(suggestion);
+                      setSearchKeyword(suggestion);
+                      setPage(1);
+                    }}
+                    className="text-xs"
+                  >
+                    {suggestion}
+                  </Button>
+                ))}
+              </div>
+            </div>
+          )}
 
           {/* 筛选面板 - 常驻显示 */}
-          <Card className="p-0">
-            <CardContent className="p-3 sm:p-4">
-              <div className="grid grid-cols-1 lg:grid-cols-3 gap-3 sm:gap-4">
-                <div className="space-y-2 lg:col-span-1">
-                  <Label>日期范围</Label>
-                  <DateRangePicker
-                    value={tempFilters.dateRange}
-                    onChange={(range) => setTempFilters({ ...tempFilters, dateRange: range })}
-                    placeholder="选择日期范围"
-                  />
-                </div>
-
-                <div className="space-y-2">
-                  <Label htmlFor="filter-department">监管部门</Label>
-                  <Select
-                    value={tempFilters.departmentId}
-                    onValueChange={(value) => setTempFilters({ ...tempFilters, departmentId: value })}
-                  >
-                    <SelectTrigger id="filter-department">
-                      <SelectValue placeholder="全部部门" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="all">全部部门</SelectItem>
-                      {departments.map((dept) => (
-                        <SelectItem key={dept.id} value={dept.id}>
-                          {dept.name}
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                </div>
-
-                <div className="space-y-2">
-                  <Label htmlFor="filter-platform">应用平台</Label>
-                  <Select
-                    value={tempFilters.platformId}
-                    onValueChange={(value) => setTempFilters({ ...tempFilters, platformId: value })}
-                  >
-                    <SelectTrigger id="filter-platform">
-                      <SelectValue placeholder="全部平台" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="all">全部平台</SelectItem>
-                      {platforms.map((plat) => (
-                        <SelectItem key={plat.id} value={plat.id}>
-                          {plat.name}
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                </div>
+          <div className="p-3 sm:p-4 border rounded-lg bg-muted/30 space-y-3 sm:space-y-4">
+            <div className="grid grid-cols-1 lg:grid-cols-3 gap-3 sm:gap-4">
+              <div className="space-y-2 lg:col-span-1">
+                <Label>日期范围</Label>
+                <DateRangePicker
+                  value={tempFilters.dateRange}
+                  onChange={(range) => setTempFilters({ ...tempFilters, dateRange: range })}
+                  placeholder="选择日期范围"
+                />
               </div>
-              
-              {/* 加载状态提示 */}
-              {loading && (
-                <div className="text-sm text-muted-foreground text-center py-2">
-                  正在加载数据...
-                </div>
-              )}
-            </CardContent>
-          </Card>
+
+              <div className="space-y-2">
+                <Label htmlFor="filter-department">监管部门</Label>
+                <Select
+                  value={tempFilters.departmentId}
+                  onValueChange={(value) => setTempFilters({ ...tempFilters, departmentId: value })}
+                >
+                  <SelectTrigger id="filter-department">
+                    <SelectValue placeholder="全部部门" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="all">全部部门</SelectItem>
+                    {departments.map((dept) => (
+                      <SelectItem key={dept.id} value={dept.id}>
+                        {dept.name}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+
+              <div className="space-y-2">
+                <Label htmlFor="filter-platform">应用平台</Label>
+                <Select
+                  value={tempFilters.platformId}
+                  onValueChange={(value) => setTempFilters({ ...tempFilters, platformId: value })}
+                >
+                  <SelectTrigger id="filter-platform">
+                    <SelectValue placeholder="全部平台" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="all">全部平台</SelectItem>
+                    {platforms.map((plat) => (
+                      <SelectItem key={plat.id} value={plat.id}>
+                        {plat.name}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+            </div>
+            
+            {/* 加载状态提示 */}
+            {loading && (
+              <div className="text-sm text-muted-foreground text-center py-2">
+                正在加载数据...
+              </div>
+            )}
+          </div>
+        </CardContent>
+      </Card>
 
       <Card className="shadow-sm hover:shadow-md transition-shadow">
         <CardHeader>
@@ -677,6 +699,17 @@ export default function CaseManagePage() {
                         <DialogTitle>批量修改 ({selectedIds.length} 条案例)</DialogTitle>
                       </DialogHeader>
                       <form onSubmit={handleBatchEdit} className="space-y-4">
+                        <div className="space-y-2">
+                          <Label htmlFor="batch_report_date">通报日期</Label>
+                          <Input
+                            id="batch_report_date"
+                            type="date"
+                            value={batchEditData.report_date}
+                            onChange={(e) => setBatchEditData({ ...batchEditData, report_date: e.target.value })}
+                            placeholder="不修改"
+                          />
+                        </div>
+
                         <div className="space-y-2">
                           <Label htmlFor="batch_department_id">监管部门</Label>
                           <Select
@@ -726,17 +759,6 @@ export default function CaseManagePage() {
                           />
                         </div>
 
-                        <div className="space-y-2">
-                          <Label htmlFor="batch_report_date">通报日期</Label>
-                          <Input
-                            id="batch_report_date"
-                            type="date"
-                            value={batchEditData.report_date}
-                            onChange={(e) => setBatchEditData({ ...batchEditData, report_date: e.target.value })}
-                            placeholder="不修改"
-                          />
-                        </div>
-
                         <div className="flex justify-end gap-2">
                           <Button type="button" variant="outline" onClick={() => setBatchEditDialogOpen(false)}>
                             取消
@@ -750,19 +772,25 @@ export default function CaseManagePage() {
                   </Dialog>
                 </>
               )}
-              <Button variant="outline" size="sm" onClick={handleExport}>
-                <Download className="w-4 h-4 mr-2" />
-                导出当前页
-              </Button>
-              <Button 
-                variant="default" 
-                size="sm" 
-                onClick={handleExportAllCases}
-                disabled={exportLoading}
-              >
-                <Download className="w-4 h-4 mr-2" />
-                {exportLoading ? '导出中...' : '导出全部案例'}
-              </Button>
+              <DropdownMenu>
+                <DropdownMenuTrigger asChild>
+                  <Button variant="outline" size="sm">
+                    <Download className="w-4 h-4 mr-2" />
+                    导出
+                    <ChevronDown className="w-4 h-4 ml-2" />
+                  </Button>
+                </DropdownMenuTrigger>
+                <DropdownMenuContent align="end">
+                  <DropdownMenuItem onClick={handleExport}>
+                    <Download className="w-4 h-4 mr-2" />
+                    导出当前页 ({cases.length} 条)
+                  </DropdownMenuItem>
+                  <DropdownMenuItem onClick={handleExportAll}>
+                    <Download className="w-4 h-4 mr-2" />
+                    导出全部 ({total} 条)
+                  </DropdownMenuItem>
+                </DropdownMenuContent>
+              </DropdownMenu>
               <Button variant="outline" size="sm" asChild>
                 <label>
                   <Upload className="w-4 h-4 mr-2" />

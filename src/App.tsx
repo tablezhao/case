@@ -1,11 +1,15 @@
 import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-dom';
 import { Toaster } from '@/components/ui/sonner';
 import { ModuleProvider } from '@/contexts/ModuleContext';
+import { useBrowserTitle } from '@/hooks/useBrowserTitle';
 import Header from '@/components/common/Header';
 import Footer from '@/components/common/Footer';
 import routes from './routes';
 
 export default function App() {
+  // 动态更新浏览器标题
+  useBrowserTitle();
+
   return (
     <Router>
       <ModuleProvider>

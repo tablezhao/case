@@ -122,7 +122,7 @@ export default function SiteSettingsPage() {
     }
 
     if (browserTitle.length > 100) {
-      toast.error('浏览器标题不能超过100个字符');
+      toast.error('浏览器标签标题不能超过100个字符');
       return;
     }
 
@@ -282,21 +282,26 @@ export default function SiteSettingsPage() {
             </p>
           </div>
 
-          {/* 浏览器标题 */}
+          {/* 浏览器标签标题 */}
           <div className="space-y-2">
             <Label htmlFor="browser-title">
-              浏览器标题
+              浏览器标签标题
             </Label>
             <Input
               id="browser-title"
               value={browserTitle}
               onChange={(e) => setBrowserTitle(e.target.value)}
-              placeholder="输入在浏览器标签上显示的网站标题（可选，不填写则使用网站主标题）"
+              placeholder="输入浏览器标签显示的标题（可选）"
               maxLength={100}
             />
             <p className="text-xs text-muted-foreground">
-              在用户浏览器标签页上显示的标题文本，最多100个字符（当前：{browserTitle.length}/100）
+              显示在浏览器标签页的标题，建议不超过60个字符以确保完整显示（当前：{browserTitle.length}/100）
             </p>
+            {!browserTitle && (
+              <p className="text-xs text-amber-600">
+                💡 如果不填写，将使用默认标题"合规通 Case Wiki"
+              </p>
+            )}
           </div>
 
           {/* Logo图片 */}

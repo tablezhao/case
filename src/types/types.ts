@@ -36,9 +36,6 @@ export interface Case {
   source_url: string | null;
   created_at: string;
   updated_at: string;
-  // 全文搜索相关字段
-  search_vector?: string;
-  search_rank?: number;
 }
 
 export interface RegulatoryNews {
@@ -159,14 +156,6 @@ export interface CaseFilterParams {
   endDate?: string; // 结束日期
   departmentIds?: string[]; // 监管部门ID列表
   platformIds?: string[]; // 应用平台ID列表
-}
-
-// 搜索结果响应类型
-export interface CaseSearchResult {
-  data: CaseWithDetails[];
-  total: number;
-  formattedTotal: string;
-  hasResults: boolean;
 }
 
 // 网站基本信息配置

@@ -475,26 +475,6 @@ export default function HomePage() {
                   <Skeleton className="h-80 bg-muted" />
                 ) : nationalDeptData.length > 0 ? (
                   <div className="w-full">
-                    <div className="mb-3 flex items-center gap-1.5">
-                      <h3 className="text-sm font-semibold text-foreground">国家级部门分布</h3>
-                      <TooltipInfo
-                        content={
-                          <div className="space-y-3">
-                            <p className="font-semibold text-base">统计说明</p>
-                            <div className="space-y-2.5 text-xs leading-relaxed">
-                              <div>
-                                <div className="font-semibold mb-1">🏛️ 国家级部门</div>
-                                <div className="text-muted-foreground">统计各国家级监管部门发布的通报数量，展示不同部门的监管力度</div>
-                              </div>
-                              <div>
-                                <div className="font-semibold mb-1">📊 数据来源</div>
-                                <div className="text-muted-foreground">基于所有案例记录中的部门信息进行统计</div>
-                              </div>
-                            </div>
-                          </div>
-                        }
-                      />
-                    </div>
                     <PieChart data={nationalDeptData} title="" />
                   </div>
                 ) : (
@@ -509,26 +489,6 @@ export default function HomePage() {
                   <Skeleton className="h-80 bg-muted" />
                 ) : provincialDeptData.length > 0 ? (
                   <div className="w-full">
-                    <div className="mb-3 flex items-center gap-1.5">
-                      <h3 className="text-sm font-semibold text-foreground">省级部门分布</h3>
-                      <TooltipInfo
-                        content={
-                          <div className="space-y-3">
-                            <p className="font-semibold text-base">统计说明</p>
-                            <div className="space-y-2.5 text-xs leading-relaxed">
-                              <div>
-                                <div className="font-semibold mb-1">🏢 省级部门</div>
-                                <div className="text-muted-foreground">统计各省级监管部门发布的通报数量，展示地方监管活跃度</div>
-                              </div>
-                              <div>
-                                <div className="font-semibold mb-1">📊 数据来源</div>
-                                <div className="text-muted-foreground">基于所有案例记录中的部门信息进行统计</div>
-                              </div>
-                            </div>
-                          </div>
-                        }
-                      />
-                    </div>
                     <PieChart data={provincialDeptData} title="" />
                   </div>
                 ) : (

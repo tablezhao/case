@@ -1,0 +1,14 @@
+// ... 现有配置 ...
+{
+  "installCommand": "npm install --legacy-peer-deps",
+  "buildCommand": "npm run build",
+  "env": {
+    "NPM_REGISTRY": "https://registry.npmjs.org"
+  },
+  "rewrites": [
+    {
+      "source": "/(.*)",
+      "destination": "/"
+    }
+  ]
+}
