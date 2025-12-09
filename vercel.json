@@ -1,9 +1,7 @@
 {
-  "build": {
-    "env": {
-      "NPM_REGISTRY": "https://registry.npmjs.org"
-    },
-    "installCommand": "npm install --legacy-peer-deps",
-    "buildCommand": "npm run build"
+  "installCommand": "npm install --legacy-peer-deps",
+  "buildCommand": "npm run build",
+  "env": {
+    "NPM_REGISTRY": "https://registry.npmjs.org"
   }
 }
