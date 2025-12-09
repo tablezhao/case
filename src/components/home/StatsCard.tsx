@@ -3,6 +3,7 @@ import { Badge } from '@/components/ui/badge';
 import { ArrowUp, ArrowDown, Minus, LucideIcon } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import TooltipInfo from '@/components/ui/tooltip-info';
+import { memo } from 'react';
 
 interface StatsCardProps {
   title: string;
@@ -17,7 +18,7 @@ interface StatsCardProps {
   tooltipContent?: React.ReactNode; // 统计口径说明（Tooltip内容）
 }
 
-export default function StatsCard({ 
+const StatsCard = memo(function StatsCard({ 
   title, 
   value, 
   icon: Icon, 
@@ -131,5 +132,7 @@ export default function StatsCard({
       </CardContent>
     </Card>
   );
-}
+});
+
+export default StatsCard;
 

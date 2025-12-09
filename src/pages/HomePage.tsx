@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useMemo, memo } from 'react';
 import { FileText, Building2, Calendar, AlertCircle } from 'lucide-react';
 import StatsCard from '@/components/home/StatsCard';
 import TrendComparisonChart from '@/components/charts/TrendComparisonChart';
@@ -13,7 +13,6 @@ import { Skeleton } from '@/components/ui/skeleton';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { toast } from 'sonner';
 import {
-  getStatsOverview,
   getMonthlyAppTrend,
   getYearlyAppTrend,
   getMonthlyReportTrend,
@@ -27,6 +26,10 @@ import {
   getRecentNews,
   getFrontendConfigs,
 } from '@/db/api';
+import {
+  getStatsOverviewOptimized,
+  getAllChartsDataOptimized,
+} from '@/db/api-optimized';
 import type { StatsOverview, RegulatoryNewsWithDetails, FrontendConfig } from '@/types/types';
 import { Link } from 'react-router-dom';
 
@@ -61,9 +64,9 @@ export default function HomePage() {
     try {
       setLoading(true);
       
-      // 第一批：加载核心统计数据和配置（优先显示）
+      // 第一批：加载核心统计数据和配置（优先显示）- 使用优化版API
       const [statsData, configsData] = await Promise.all([
-        getStatsOverview(),
+        getStatsOverviewOptimized(), // 使用优化版，带缓存
         getFrontendConfigs(),
       ]);
       
@@ -72,30 +75,23 @@ export default function HomePage() {
       setStatsLoading(false);
       
       // 第二批：并行加载所有图表数据
+      // 优先加载趋势图和部门分布（用户最关注的数据）
       const [
         monthlyAppTrend,
         yearlyAppTrend,
         monthlyReportTrend,
         yearlyReportTrend,
         monthlyAppCountTrend,
-        deptDist,
         nationalDeptDist,
         provincialDeptDist,
-        platformDist,
-        keywordsData,
-        newsData,
       ] = await Promise.all([
         getMonthlyAppTrend(),
         getYearlyAppTrend(),
         getMonthlyReportTrend(),
         getYearlyReportTrend(),
         getMonthlyAppCountTrend(),
-        getDepartmentDistribution(),
         getNationalDepartmentDistribution(),
         getProvincialDepartmentDistribution(),
-        getPlatformDistribution(),
-        getViolationKeywords(),
-        getRecentNews(5),
       ]);
 
       setMonthlyAppData(monthlyAppTrend);
@@ -103,13 +99,36 @@ export default function HomePage() {
       setMonthlyReportData(monthlyReportTrend);
       setYearlyReportData(yearlyReportTrend);
       setTrendOverviewData(monthlyAppCountTrend);
-      setDeptData(deptDist);
       setNationalDeptData(nationalDeptDist);
       setProvincialDeptData(provincialDeptDist);
-      setPlatformData(platformDist);
-      setKeywords(keywordsData);
-      setRecentNews(newsData);
       setChartsLoading(false);
+      
+      // 第三批：延迟加载次要数据（平台分布、关键词、资讯）
+      // 使用setTimeout延迟加载，避免阻塞主要内容的渲染
+      setTimeout(async () => {
+        try {
+          const [
+            deptDist,
+            platformDist,
+            keywordsData,
+            newsData,
+          ] = await Promise.all([
+            getDepartmentDistribution(),
+            getPlatformDistribution(),
+            getViolationKeywords(),
+            getRecentNews(5),
+          ]);
+          
+          setDeptData(deptDist);
+          setPlatformData(platformDist);
+          setKeywords(keywordsData);
+          setRecentNews(newsData);
+        } catch (error) {
+          console.error('加载次要数据失败:', error);
+          // 次要数据加载失败不影响主要功能，只记录错误
+        }
+      }, 100); // 延迟100ms加载
+      
     } catch (error) {
       console.error('加载数据失败:', error);
       toast.error(`加载数据失败: ${error instanceof Error ? error.message : '未知错误'}`);
