@@ -31,6 +31,7 @@ export default function CaseManagePage() {
   const [batchEditDialogOpen, setBatchEditDialogOpen] = useState(false);
   const [editingCase, setEditingCase] = useState<CaseWithDetails | null>(null);
   const [selectedIds, setSelectedIds] = useState<string[]>([]);
+  const [exportLoading, setExportLoading] = useState(false);
 
   // 关键词搜索
   const [keyword, setKeyword] = useState('');
@@ -408,6 +409,59 @@ export default function CaseManagePage() {
     XLSX.writeFile(workbook, '案例数据.xlsx');
   };
 
+  // 导出全部案例数据
+  const handleExportAllCases = async () => {
+    setExportLoading(true);
+    toast.info('正在获取全部案例数据，请稍候...');
+    
+    try {
+      let allCases: CaseWithDetails[] = [];
+      let currentPage = 1;
+      const pageSize = 100; // 每页获取的数据量
+      
+      // 分批获取所有数据
+      while (true) {
+        const { data, total } = await getCases(currentPage, pageSize, 'report_date', 'desc');
+        allCases = [...allCases, ...data];
+        
+        // 如果已经获取了所有数据，或者数据量小于请求的每页数量，则退出循环
+        if (allCases.length >= total || data.length < pageSize) {
+          break;
+        }
+        
+        currentPage++;
+      }
+      
+      // 转换数据格式
+      const exportData = allCases.map(c => ({
+        '通报日期': c.report_date,
+        '应用名称': c.app_name,
+        '开发者/运营者': c.app_developer || '',
+        '监管部门': c.department?.name || '',
+        '应用平台': c.platform?.name || '',
+        '主要违规内容': c.violation_content || '',
+        '原文链接': c.source_url || '',
+      }));
+
+      // 创建并下载Excel文件
+      const worksheet = XLSX.utils.json_to_sheet(exportData);
+      const workbook = XLSX.utils.book_new();
+      XLSX.utils.book_append_sheet(workbook, worksheet, '全部案例数据');
+      
+      // 生成文件名（包含日期时间）
+      const timestamp = new Date().toISOString().replace(/[:.]/g, '-').slice(0, 19);
+      const filename = `全部案例数据_${timestamp}.xlsx`;
+      
+      XLSX.writeFile(workbook, filename);
+      toast.success(`成功导出 ${allCases.length} 条案例数据`);
+    } catch (error) {
+      console.error('导出全部案例失败:', error);
+      toast.error('导出失败，请重试');
+    } finally {
+      setExportLoading(false);
+    }
+  };
+
   const totalPages = Math.ceil(total / pageSize);
   const allSelected = cases.length > 0 && selectedIds.length === cases.length;
 
@@ -634,7 +688,16 @@ export default function CaseManagePage() {
               )}
               <Button variant="outline" size="sm" onClick={handleExport}>
                 <Download className="w-4 h-4 mr-2" />
-                导出
+                导出当前页
+              </Button>
+              <Button 
+                variant="default" 
+                size="sm" 
+                onClick={handleExportAllCases}
+                disabled={exportLoading}
+              >
+                <Download className="w-4 h-4 mr-2" />
+                {exportLoading ? '导出中...' : '导出全部案例'}
               </Button>
               <Button variant="outline" size="sm" asChild>
                 <label>
