@@ -3,5 +3,11 @@
   "buildCommand": "npm run build",
   "env": {
     "NPM_REGISTRY": "https://registry.npmjs.org"
-  }
+  },
+  "rewrites": [
+    {
+      "source": "/(.*)",
+      "destination": "/"
+    }
+  ]
 }
