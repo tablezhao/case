@@ -83,13 +83,16 @@ BEGIN
   FROM filtered_cases fc
   ORDER BY 
     CASE WHEN query_text IS NOT NULL THEN fc.search_rank END DESC NULLS LAST,
-    CASE sort_by
-      WHEN 'report_date' THEN fc.report_date
-      WHEN 'created_at' THEN fc.created_at
-      WHEN 'updated_at' THEN fc.updated_at
+    CASE 
+      WHEN sort_by = 'report_date' AND sort_order = 'desc' THEN fc.report_date
+      WHEN sort_by = 'report_date' THEN fc.report_date
+      WHEN sort_by = 'created_at' AND sort_order = 'desc' THEN fc.created_at
+      WHEN sort_by = 'created_at' THEN fc.created_at
+      WHEN sort_by = 'updated_at' AND sort_order = 'desc' THEN fc.updated_at
+      WHEN sort_by = 'updated_at' THEN fc.updated_at
+      WHEN sort_order = 'desc' THEN fc.report_date
       ELSE fc.report_date
-    END
-    CASE sort_order WHEN 'desc' THEN DESC ELSE ASC END
+    END DESC NULLS LAST
   LIMIT page_size
   OFFSET (page_num - 1) * page_size;
 END;

@@ -400,62 +400,179 @@ export async function deletePlatform(id: string) {
 }
 
 // ============ 案例相关 ============
-// 关键词预处理函数
+// 关键词预处理函数，增强版本支持更智能的中文分词处理
 function preprocessKeyword(keyword: string): string {
   if (!keyword || typeof keyword !== 'string') return '';
   
-  // 转换全角字符为半角
-  let processed = keyword.replace(/[\uFF01-\uFF5E]/g, (char) => {
+  let processed = keyword;
+  
+  // 1. 转换全角字符为半角
+  processed = processed.replace(/[\uFF01-\uFF5E]/g, (char) => {
     return String.fromCharCode(char.charCodeAt(0) - 0xfee0);
   });
   
-  // 转换为小写
+  // 2. 转换为小写
   processed = processed.toLowerCase();
   
-  // 移除特殊字符（保留中文、英文、数字和空格）
-  processed = processed.replace(/[^\u4e00-\u9fa5a-z0-9\s]/g, '');
+  // 3. 移除特殊字符（保留中文、英文、数字和空格，但保留必要的搜索符号）
+  // 改进的正则表达式，保留更多可能有搜索意义的符号
+  processed = processed.replace(/[^\u4e00-\u9fa5a-z0-9\s\+\-\*\(\)\&\|]/g, '');
   
-  // 去除多余空格
+  // 4. 去除多余空格
   processed = processed.trim().replace(/\s+/g, ' ');
+  
+  // 5. 对关键词进行处理，增强中文分词效果
+  // 添加空格分隔可能的词语边界，帮助PostgreSQL更好地分词
+  // 注意：这只是辅助手段，主要分词依赖PostgreSQL的chinese配置
+  processed = enhanceChineseTokenization(processed);
   
   return processed;
 }
 
-// 获取同义词映射表（可扩展）
+// 增强中文分词处理函数
+function enhanceChineseTokenization(text: string): string {
+  if (!text) return '';
+  
+  let result = text;
+  
+  // 在连续中文后添加空格，帮助分词器更好识别边界
+  // 例如："隐私泄露事件" -> "隐私 泄露 事件"
+  result = result.replace(/([\u4e00-\u9fa5]{2,})/g, (match) => {
+    // 对于较长的中文词组，尝试在适当位置插入空格
+    // 这里使用简单策略，每2-3个字符插入空格
+    if (match.length <= 3) return match;
+    
+    let spaced = '';
+    for (let i = 0; i < match.length; i++) {
+      spaced += match[i];
+      // 在第2、4、6等位置添加空格，但不超过字符串长度
+      if (i > 0 && i % 2 === 1 && i < match.length - 1) {
+        spaced += ' ';
+      }
+    }
+    return spaced;
+  });
+  
+  // 对中英文混合的情况进行优化，在中英文交界处添加空格
+  result = result.replace(/([\u4e00-\u9fa5])([a-zA-Z0-9])/g, '$1 $2');
+  result = result.replace(/([a-zA-Z0-9])([\u4e00-\u9fa5])/g, '$1 $2');
+  
+  return result.replace(/\s+/g, ' ').trim();
+}
+
+// 获取同义词映射表（增强版，包含更多常见术语的同义词）
 function getSynonymsMap(): Record<string, string[]> {
   return {
-    '隐私': ['数据隐私', '个人信息', '用户信息', '数据保护', '个人数据'],
-    '违规': ['违法', '不合规', '违法违规', '违规行为'],
-    '广告': ['推送', '弹窗', '推广', '营销', '广告推送'],
-    '权限': ['应用权限', '系统权限', '隐私权限'],
-    '安全': ['数据安全', '信息安全', '系统安全', '网络安全'],
+    // 隐私相关
+    '隐私': ['数据隐私', '个人信息', '用户信息', '数据保护', '个人数据', '个人隐私', '隐私权'],
+    '信息': ['数据', '用户数据', '个人数据', '信息数据', '敏感信息'],
+    
+    // 违规相关
+    '违规': ['违法', '不合规', '违法违规', '违规行为', '违约', '违法操作'],
+    '违法': ['违规', '非法', '触犯法律', '违法行为', '非法操作'],
+    
+    // 广告相关
+    '广告': ['推送', '弹窗', '推广', '营销', '广告推送', '商业广告', '推广信息'],
+    '推送': ['通知', '消息推送', '广告推送', '弹窗', '推送通知'],
+    
+    // 权限相关
+    '权限': ['应用权限', '系统权限', '隐私权限', '访问权限', '功能权限'],
+    '访问': ['获取', '读取', '收集', '访问权限'],
+    
+    // 安全相关
+    '安全': ['数据安全', '信息安全', '系统安全', '网络安全', '用户安全'],
+    '数据安全': ['信息安全', '数据保护', '数据加密', '数据防护'],
+    
+    // 收集使用相关
+    '收集': ['获取', '收集信息', '获取数据', '收集用户信息'],
+    '使用': ['利用', '应用', '使用数据', '处理数据'],
+    
+    // 其他常见术语
+    '弹窗': ['广告弹窗', '通知', '提示框', '弹出窗口'],
+    '分享': ['共享', '分享数据', '共享信息'],
+    '存储': ['保存', '存储数据', '数据存储'],
+    '位置': ['地理位置', '位置信息', '定位', '位置数据'],
+    '卸载': ['删除', '移除', '卸载应用'],
+    '强制': ['胁迫', '强制要求', '强制收集', '强制授权'],
+    '过度': ['超范围', '过度收集', '过度使用', '越权'],
+    '诱导': ['误导', '欺骗', '诱导点击', '诱导授权'],
   };
 }
 
-// 根据关键词生成搜索建议
+// 增强的搜索建议生成函数
 export function generateSearchSuggestions(keyword: string): string[] {
-  if (!keyword || typeof keyword !== 'string') return [];
+  if (!keyword || typeof keyword !== 'string' || keyword.trim().length === 0) return [];
   
   const suggestions: string[] = [];
   const synonymsMap = getSynonymsMap();
-  const lowerKeyword = keyword.toLowerCase();
+  const lowerKeyword = preprocessKeyword(keyword).toLowerCase();
   
-  // 查找直接匹配的同义词
+  // 1. 同义词扩展 - 查找直接匹配的同义词
   for (const [word, synonyms] of Object.entries(synonymsMap)) {
+    // 检查关键词是否包含当前词汇
     if (lowerKeyword.includes(word)) {
-      suggestions.push(...synonyms.filter(s => !suggestions.includes(s)));
+      // 添加该词汇的所有同义词
+      suggestions.push(...synonyms.filter(s => !suggestions.includes(s) && !lowerKeyword.includes(s)));
     }
     
-    // 检查同义词是否包含关键词
+    // 检查同义词中是否有与关键词匹配的
     for (const synonym of synonyms) {
       if (lowerKeyword.includes(synonym)) {
-        suggestions.push(word);
-        break;
+        // 只添加主词，如果它不在建议列表和关键词中
+        if (!suggestions.includes(word) && !lowerKeyword.includes(word)) {
+          suggestions.push(word);
+        }
+        // 也添加其他同义词
+        suggestions.push(...synonyms.filter(s => 
+          !suggestions.includes(s) && 
+          !lowerKeyword.includes(s) &&
+          s !== synonym
+        ));
       }
     }
   }
   
-  return suggestions.slice(0, 5); // 最多返回5个建议
+  // 2. 添加常见搜索组合
+  if (suggestions.length > 0) {
+    // 为每个建议词添加一些常见前缀或后缀，创建更具体的搜索建议
+    const commonPrefixes = ['过度', '非法', '违规', '不当', '超范围'];
+    const commonSuffixes = ['问题', '行为', '事件', '处理', '使用'];
+    
+    const enhancedSuggestions: string[] = [...suggestions];
+    
+    // 只为前几个建议添加增强，避免建议过多
+    for (const suggestion of suggestions.slice(0, 3)) {
+      // 添加前缀
+      for (const prefix of commonPrefixes) {
+        const enhancedSuggestion = prefix + suggestion;
+        if (!enhancedSuggestions.includes(enhancedSuggestion)) {
+          enhancedSuggestions.push(enhancedSuggestion);
+        }
+      }
+      
+      // 添加后缀
+      for (const suffix of commonSuffixes) {
+        const enhancedSuggestion = suggestion + suffix;
+        if (!enhancedSuggestions.includes(enhancedSuggestion)) {
+          enhancedSuggestions.push(enhancedSuggestion);
+        }
+      }
+    }
+    
+    // 使用增强后的建议列表
+    return enhancedSuggestions.slice(0, 8); // 最多返回8个增强建议
+  }
+  
+  // 3. 简化搜索策略 - 如果无法找到同义词，可以建议用户尝试更简单的关键词
+  if (suggestions.length === 0 && keyword.length > 2) {
+    // 尝试提取关键词的一部分作为建议
+    const simplified = keyword.substring(0, Math.min(keyword.length, 2));
+    if (!suggestions.includes(simplified)) {
+      suggestions.push(`尝试简化搜索: "${simplified}"`);
+    }
+  }
+  
+  return suggestions.slice(0, 5); // 默认最多返回5个建议
 }
 
 // 格式化数字显示
@@ -478,6 +595,7 @@ export async function getCases(
 ) {
   const from = (page - 1) * pageSize;
   const to = from + pageSize - 1;
+  const startTime = Date.now(); // 记录查询开始时间，用于性能统计
 
   // 预处理关键词
   const processedKeyword = preprocessKeyword(searchKeyword || '');
@@ -485,115 +603,174 @@ export async function getCases(
   // 检查是否有搜索关键词，不管是否经过预处理后为空
   const hasSearchKeyword = searchKeyword && typeof searchKeyword === 'string' && searchKeyword.trim().length > 0;
   
-  // 使用全文搜索
-  if (hasSearchKeyword) {
-    try {
-      // 调用数据库函数进行全文搜索
-      const { data, error } = await supabase.rpc('search_cases', {
-        query_text: processedKeyword || null,
-        page_num: page,
-        page_size: pageSize,
-        sort_by: sortBy,
-        sort_order: sortOrder,
-        start_date: filters?.startDate || null,
-        end_date: filters?.endDate || null,
-        department_ids: filters?.departmentIds?.length ? filters.departmentIds : null,
-        platform_ids: filters?.platformIds?.length ? filters.platformIds : null
-      });
-      
-      if (error) throw error;
-      
-      // 获取匹配总数
-      const { data: countData, error: countError } = await supabase.rpc('search_cases_count', {
-        query_text: processedKeyword || null,
-        start_date: filters?.startDate || null,
-        end_date: filters?.endDate || null,
-        department_ids: filters?.departmentIds?.length ? filters.departmentIds : null,
-        platform_ids: filters?.platformIds?.length ? filters.platformIds : null
-      });
-      
-      if (countError) throw countError;
-      
-      // 如果需要关联部门和平台信息
-      if (Array.isArray(data) && data.length > 0) {
-        const ids = data.map(item => item.id);
-        const { data: enrichedData } = await supabase
-          .from('cases')
-          .select('*, department:regulatory_departments(*), platform:app_platforms(*)')
-          .in('id', ids);
-        
-        if (Array.isArray(enrichedData)) {
-          return {
-            data: enrichedData,
-            total: typeof countData === 'number' ? countData : enrichedData.length,
-            formattedTotal: formatNumber(typeof countData === 'number' ? countData : enrichedData.length),
-            hasResults: Array.isArray(enrichedData) && enrichedData.length > 0
-          };
-        }
-      }
-      
-      return {
-        data: Array.isArray(data) ? data : [],
-        total: typeof countData === 'number' ? countData : 0,
-        formattedTotal: formatNumber(typeof countData === 'number' ? countData : 0),
-        hasResults: Array.isArray(data) && data.length > 0
-      };
-    } catch (error) {
-      console.error('全文搜索失败:', error);
-      // 搜索失败时回退到标准查询，但仍然应用关键词过滤
-    }
-  }
-  
-  // 标准查询（非全文搜索或全文搜索失败时回退）
-  let query = supabase
-    .from('cases')
-    .select(`
-      *,
-      department:regulatory_departments(*),
-      platform:app_platforms(*)
-    `, { count: 'exact' });
-
-  // 应用筛选条件
-  if (filters) {
-    if (filters.startDate) {
-      query = query.gte('report_date', filters.startDate);
-    }
-    if (filters.endDate) {
-      query = query.lte('report_date', filters.endDate);
-    }
-    if (filters.departmentIds && filters.departmentIds.length > 0) {
-      query = query.in('department_id', filters.departmentIds);
-    }
-    if (filters.platformIds && filters.platformIds.length > 0) {
-      query = query.in('platform_id', filters.platformIds);
-    }
-  }
-
-  // 如果没有全文搜索，且有搜索关键词，在标准查询中添加前端过滤
-  if (hasSearchKeyword) {
-    // 在标准查询中也添加关键词过滤条件
-    query = query.or(
-      `app_name.ilike.%${searchKeyword}%,` + 
-      `app_developer.ilike.%${searchKeyword}%,` + 
-      `violation_content.ilike.%${searchKeyword}%`
-    );
-  }
-
-  query = query.order(sortBy, { ascending: sortOrder === 'asc' }).range(from, to);
-
-  const { data, error, count } = await query;
-  
-  if (error) throw error;
-  
-  const resultData = Array.isArray(data) ? data : [];
-  const resultTotal = count || 0;
-  
-  return {
-    data: resultData,
-    total: resultTotal,
-    formattedTotal: formatNumber(resultTotal),
-    hasResults: resultData.length > 0
+  // 创建标准化的过滤器参数，适应新的API设计
+  const standardFilters = {
+    startDate: filters?.startDate || null,
+    endDate: filters?.endDate || null,
+    departmentIds: filters?.departmentIds && filters.departmentIds.length > 0 ? filters.departmentIds : null,
+    platformIds: filters?.platformIds && filters.platformIds.length > 0 ? filters.platformIds : null
   };
+  
+  // 结果对象，包含额外的元数据
+  const result: {
+    data: any[];
+    total: number;
+    formattedTotal: string;
+    hasResults: boolean;
+    searchKeyword: string | null;
+    processedKeyword: string;
+    queryTime: number; // 查询耗时(ms)
+    searchMode: 'fulltext' | 'standard'; // 搜索模式
+    filtersApplied: boolean;
+    suggestions?: string[]; // 可能的搜索建议（无结果时提供）
+  } = {
+    data: [],
+    total: 0,
+    formattedTotal: '0',
+    hasResults: false,
+    searchKeyword: hasSearchKeyword ? searchKeyword : null,
+    processedKeyword,
+    queryTime: 0,
+    searchMode: 'standard',
+    filtersApplied: !!(standardFilters.startDate || standardFilters.endDate || standardFilters.departmentIds || standardFilters.platformIds)
+  };
+  
+  try {
+    // 优先使用全文搜索
+    if (hasSearchKeyword) {
+      try {
+        result.searchMode = 'fulltext';
+        
+        // 调用数据库函数进行全文搜索
+        // 修复：使用原始的searchKeyword而不是processedKeyword || null，确保关键词正确传递
+        const { data, error } = await supabase.rpc('search_cases', {
+          query_text: searchKeyword,  // 直接使用原始关键词
+          page_num: page,
+          page_size: pageSize,
+          sort_by: sortBy,
+          sort_order: sortOrder,
+          start_date: standardFilters.startDate,
+          end_date: standardFilters.endDate,
+          department_ids: standardFilters.departmentIds,
+          platform_ids: standardFilters.platformIds
+        });
+        
+        if (error) {
+          console.error('全文搜索出错:', error);
+          throw error;
+        }
+        
+        // 获取匹配总数
+        const { data: countData, error: countError } = await supabase.rpc('search_cases_count', {
+          query_text: searchKeyword,  // 直接使用原始关键词
+          start_date: standardFilters.startDate,
+          end_date: standardFilters.endDate,
+          department_ids: standardFilters.departmentIds,
+          platform_ids: standardFilters.platformIds
+        });
+        
+        if (countError) {
+          console.error('获取搜索结果总数出错:', countError);
+          throw countError;
+        }
+        
+        // 如果需要关联部门和平台信息
+        if (Array.isArray(data) && data.length > 0) {
+          const ids = data.map(item => item.id);
+          const { data: enrichedData } = await supabase
+            .from('cases')
+            .select('*, department:regulatory_departments(*), platform:app_platforms(*)')
+            .in('id', ids);
+          
+          if (Array.isArray(enrichedData)) {
+            result.data = enrichedData;
+            result.total = typeof countData === 'number' ? countData : enrichedData.length;
+            result.formattedTotal = formatNumber(result.total);
+            result.hasResults = result.data.length > 0;
+            
+            // 计算查询时间
+            result.queryTime = Date.now() - startTime;
+            
+            return result;
+          }
+        } else if (Array.isArray(data) && data.length === 0) {
+          // 无结果时尝试生成搜索建议
+          result.suggestions = generateSearchSuggestions(searchKeyword!);
+          result.data = [];
+          result.total = 0;
+          result.formattedTotal = '0';
+          result.hasResults = false;
+          result.queryTime = Date.now() - startTime;
+          
+          return result;
+        }
+      } catch (error) {
+        console.error('全文搜索失败，回退到标准查询:', error);
+        // 全文搜索失败时回退到标准查询
+        result.searchMode = 'standard';
+      }
+    }
+    
+    // 标准查询（非全文搜索或全文搜索失败时回退）
+    let query = supabase
+      .from('cases')
+      .select(`
+        *,
+        department:regulatory_departments(*),
+        platform:app_platforms(*)
+      `, { count: 'exact' });
+
+    // 应用筛选条件
+    if (standardFilters.startDate) {
+      query = query.gte('report_date', standardFilters.startDate);
+    }
+    if (standardFilters.endDate) {
+      query = query.lte('report_date', standardFilters.endDate);
+    }
+    if (standardFilters.departmentIds) {
+      query = query.in('department_id', standardFilters.departmentIds);
+    }
+    if (standardFilters.platformIds) {
+      query = query.in('platform_id', standardFilters.platformIds);
+    }
+
+    // 如果有搜索关键词，在标准查询中添加前端过滤
+    if (hasSearchKeyword) {
+      // 增强的OR查询，包含更多字段和更好的模糊匹配逻辑
+      const keywordFilter = encodeURIComponent(searchKeyword!.trim());
+      query = query.or(
+        `app_name.ilike.%${keywordFilter}%,` + 
+        `app_developer.ilike.%${keywordFilter}%,` + 
+        `violation_summary.ilike.%${keywordFilter}%,` + 
+        `violation_detail.ilike.%${keywordFilter}%`
+      );
+    }
+
+    // 应用排序和分页
+    query = query.order(sortBy, { ascending: sortOrder === 'asc' }).range(from, to);
+
+    const { data, error, count } = await query;
+    
+    if (error) throw error;
+    
+    result.data = Array.isArray(data) ? data : [];
+    result.total = count || 0;
+    result.formattedTotal = formatNumber(result.total);
+    result.hasResults = result.data.length > 0;
+    
+    // 计算查询时间
+    result.queryTime = Date.now() - startTime;
+    
+    // 如果是搜索操作但无结果，尝试提供搜索建议
+    if (hasSearchKeyword && result.data.length === 0) {
+      result.suggestions = generateSearchSuggestions(searchKeyword!);
+    }
+    
+    return result;
+  } catch (error) {
+    console.error('获取案例数据失败:', error);
+    throw error;
+  }
 }
 
 export async function getCaseById(id: string): Promise<CaseWithDetails | null> {
