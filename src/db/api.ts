@@ -482,12 +482,15 @@ export async function getCases(
   // 预处理关键词
   const processedKeyword = preprocessKeyword(searchKeyword || '');
   
-  // 检查是否使用全文搜索
-  if (processedKeyword && processedKeyword.length > 0) {
+  // 检查是否有搜索关键词，不管是否经过预处理后为空
+  const hasSearchKeyword = searchKeyword && typeof searchKeyword === 'string' && searchKeyword.trim().length > 0;
+  
+  // 使用全文搜索
+  if (hasSearchKeyword) {
     try {
       // 调用数据库函数进行全文搜索
       const { data, error } = await supabase.rpc('search_cases', {
-        query_text: processedKeyword,
+        query_text: processedKeyword || null,
         page_num: page,
         page_size: pageSize,
         sort_by: sortBy,
@@ -502,7 +505,7 @@ export async function getCases(
       
       // 获取匹配总数
       const { data: countData, error: countError } = await supabase.rpc('search_cases_count', {
-        query_text: processedKeyword,
+        query_text: processedKeyword || null,
         start_date: filters?.startDate || null,
         end_date: filters?.endDate || null,
         department_ids: filters?.departmentIds?.length ? filters.departmentIds : null,
@@ -537,11 +540,11 @@ export async function getCases(
       };
     } catch (error) {
       console.error('全文搜索失败:', error);
-      // 搜索失败时回退到标准查询
+      // 搜索失败时回退到标准查询，但仍然应用关键词过滤
     }
   }
   
-  // 标准查询（非全文搜索）
+  // 标准查询（非全文搜索或全文搜索失败时回退）
   let query = supabase
     .from('cases')
     .select(`
@@ -564,6 +567,16 @@ export async function getCases(
     if (filters.platformIds && filters.platformIds.length > 0) {
       query = query.in('platform_id', filters.platformIds);
     }
+  }
+
+  // 如果没有全文搜索，且有搜索关键词，在标准查询中添加前端过滤
+  if (hasSearchKeyword) {
+    // 在标准查询中也添加关键词过滤条件
+    query = query.or(
+      `app_name.ilike.%${searchKeyword}%,` + 
+      `app_developer.ilike.%${searchKeyword}%,` + 
+      `violation_content.ilike.%${searchKeyword}%`
+    );
   }
 
   query = query.order(sortBy, { ascending: sortOrder === 'asc' }).range(from, to);
