@@ -400,16 +400,148 @@ export async function deletePlatform(id: string) {
 }
 
 // ============ 案例相关 ============
+// 关键词预处理函数
+function preprocessKeyword(keyword: string): string {
+  if (!keyword || typeof keyword !== 'string') return '';
+  
+  // 转换全角字符为半角
+  let processed = keyword.replace(/[\uFF01-\uFF5E]/g, (char) => {
+    return String.fromCharCode(char.charCodeAt(0) - 0xfee0);
+  });
+  
+  // 转换为小写
+  processed = processed.toLowerCase();
+  
+  // 移除特殊字符（保留中文、英文、数字和空格）
+  processed = processed.replace(/[^\u4e00-\u9fa5a-z0-9\s]/g, '');
+  
+  // 去除多余空格
+  processed = processed.trim().replace(/\s+/g, ' ');
+  
+  return processed;
+}
+
+// 获取同义词映射表（可扩展）
+function getSynonymsMap(): Record<string, string[]> {
+  return {
+    '隐私': ['数据隐私', '个人信息', '用户信息', '数据保护', '个人数据'],
+    '违规': ['违法', '不合规', '违法违规', '违规行为'],
+    '广告': ['推送', '弹窗', '推广', '营销', '广告推送'],
+    '权限': ['应用权限', '系统权限', '隐私权限'],
+    '安全': ['数据安全', '信息安全', '系统安全', '网络安全'],
+  };
+}
+
+// 根据关键词生成搜索建议
+export function generateSearchSuggestions(keyword: string): string[] {
+  if (!keyword || typeof keyword !== 'string') return [];
+  
+  const suggestions: string[] = [];
+  const synonymsMap = getSynonymsMap();
+  const lowerKeyword = keyword.toLowerCase();
+  
+  // 查找直接匹配的同义词
+  for (const [word, synonyms] of Object.entries(synonymsMap)) {
+    if (lowerKeyword.includes(word)) {
+      suggestions.push(...synonyms.filter(s => !suggestions.includes(s)));
+    }
+    
+    // 检查同义词是否包含关键词
+    for (const synonym of synonyms) {
+      if (lowerKeyword.includes(synonym)) {
+        suggestions.push(word);
+        break;
+      }
+    }
+  }
+  
+  return suggestions.slice(0, 5); // 最多返回5个建议
+}
+
+// 格式化数字显示
+function formatNumber(num: number): string {
+  if (num >= 10000) {
+    return (num / 10000).toFixed(1) + 'w';
+  } else if (num >= 1000) {
+    return (num / 1000).toFixed(1) + 'k';
+  }
+  return num.toString();
+}
+
 export async function getCases(
   page = 1, 
   pageSize = 20, 
   sortBy = 'report_date', 
   sortOrder: 'asc' | 'desc' = 'desc',
-  filters?: CaseFilterParams
+  filters?: CaseFilterParams,
+  searchKeyword?: string
 ) {
   const from = (page - 1) * pageSize;
   const to = from + pageSize - 1;
 
+  // 预处理关键词
+  const processedKeyword = preprocessKeyword(searchKeyword || '');
+  
+  // 检查是否使用全文搜索
+  if (processedKeyword && processedKeyword.length > 0) {
+    try {
+      // 调用数据库函数进行全文搜索
+      const { data, error } = await supabase.rpc('search_cases', {
+        query_text: processedKeyword,
+        page_num: page,
+        page_size: pageSize,
+        sort_by: sortBy,
+        sort_order: sortOrder,
+        start_date: filters?.startDate || null,
+        end_date: filters?.endDate || null,
+        department_ids: filters?.departmentIds?.length ? filters.departmentIds : null,
+        platform_ids: filters?.platformIds?.length ? filters.platformIds : null
+      });
+      
+      if (error) throw error;
+      
+      // 获取匹配总数
+      const { data: countData, error: countError } = await supabase.rpc('search_cases_count', {
+        query_text: processedKeyword,
+        start_date: filters?.startDate || null,
+        end_date: filters?.endDate || null,
+        department_ids: filters?.departmentIds?.length ? filters.departmentIds : null,
+        platform_ids: filters?.platformIds?.length ? filters.platformIds : null
+      });
+      
+      if (countError) throw countError;
+      
+      // 如果需要关联部门和平台信息
+      if (Array.isArray(data) && data.length > 0) {
+        const ids = data.map(item => item.id);
+        const { data: enrichedData } = await supabase
+          .from('cases')
+          .select('*, department:regulatory_departments(*), platform:app_platforms(*)')
+          .in('id', ids);
+        
+        if (Array.isArray(enrichedData)) {
+          return {
+            data: enrichedData,
+            total: typeof countData === 'number' ? countData : enrichedData.length,
+            formattedTotal: formatNumber(typeof countData === 'number' ? countData : enrichedData.length),
+            hasResults: Array.isArray(enrichedData) && enrichedData.length > 0
+          };
+        }
+      }
+      
+      return {
+        data: Array.isArray(data) ? data : [],
+        total: typeof countData === 'number' ? countData : 0,
+        formattedTotal: formatNumber(typeof countData === 'number' ? countData : 0),
+        hasResults: Array.isArray(data) && data.length > 0
+      };
+    } catch (error) {
+      console.error('全文搜索失败:', error);
+      // 搜索失败时回退到标准查询
+    }
+  }
+  
+  // 标准查询（非全文搜索）
   let query = supabase
     .from('cases')
     .select(`
@@ -439,9 +571,15 @@ export async function getCases(
   const { data, error, count } = await query;
   
   if (error) throw error;
+  
+  const resultData = Array.isArray(data) ? data : [];
+  const resultTotal = count || 0;
+  
   return {
-    data: Array.isArray(data) ? data : [],
-    total: count || 0,
+    data: resultData,
+    total: resultTotal,
+    formattedTotal: formatNumber(resultTotal),
+    hasResults: resultData.length > 0
   };
 }
 

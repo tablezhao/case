@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { getCases, getDepartments, getPlatforms } from '@/db/api';
+import { getCases, getDepartments, getPlatforms, generateSearchSuggestions } from '@/db/api';
 import type { CaseWithDetails, RegulatoryDepartment, AppPlatform, CaseFilterParams } from '@/types/types';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -47,9 +47,13 @@ export default function CasesPage() {
   const [departments, setDepartments] = useState<RegulatoryDepartment[]>([]);
   const [platforms, setPlatforms] = useState<AppPlatform[]>([]);
   const [total, setTotal] = useState(0);
+  const [formattedTotal, setFormattedTotal] = useState('0');
   const [page, setPage] = useState(1);
   const [pageSize] = useState(20);
   const [loading, setLoading] = useState(true);
+  const [searching, setSearching] = useState(false);
+  const [searchSuggestions, setSearchSuggestions] = useState<string[]>([]);
+  const [showSuggestions, setShowSuggestions] = useState(false);
 
   // 关键词搜索
   const [keyword, setKeyword] = useState('');
@@ -94,6 +98,18 @@ export default function CasesPage() {
   useEffect(() => {
     loadCases();
   }, [page, apiFilters, searchKeyword]);
+  
+  // 监听搜索关键词变化，生成搜索建议
+  useEffect(() => {
+    if (keyword && keyword.length > 1) {
+      const suggestions = generateSearchSuggestions(keyword);
+      setSearchSuggestions(suggestions);
+      setShowSuggestions(suggestions.length > 0);
+    } else {
+      setSearchSuggestions([]);
+      setShowSuggestions(false);
+    }
+  }, [keyword]);
 
   const loadInitialData = async () => {
     try {
@@ -111,41 +127,56 @@ export default function CasesPage() {
   const loadCases = async () => {
     try {
       setLoading(true);
-      const result = await getCases(page, pageSize, 'report_date', 'desc', apiFilters);
       
-      // 如果有搜索关键词，进行前端过滤
-      let filteredData = result.data;
-      if (searchKeyword.trim()) {
-        const lowerKeyword = searchKeyword.toLowerCase().trim();
-        filteredData = result.data.filter((caseItem) => {
-          return (
-            caseItem.app_name?.toLowerCase().includes(lowerKeyword) ||
-            caseItem.app_developer?.toLowerCase().includes(lowerKeyword) ||
-            caseItem.department?.name?.toLowerCase().includes(lowerKeyword) ||
-            caseItem.platform?.name?.toLowerCase().includes(lowerKeyword) ||
-            caseItem.violation_content?.toLowerCase().includes(lowerKeyword)
-          );
-        });
-      }
+      // 使用全文搜索API
+      const result = await getCases(
+        page, 
+        pageSize, 
+        'report_date', 
+        'desc', 
+        apiFilters,
+        searchKeyword // 传递关键词给后端全文搜索
+      );
       
-      setCases(filteredData);
-      setTotal(searchKeyword.trim() ? filteredData.length : result.total);
+      setCases(Array.isArray(result.data) ? result.data : []);
+      setTotal(result.total || 0);
+      setFormattedTotal(result.formattedTotal || '0');
       
-      // 显示筛选结果提示
-      if (filters.dateRange.from || filters.departmentId || filters.platformId) {
-        toast.success(`已找到 ${searchKeyword.trim() ? filteredData.length : result.total} 条案例`);
+      // 显示友好的搜索或筛选结果提示
+      if (searchKeyword && page === 1) {
+        if (result.hasResults) {
+          toast.success(`找到 ${result.total || 0} 条相关案例`);
+        } else {
+          toast.info('暂无匹配结果，尝试使用其他关键词或清除筛选条件');
+        }
+      } else if ((filters.dateRange.from || filters.departmentId || filters.platformId) && page === 1) {
+        toast.success(`找到 ${result.total || 0} 条案例`);
       }
     } catch (error) {
       console.error('加载案例失败:', error);
-      toast.error('加载案例失败，请检查网络连接');
+      toast.error('加载案例失败，请稍后重试');
       // 网络异常时保留原有筛选条件
     } finally {
       setLoading(false);
+      setSearching(false);
     }
   };
 
   const handleKeywordSearch = () => {
-    setSearchKeyword(keyword);
+    if (!keyword.trim()) {
+      setSearchKeyword('');
+    } else {
+      setSearching(true);
+      setSearchKeyword(keyword);
+      setShowSuggestions(false);
+    }
+    setPage(1);
+  };
+  
+  const handleSuggestionClick = (suggestion: string) => {
+    setKeyword(suggestion);
+    setSearchKeyword(suggestion);
+    setShowSuggestions(false);
     setPage(1);
   };
 
@@ -182,31 +213,68 @@ export default function CasesPage() {
               <div>
                 <CardTitle className="text-xl sm:text-2xl">案例查询</CardTitle>
                 <p className="text-sm text-muted-foreground mt-1">
-                  共 {total} 条案例
+                  共 {total} 条案例 ({searchKeyword ? `${formattedTotal} 条搜索结果` : ''})
                   {hasActiveFilters && <span className="text-primary ml-2">（已筛选）</span>}
+                  {searching && <span className="ml-2 text-xs text-muted-foreground">搜索中...</span>}
                 </p>
               </div>
             </div>
 
             {/* 关键词搜索 */}
-            <div className="flex gap-2">
-              <div className="relative flex-1">
-                <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
-                <Input
-                  placeholder="搜索应用名称、开发者、监管部门、违规内容..."
-                  value={keyword}
-                  onChange={(e) => setKeyword(e.target.value)}
-                  onKeyPress={handleKeyPress}
-                  className="pl-9 min-h-[44px]"
-                />
+            <div className="relative flex-1">
+              <div className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground">
+                <Search className={searching ? "animate-pulse" : ""} />
               </div>
-              <Button 
-                onClick={handleKeywordSearch}
-                className="gap-2 min-h-[44px]"
-              >
-                <Search className="w-4 h-4" />
-                搜索
-              </Button>
+              <Input
+                placeholder="搜索应用名称、开发者、监管部门、违规内容..."
+                value={keyword}
+                onChange={(e) => setKeyword(e.target.value)}
+                onKeyPress={handleKeyPress}
+                onFocus={() => searchSuggestions.length > 0 && setShowSuggestions(true)}
+                onBlur={() => setTimeout(() => setShowSuggestions(false), 200)}
+                className="pl-9 pr-10 min-h-[44px]"
+                disabled={searching}
+              />
+              {keyword && (
+                <button
+                  onClick={() => {
+                    setKeyword('');
+                    setSearchKeyword('');
+                    setSearchSuggestions([]);
+                    setShowSuggestions(false);
+                    setPage(1);
+                  }}
+                  className="absolute right-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground hover:text-muted transition-colors"
+                  aria-label="清空搜索"
+                >
+                  <X className="w-4 h-4" />
+                </button>
+              )}
+              
+              {/* 搜索建议下拉框 */}
+              {showSuggestions && searchSuggestions.length > 0 && (
+                <div className="absolute z-10 left-0 right-0 mt-1 bg-background border border-border rounded-md shadow-lg max-h-60 overflow-y-auto">
+                  <p className="px-3 py-1 text-xs text-muted-foreground bg-muted">搜索建议:</p>
+                  {searchSuggestions.map((suggestion, index) => (
+                    <button
+                      key={index}
+                      onClick={() => handleSuggestionClick(suggestion)}
+                      className="w-full text-left px-3 py-2 text-sm hover:bg-muted transition-colors"
+                    >
+                      {suggestion}
+                    </button>
+                  ))}
+                </div>
+              )}
+            </div>
+            <Button 
+              onClick={handleKeywordSearch}
+              className="gap-2 min-h-[44px]"
+              disabled={searching}
+            >
+              <Search className="w-4 h-4" />
+              {searching ? '搜索中...' : '搜索'}
+            </Button>
               {(keyword || searchKeyword) && (
                 <Button 
                   variant="outline"
