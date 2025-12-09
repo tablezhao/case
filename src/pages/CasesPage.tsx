@@ -540,3 +540,4 @@ export default function CasesPage() {
       </Card>
     </div>
   );
+}

@@ -587,71 +587,72 @@ export default function CaseManagePage() {
               >
                 <X className="w-4 h-4" />
               </Button>
-            )}
-          </div>
+              )}
+            </CardContent>
+          </Card>
 
           {/* 筛选面板 - 常驻显示 */}
-          <div className="p-3 sm:p-4 border rounded-lg bg-muted/30 space-y-3 sm:space-y-4">
-            <div className="grid grid-cols-1 lg:grid-cols-3 gap-3 sm:gap-4">
-              <div className="space-y-2 lg:col-span-1">
-                <Label>日期范围</Label>
-                <DateRangePicker
-                  value={tempFilters.dateRange}
-                  onChange={(range) => setTempFilters({ ...tempFilters, dateRange: range })}
-                  placeholder="选择日期范围"
-                />
-              </div>
+          <Card className="p-0">
+            <CardContent className="p-3 sm:p-4">
+              <div className="grid grid-cols-1 lg:grid-cols-3 gap-3 sm:gap-4">
+                <div className="space-y-2 lg:col-span-1">
+                  <Label>日期范围</Label>
+                  <DateRangePicker
+                    value={tempFilters.dateRange}
+                    onChange={(range) => setTempFilters({ ...tempFilters, dateRange: range })}
+                    placeholder="选择日期范围"
+                  />
+                </div>
 
-              <div className="space-y-2">
-                <Label htmlFor="filter-department">监管部门</Label>
-                <Select
-                  value={tempFilters.departmentId}
-                  onValueChange={(value) => setTempFilters({ ...tempFilters, departmentId: value })}
-                >
-                  <SelectTrigger id="filter-department">
-                    <SelectValue placeholder="全部部门" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="all">全部部门</SelectItem>
-                    {departments.map((dept) => (
-                      <SelectItem key={dept.id} value={dept.id}>
-                        {dept.name}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              </div>
+                <div className="space-y-2">
+                  <Label htmlFor="filter-department">监管部门</Label>
+                  <Select
+                    value={tempFilters.departmentId}
+                    onValueChange={(value) => setTempFilters({ ...tempFilters, departmentId: value })}
+                  >
+                    <SelectTrigger id="filter-department">
+                      <SelectValue placeholder="全部部门" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="all">全部部门</SelectItem>
+                      {departments.map((dept) => (
+                        <SelectItem key={dept.id} value={dept.id}>
+                          {dept.name}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
 
-              <div className="space-y-2">
-                <Label htmlFor="filter-platform">应用平台</Label>
-                <Select
-                  value={tempFilters.platformId}
-                  onValueChange={(value) => setTempFilters({ ...tempFilters, platformId: value })}
-                >
-                  <SelectTrigger id="filter-platform">
-                    <SelectValue placeholder="全部平台" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="all">全部平台</SelectItem>
-                    {platforms.map((plat) => (
-                      <SelectItem key={plat.id} value={plat.id}>
-                        {plat.name}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
+                <div className="space-y-2">
+                  <Label htmlFor="filter-platform">应用平台</Label>
+                  <Select
+                    value={tempFilters.platformId}
+                    onValueChange={(value) => setTempFilters({ ...tempFilters, platformId: value })}
+                  >
+                    <SelectTrigger id="filter-platform">
+                      <SelectValue placeholder="全部平台" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="all">全部平台</SelectItem>
+                      {platforms.map((plat) => (
+                        <SelectItem key={plat.id} value={plat.id}>
+                          {plat.name}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
               </div>
-            </div>
-            
-            {/* 加载状态提示 */}
-            {loading && (
-              <div className="text-sm text-muted-foreground text-center py-2">
-                正在加载数据...
-              </div>
-            )}
-          </div>
-        </CardContent>
-      </Card>
+              
+              {/* 加载状态提示 */}
+              {loading && (
+                <div className="text-sm text-muted-foreground text-center py-2">
+                  正在加载数据...
+                </div>
+              )}
+            </CardContent>
+          </Card>
 
       <Card className="shadow-sm hover:shadow-md transition-shadow">
         <CardHeader>
