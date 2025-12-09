@@ -69,6 +69,7 @@ export default function CaseManagePage() {
     department_id: '',
     platform_id: '',
     violation_content: '',
+    report_date: '',
   });
 
   useEffect(() => {
@@ -310,10 +311,11 @@ export default function CaseManagePage() {
     }
 
     // 构建更新数据（只包含非空字段）
-    const updateData: Partial<{ department_id: string; platform_id: string; violation_content: string }> = {};
+    const updateData: Partial<{ department_id: string; platform_id: string; violation_content: string; report_date: string }> = {};
     if (batchEditData.department_id) updateData.department_id = batchEditData.department_id;
     if (batchEditData.platform_id) updateData.platform_id = batchEditData.platform_id;
     if (batchEditData.violation_content) updateData.violation_content = batchEditData.violation_content;
+    if (batchEditData.report_date) updateData.report_date = batchEditData.report_date;
 
     if (Object.keys(updateData).length === 0) {
       toast.error('请至少填写一个要修改的字段');
@@ -325,7 +327,7 @@ export default function CaseManagePage() {
       await batchUpdateCases(updates);
       toast.success(`成功修改 ${selectedIds.length} 条案例`);
       setBatchEditDialogOpen(false);
-      setBatchEditData({ department_id: '', platform_id: '', violation_content: '' });
+      setBatchEditData({ department_id: '', platform_id: '', violation_content: '', report_date: '' });
       setSelectedIds([]);
       loadData();
     } catch (error) {
@@ -603,6 +605,17 @@ export default function CaseManagePage() {
                             onChange={(e) => setBatchEditData({ ...batchEditData, violation_content: e.target.value })}
                             placeholder="不修改"
                             rows={3}
+                          />
+                        </div>
+
+                        <div className="space-y-2">
+                          <Label htmlFor="batch_report_date">通报日期</Label>
+                          <Input
+                            id="batch_report_date"
+                            type="date"
+                            value={batchEditData.report_date}
+                            onChange={(e) => setBatchEditData({ ...batchEditData, report_date: e.target.value })}
+                            placeholder="不修改"
                           />
                         </div>
 
