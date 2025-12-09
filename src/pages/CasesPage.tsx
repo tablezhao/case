@@ -351,7 +351,6 @@ export default function CasesPage() {
                 </div>
               )}
             </div>
-          </div>
         </CardHeader>
 
         <CardContent className="px-0 sm:px-6">
@@ -539,6 +538,5 @@ export default function CasesPage() {
           )}
         </CardContent>
       </Card>
-    </div>
   );
 }
