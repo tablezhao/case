@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react';
 import { getCases, getDepartments, getPlatforms, generateSearchSuggestions } from '@/db/api';
 import type { CaseWithDetails, RegulatoryDepartment, AppPlatform, CaseFilterParams } from '@/types/types';
+import { format } from 'date-fns';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -83,7 +84,7 @@ export default function CasesPage() {
   const [searching, setSearching] = useState(false);
   const [searchSuggestions, setSearchSuggestions] = useState<string[]>([]);
   const [showSuggestions, setShowSuggestions] = useState(false);
-  const [searchStatus, setSearchStatus] = useState<'idle' | 'searching' | 'completed' | 'no_results'>('idle');
+  const [searchStatus, setSearchStatus] = useState<'idle' | 'searching' | 'completed' | 'no_results' | 'error'>('idle');
   const [lastSearchInfo, setLastSearchInfo] = useState<{
     keyword: string | null;
     hasResults: boolean;
@@ -91,6 +92,9 @@ export default function CasesPage() {
     queryTime: number;
   } | null>(null);
   const [searchHistory, setSearchHistory] = useState<string[]>([]); // 搜索历史
+  
+  // 搜索错误状态 - 移到前面确保在使用前已定义
+  const [searchError, setSearchError] = useState<string | null>(null);
 
   // 关键词搜索
   const [keyword, setKeyword] = useState('');
@@ -162,10 +166,21 @@ export default function CasesPage() {
   };
 
   const loadCases = async () => {
-    setLoading(true);
-    setSearchStatus('searching');
-    setSearchError(null); // 清除之前的搜索错误
     try {
+      setLoading(true);
+      setSearchStatus('searching');
+      setSearchError(null); // 清除之前的搜索错误
+      
+      // 准备API参数
+      const searchParams = {
+        page,
+        pageSize,
+        sortBy: 'report_date',
+        sortOrder: 'desc',
+        filters: apiFilters,
+        keyword: searchKeyword
+      };
+      
       // 使用全文搜索API
       const result = await getCases(
         page, 
@@ -175,6 +190,11 @@ export default function CasesPage() {
         apiFilters,
         searchKeyword // 传递关键词给后端全文搜索
       );
+      
+      // 验证API返回结果格式
+      if (!result || typeof result !== 'object') {
+        throw new Error('无效的API响应格式');
+      }
       
       // 更新案例数据
       setCases(Array.isArray(result.data) ? result.data : []);
@@ -242,28 +262,34 @@ export default function CasesPage() {
     });
   };
 
-  // 搜索错误状态
-  const [searchError, setSearchError] = useState<string | null>(null);
+
   
   const handleKeywordSearch = () => {
     const trimmedKeyword = keyword.trim();
     
-    if (!trimmedKeyword) {
-      setSearchKeyword('');
-      setSearchStatus('idle');
-      setLastSearchInfo(null);
-      setSearchError(null); // 清除错误状态
-    } else {
-      setSearching(true);
-      setSearchStatus('searching');
-      setSearchKeyword(trimmedKeyword);
-      setShowSuggestions(false);
-      setSearchError(null); // 清除之前的搜索错误
+    try {
+      // 无论是否有关键词，先清除之前的错误状态
+      setSearchError(null);
       
-      // 记录搜索历史
-      addToSearchHistory(trimmedKeyword);
+      if (!trimmedKeyword) {
+        setSearchKeyword('');
+        setSearchStatus('idle');
+        setLastSearchInfo(null);
+      } else {
+        setSearching(true);
+        setSearchStatus('searching');
+        setSearchKeyword(trimmedKeyword);
+        setShowSuggestions(false);
+        
+        // 记录搜索历史
+        addToSearchHistory(trimmedKeyword);
+      }
+      setPage(1);
+    } catch (error) {
+      console.error('搜索处理失败:', error);
+      setSearchError('搜索过程中出现错误，请稍后再试');
+      setSearchStatus('error');
     }
-    setPage(1);
   };
   
   const handleSuggestionClick = (suggestion: string) => {
