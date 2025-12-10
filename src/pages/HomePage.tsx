@@ -165,7 +165,7 @@ export default function HomePage() {
         <div className="space-y-3">
           {/* 时间维度切换 */}
           <div className="flex items-center justify-between">
-            <h2 className="text-lg font-semibold">数据概览</h2>
+            <h2 className="text-xl font-semibold">数据概览</h2>
             <Tabs value={timeDimension} onValueChange={(v) => setTimeDimension(v as 'month' | 'quarter' | 'year')}>
               <TabsList className="grid grid-cols-3 w-full xl:w-auto xl:min-w-[280px]">
                 <TabsTrigger value="month">本月</TabsTrigger>
@@ -523,7 +523,7 @@ export default function HomePage() {
           chartsLoading ? (
             <Card>
               <CardHeader>
-                <CardTitle>应用平台分布</CardTitle>
+                <CardTitle className="text-xl">应用平台分布</CardTitle>
               </CardHeader>
               <CardContent>
                 <Skeleton className="h-80 bg-muted" />

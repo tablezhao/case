@@ -60,7 +60,7 @@ export default function NewsPage() {
     <div className="container mx-auto px-4 py-4 sm:px-6 sm:py-6">
       <Card>
         <CardHeader className="px-4 sm:px-6">
-          <CardTitle className="text-xl sm:text-2xl">监管资讯</CardTitle>
+          <CardTitle className="text-2xl">监管资讯</CardTitle>
           <p className="text-sm text-muted-foreground">共 {total} 条资讯</p>
         </CardHeader>
         <CardContent className="px-0 sm:px-6">

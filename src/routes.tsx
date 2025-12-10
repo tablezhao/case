@@ -15,7 +15,7 @@ import DepartmentsPage from './pages/admin/DepartmentsPage';
 import UsersPage from './pages/admin/UsersPage';
 import SmartImportPage from './pages/admin/SmartImportPage';
 import FooterSettingsPage from './pages/admin/FooterSettingsPage';
-import ModuleSettingsPage from './pages/admin/ModuleSettingsPage';
+import ModuleControlPage from './pages/admin/ModuleControlPage';
 import HomeConfigPage from './pages/admin/HomeConfigPage';
 import SiteSettingsPage from './pages/admin/SiteSettingsPage';
 import ProtectedModuleRoute from './components/common/ProtectedModuleRoute';
@@ -169,9 +169,9 @@ const routes: RouteConfig[] = [
     requireAdmin: true,
   },
   {
-    name: '模块设置',
-    path: '/admin/module-settings',
-    element: <ModuleSettingsPage />,
+    name: '模块控制',
+    path: '/admin/module-control',
+    element: <ModuleControlPage />,
     visible: false,
     requireAuth: true,
     requireAdmin: true,

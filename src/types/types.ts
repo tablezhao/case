@@ -168,3 +168,15 @@ export interface SiteSettings {
   created_at: string;
   updated_at: string;
 }
+
+// 导航模块排序配置
+export interface NavigationOrder {
+  id: string;
+  module_key: string;
+  module_name: string;
+  route_path: string;
+  sort_order: number;
+  is_visible: boolean;
+  created_at: string;
+  updated_at: string;
+}

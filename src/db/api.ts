@@ -14,6 +14,7 @@ import type {
   CaseFilterParams,
   ModuleSetting,
   SiteSettings,
+  NavigationOrder,
 } from '@/types/types';
 
 // ============ 用户相关 ============
@@ -1899,6 +1900,260 @@ export async function getHighFrequencyPeriods(threshold = 5) {
     .sort((a, b) => b.totalCount - a.totalCount);
 }
 
+/**
+ * 获取部门排名（支持多维度筛选）
+ * @param dimension 时间维度：'monthly' | 'half-yearly' | 'yearly' | 'all'
+ * @param year 年份
+ * @param month 月份（01-12），仅在 dimension='monthly' 时使用
+ * @param halfYear 半年度（'H1' | 'H2'），仅在 dimension='half-yearly' 时使用
+ * @param limit 返回数量限制
+ * @returns 包含按通报频次和应用量排序的前N名部门数据
+ */
+export async function getDepartmentRanking(params: {
+  dimension: 'monthly' | 'half-yearly' | 'yearly' | 'all';
+  year?: string;
+  month?: string;
+  halfYear?: 'H1' | 'H2';
+  limit?: number;
+}) {
+  const { dimension, year, month, halfYear, limit = 10 } = params;
+  
+  console.log('[getDepartmentRanking] 开始查询，参数:', params);
+  
+  // 构建查询条件
+  let query = supabase
+    .from('cases')
+    .select(`
+      report_date,
+      department_id,
+      application_count,
+      department:regulatory_departments(id, name)
+    `);
+
+  // 根据维度添加日期过滤
+  if (dimension === 'monthly' && year && month) {
+    // 月度：指定年月
+    const startDate = `${year}-${month}-01`;
+    const endDate = `${year}-${month}-31`;
+    console.log('[getDepartmentRanking] 月度查询:', startDate, '至', endDate);
+    query = query
+      .gte('report_date', startDate)
+      .lte('report_date', endDate);
+  } else if (dimension === 'half-yearly' && year && halfYear) {
+    // 半年度：H1(1-6月) 或 H2(7-12月)
+    if (halfYear === 'H1') {
+      const startDate = `${year}-01-01`;
+      const endDate = `${year}-06-30`;
+      console.log('[getDepartmentRanking] 上半年查询:', startDate, '至', endDate);
+      query = query
+        .gte('report_date', startDate)
+        .lte('report_date', endDate);
+    } else {
+      const startDate = `${year}-07-01`;
+      const endDate = `${year}-12-31`;
+      console.log('[getDepartmentRanking] 下半年查询:', startDate, '至', endDate);
+      query = query
+        .gte('report_date', startDate)
+        .lte('report_date', endDate);
+    }
+  } else if (dimension === 'yearly' && year) {
+    // 年度：整年
+    const startDate = `${year}-01-01`;
+    const endDate = `${year}-12-31`;
+    console.log('[getDepartmentRanking] 年度查询:', startDate, '至', endDate);
+    query = query
+      .gte('report_date', startDate)
+      .lte('report_date', endDate);
+  } else {
+    console.log('[getDepartmentRanking] 全部时间段查询');
+  }
+
+  const { data, error } = await query;
+
+  if (error) {
+    console.error('[getDepartmentRanking] 查询失败:', error);
+    throw error;
+  }
+
+  console.log('[getDepartmentRanking] 查询成功，返回', data?.length || 0, '条记录');
+
+  // 如果没有数据，返回空数组
+  if (!data || data.length === 0) {
+    console.log('[getDepartmentRanking] 没有数据，返回空结果');
+    return {
+      byReportCount: [],
+      byAppCount: [],
+    };
+  }
+
+  // 统计每个部门的数据
+  const deptStats: Record<string, {
+    name: string;
+    dates: Set<string>;
+    totalApps: number;
+  }> = {};
+
+  (data || []).forEach(item => {
+    if (!item.department_id || !item.department) {
+      console.warn('[getDepartmentRanking] 跳过无效记录:', item);
+      return;
+    }
+
+    const deptId = item.department_id;
+    const deptName = (item.department as any).name;
+    const appCount = item.application_count || 0;
+
+    if (!deptStats[deptId]) {
+      deptStats[deptId] = {
+        name: deptName,
+        dates: new Set(),
+        totalApps: 0,
+      };
+    }
+
+    // 通报频次：唯一日期数
+    deptStats[deptId].dates.add(item.report_date);
+    // 通报应用量：累加
+    deptStats[deptId].totalApps += appCount;
+  });
+
+  console.log('[getDepartmentRanking] 统计了', Object.keys(deptStats).length, '个部门');
+
+  // 转换为数组
+  const deptArray = Object.entries(deptStats).map(([id, info]) => ({
+    departmentId: id,
+    departmentName: info.name,
+    reportCount: info.dates.size, // 通报频次
+    appCount: info.totalApps, // 通报应用量
+  }));
+
+  // 按通报频次排序（降序）
+  const byReportCount = [...deptArray]
+    .sort((a, b) => b.reportCount - a.reportCount)
+    .slice(0, limit);
+
+  // 按通报应用量排序（降序）
+  const byAppCount = [...deptArray]
+    .sort((a, b) => b.appCount - a.appCount)
+    .slice(0, limit);
+
+  console.log('[getDepartmentRanking] 返回结果 - 通报频次TOP', byReportCount.length, '，应用量TOP', byAppCount.length);
+
+  return {
+    byReportCount,
+    byAppCount,
+  };
+}
+
+/**
+ * 获取监管部门应用数量趋势数据
+ * @param departmentIds 部门ID数组
+ * @param dimension 数据维度：'yearly' | 'all'
+ * @param year 年份（仅在 dimension='yearly' 时使用）
+ * @returns 按日期分组的部门应用数量趋势数据
+ */
+export async function getDepartmentApplicationTrend(params: {
+  departmentIds: string[];
+  dimension: 'yearly' | 'all';
+  year?: string;
+}) {
+  const { departmentIds, dimension, year } = params;
+
+  console.log('[getDepartmentApplicationTrend] 开始查询，参数:', params);
+
+  if (!departmentIds || departmentIds.length === 0) {
+    console.log('[getDepartmentApplicationTrend] 未选择部门，返回空结果');
+    return [];
+  }
+
+  // 构建查询条件
+  let query = supabase
+    .from('cases')
+    .select(`
+      report_date,
+      department_id,
+      application_count,
+      department:regulatory_departments(id, name)
+    `)
+    .in('department_id', departmentIds)
+    .order('report_date', { ascending: true });
+
+  // 根据维度添加日期过滤
+  if (dimension === 'yearly' && year) {
+    const startDate = `${year}-01-01`;
+    const endDate = `${year}-12-31`;
+    console.log('[getDepartmentApplicationTrend] 年度查询:', startDate, '至', endDate);
+    query = query
+      .gte('report_date', startDate)
+      .lte('report_date', endDate);
+  } else {
+    console.log('[getDepartmentApplicationTrend] 全部数据查询');
+  }
+
+  const { data, error } = await query;
+
+  if (error) {
+    console.error('[getDepartmentApplicationTrend] 查询失败:', error);
+    throw error;
+  }
+
+  console.log('[getDepartmentApplicationTrend] 查询成功，返回', data?.length || 0, '条记录');
+
+  if (!data || data.length === 0) {
+    console.log('[getDepartmentApplicationTrend] 没有数据，返回空结果');
+    return [];
+  }
+
+  // 按日期和部门分组统计
+  const dateStats: Record<string, Record<string, {
+    name: string;
+    count: number;
+  }>> = {};
+
+  data.forEach(item => {
+    if (!item.department_id || !item.department || !item.report_date) {
+      console.warn('[getDepartmentApplicationTrend] 跳过无效记录:', item);
+      return;
+    }
+
+    const date = item.report_date;
+    const deptId = item.department_id;
+    const deptName = (item.department as any).name;
+    const appCount = item.application_count || 0;
+
+    if (!dateStats[date]) {
+      dateStats[date] = {};
+    }
+
+    if (!dateStats[date][deptId]) {
+      dateStats[date][deptId] = {
+        name: deptName,
+        count: 0,
+      };
+    }
+
+    dateStats[date][deptId].count += appCount;
+  });
+
+  // 转换为数组格式，便于图表展示
+  const result = Object.entries(dateStats).map(([date, depts]) => {
+    const dataPoint: any = {
+      date,
+    };
+
+    // 为每个部门添加数据
+    Object.entries(depts).forEach(([deptId, info]) => {
+      dataPoint[info.name] = info.count;
+    });
+
+    return dataPoint;
+  }).sort((a, b) => a.date.localeCompare(b.date));
+
+  console.log('[getDepartmentApplicationTrend] 返回', result.length, '个数据点');
+
+  return result;
+}
+
 // ============ 违规问题分析 ============
 
 /**
@@ -2375,4 +2630,371 @@ export async function deleteLogo(url: string) {
     .remove([fileName]);
 
   if (error) throw error;
+}
+
+// ============ 趋势概览相关 ============
+
+/**
+ * 获取趋势概览数据
+ * 包含：当月通报风险等级、本年通报高频时段、高频通报部门、高频被通报平台
+ */
+export async function getTrendOverview() {
+  const now = new Date();
+  const currentYear = now.getFullYear();
+  const currentMonth = now.getMonth() + 1;
+  
+  console.log('[getTrendOverview] 开始获取趋势概览数据', {
+    currentYear,
+    currentMonth,
+  });
+
+  try {
+    // 1. 获取当月通报风险等级
+    const currentMonthStart = `${currentYear}-${currentMonth.toString().padStart(2, '0')}-01`;
+    const currentMonthEnd = `${currentYear}-${currentMonth.toString().padStart(2, '0')}-31`;
+    
+    const { data: currentMonthData, error: currentMonthError } = await supabase
+      .from('cases')
+      .select('report_date')
+      .gte('report_date', currentMonthStart)
+      .lte('report_date', currentMonthEnd);
+    
+    if (currentMonthError) throw currentMonthError;
+    
+    // 统计当月唯一日期数（通报频次）
+    const uniqueDates = new Set(currentMonthData?.map(item => item.report_date) || []);
+    const currentMonthReportCount = uniqueDates.size;
+    
+    // 判断风险等级
+    let riskLevel: 'high' | 'medium' | 'low' = 'low';
+    if (currentMonthReportCount > 5) {
+      riskLevel = 'high';
+    } else if (currentMonthReportCount > 1) {
+      riskLevel = 'medium';
+    }
+    
+    console.log('[getTrendOverview] 当月通报风险等级:', {
+      reportCount: currentMonthReportCount,
+      riskLevel,
+    });
+
+    // 2. 获取本年通报高频时段
+    const yearStart = `${currentYear}-01-01`;
+    const yearEnd = `${currentYear}-${currentMonth.toString().padStart(2, '0')}-31`;
+    
+    const { data: yearData, error: yearError } = await supabase
+      .from('cases')
+      .select('report_date')
+      .gte('report_date', yearStart)
+      .lte('report_date', yearEnd);
+    
+    if (yearError) throw yearError;
+    
+    // 按月份分组统计
+    const monthlyStats: Record<string, Set<string>> = {};
+    yearData?.forEach(item => {
+      const month = item.report_date.substring(0, 7); // YYYY-MM
+      if (!monthlyStats[month]) {
+        monthlyStats[month] = new Set();
+      }
+      monthlyStats[month].add(item.report_date);
+    });
+    
+    // 筛选通报频次 >= 5次的月份
+    const highFrequencyMonths = Object.entries(monthlyStats)
+      .filter(([_, dates]) => dates.size >= 5)
+      .map(([month, dates]) => ({
+        month,
+        count: dates.size,
+      }))
+      .sort((a, b) => b.count - a.count);
+    
+    console.log('[getTrendOverview] 本年通报高频时段:', highFrequencyMonths);
+
+    // 3. 获取高频通报部门（月度和年度）
+    // 月度前三
+    const { data: monthlyDeptData, error: monthlyDeptError } = await supabase
+      .from('cases')
+      .select(`
+        report_date,
+        department_id,
+        department:regulatory_departments(id, name)
+      `)
+      .gte('report_date', currentMonthStart)
+      .lte('report_date', currentMonthEnd);
+    
+    if (monthlyDeptError) throw monthlyDeptError;
+    
+    const monthlyDeptStats: Record<string, { name: string; dates: Set<string> }> = {};
+    monthlyDeptData?.forEach(item => {
+      if (item.department_id && item.department) {
+        const deptId = item.department_id;
+        const deptName = (item.department as any).name;
+        if (!monthlyDeptStats[deptId]) {
+          monthlyDeptStats[deptId] = { name: deptName, dates: new Set() };
+        }
+        monthlyDeptStats[deptId].dates.add(item.report_date);
+      }
+    });
+    
+    const topMonthlyDepartments = Object.values(monthlyDeptStats)
+      .map(dept => ({
+        name: dept.name,
+        count: dept.dates.size,
+      }))
+      .sort((a, b) => b.count - a.count)
+      .slice(0, 3);
+    
+    // 年度前三
+    const { data: yearlyDeptData, error: yearlyDeptError } = await supabase
+      .from('cases')
+      .select(`
+        report_date,
+        department_id,
+        department:regulatory_departments(id, name)
+      `)
+      .gte('report_date', yearStart)
+      .lte('report_date', yearEnd);
+    
+    if (yearlyDeptError) throw yearlyDeptError;
+    
+    const yearlyDeptStats: Record<string, { name: string; dates: Set<string> }> = {};
+    yearlyDeptData?.forEach(item => {
+      if (item.department_id && item.department) {
+        const deptId = item.department_id;
+        const deptName = (item.department as any).name;
+        if (!yearlyDeptStats[deptId]) {
+          yearlyDeptStats[deptId] = { name: deptName, dates: new Set() };
+        }
+        yearlyDeptStats[deptId].dates.add(item.report_date);
+      }
+    });
+    
+    const topYearlyDepartments = Object.values(yearlyDeptStats)
+      .map(dept => ({
+        name: dept.name,
+        count: dept.dates.size,
+      }))
+      .sort((a, b) => b.count - a.count)
+      .slice(0, 3);
+    
+    console.log('[getTrendOverview] 高频通报部门:', {
+      monthly: topMonthlyDepartments,
+      yearly: topYearlyDepartments,
+    });
+
+    // 4. 获取高频被通报平台（月度和年度）
+    // 月度前三
+    const { data: monthlyPlatformData, error: monthlyPlatformError } = await supabase
+      .from('cases')
+      .select(`
+        platform_id,
+        platform:app_platforms(id, name)
+      `)
+      .gte('report_date', currentMonthStart)
+      .lte('report_date', currentMonthEnd);
+    
+    if (monthlyPlatformError) throw monthlyPlatformError;
+    
+    const monthlyPlatformStats: Record<string, { name: string; count: number }> = {};
+    monthlyPlatformData?.forEach(item => {
+      if (item.platform_id && item.platform) {
+        const platformId = item.platform_id;
+        const platformName = (item.platform as any).name;
+        if (!monthlyPlatformStats[platformId]) {
+          monthlyPlatformStats[platformId] = { name: platformName, count: 0 };
+        }
+        monthlyPlatformStats[platformId].count++;
+      }
+    });
+    
+    const topMonthlyPlatforms = Object.values(monthlyPlatformStats)
+      .sort((a, b) => b.count - a.count)
+      .slice(0, 3);
+    
+    // 年度前三
+    const { data: yearlyPlatformData, error: yearlyPlatformError } = await supabase
+      .from('cases')
+      .select(`
+        platform_id,
+        platform:app_platforms(id, name)
+      `)
+      .gte('report_date', yearStart)
+      .lte('report_date', yearEnd);
+    
+    if (yearlyPlatformError) throw yearlyPlatformError;
+    
+    const yearlyPlatformStats: Record<string, { name: string; count: number }> = {};
+    yearlyPlatformData?.forEach(item => {
+      if (item.platform_id && item.platform) {
+        const platformId = item.platform_id;
+        const platformName = (item.platform as any).name;
+        if (!yearlyPlatformStats[platformId]) {
+          yearlyPlatformStats[platformId] = { name: platformName, count: 0 };
+        }
+        yearlyPlatformStats[platformId].count++;
+      }
+    });
+    
+    const topYearlyPlatforms = Object.values(yearlyPlatformStats)
+      .sort((a, b) => b.count - a.count)
+      .slice(0, 3);
+    
+    console.log('[getTrendOverview] 高频被通报平台:', {
+      monthly: topMonthlyPlatforms,
+      yearly: topYearlyPlatforms,
+    });
+
+    return {
+      currentMonthRisk: {
+        level: riskLevel,
+        count: currentMonthReportCount,
+        month: `${currentYear}年${currentMonth}月`,
+      },
+      highFrequencyMonths,
+      topDepartments: {
+        monthly: topMonthlyDepartments,
+        yearly: topYearlyDepartments,
+      },
+      topPlatforms: {
+        monthly: topMonthlyPlatforms,
+        yearly: topYearlyPlatforms,
+      },
+    };
+  } catch (error) {
+    console.error('[getTrendOverview] 获取趋势概览数据失败:', error);
+    throw error;
+  }
+}
+
+// ============ 导航模块排序相关 ============
+
+/**
+ * 获取所有导航模块配置（按排序顺序）
+ */
+export async function getNavigationOrder(): Promise<NavigationOrder[]> {
+  const { data, error } = await supabase
+    .from('navigation_order')
+    .select('*')
+    .order('sort_order', { ascending: true });
+  
+  if (error) throw error;
+  return Array.isArray(data) ? data : [];
+}
+
+/**
+ * 获取可见的导航模块配置（按排序顺序）
+ */
+export async function getVisibleNavigationOrder(): Promise<NavigationOrder[]> {
+  const { data, error } = await supabase
+    .from('navigation_order')
+    .select('*')
+    .eq('is_visible', true)
+    .order('sort_order', { ascending: true });
+  
+  if (error) throw error;
+  return Array.isArray(data) ? data : [];
+}
+
+/**
+ * 批量更新导航模块排序和可见性
+ */
+export async function updateNavigationOrder(updates: Array<{ id: string; sort_order: number; is_visible: boolean }>): Promise<void> {
+  // 使用事务批量更新
+  const promises = updates.map(({ id, sort_order, is_visible }) =>
+    supabase
+      .from('navigation_order')
+      .update({ sort_order, is_visible })
+      .eq('id', id)
+  );
+  
+  const results = await Promise.all(promises);
+  
+  // 检查是否有错误
+  const errors = results.filter(result => result.error);
+  if (errors.length > 0) {
+    throw new Error(`更新导航排序失败: ${errors.map(e => e.error?.message).join(', ')}`);
+  }
+}
+
+/**
+ * 更新单个导航模块的可见性
+ */
+export async function updateNavigationVisibility(id: string, is_visible: boolean): Promise<void> {
+  const { error } = await supabase
+    .from('navigation_order')
+    .update({ is_visible })
+    .eq('id', id);
+  
+  if (error) throw error;
+}
+
+/**
+ * 重置导航排序为默认值
+ */
+export async function resetNavigationOrder(): Promise<void> {
+  const defaultOrder = [
+    { module_key: 'home', sort_order: 1 },
+    { module_key: 'cases', sort_order: 2 },
+    { module_key: 'news', sort_order: 3 },
+    { module_key: 'departments', sort_order: 4 },
+    { module_key: 'trends', sort_order: 5 },
+    { module_key: 'issues', sort_order: 6 },
+  ];
+  
+  const promises = defaultOrder.map(({ module_key, sort_order }) =>
+    supabase
+      .from('navigation_order')
+      .update({ sort_order, is_visible: true })
+      .eq('module_key', module_key)
+  );
+  
+  const results = await Promise.all(promises);
+  
+  // 检查是否有错误
+  const errors = results.filter(result => result.error);
+  if (errors.length > 0) {
+    throw new Error(`重置导航排序失败: ${errors.map(e => e.error?.message).join(', ')}`);
+  }
+}
+
+/**
+ * 获取系统中所有案例的年份列表
+ * @returns 年份列表（倒序排列，从最新到最旧）
+ */
+export async function getAvailableYears(): Promise<string[]> {
+  try {
+    console.log('[getAvailableYears] 开始调用 RPC 函数...');
+    // 使用 RPC 函数获取所有不重复的年份
+    const { data, error } = await supabase.rpc('get_available_years');
+    
+    if (error) {
+      console.error('[getAvailableYears] 获取年份列表失败:', error);
+      // 如果RPC失败，返回默认年份列表
+      const currentYear = new Date().getFullYear();
+      return [currentYear.toString()];
+    }
+    
+    console.log('[getAvailableYears] RPC 返回数据:', data);
+    
+    if (!data || data.length === 0) {
+      console.warn('[getAvailableYears] 没有数据，返回当前年份');
+      // 如果没有数据，返回当前年份
+      const currentYear = new Date().getFullYear();
+      return [currentYear.toString()];
+    }
+    
+    // 提取年份并按倒序排列
+    const years = data
+      .map((item: { year: number }) => item.year.toString())
+      .sort((a: string, b: string) => parseInt(b) - parseInt(a));
+    
+    console.log('[getAvailableYears] 处理后的年份列表:', years);
+    return years;
+  } catch (error) {
+    console.error('[getAvailableYears] 获取年份列表异常:', error);
+    // 出错时返回当前年份
+    const currentYear = new Date().getFullYear();
+    return [currentYear.toString()];
+  }
 }

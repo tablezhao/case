@@ -47,10 +47,10 @@ export default function AdminPage() {
       color: 'text-blue-500',
     },
     {
-      title: '模块设置',
-      description: '控制导航模块可见性',
+      title: '导航排序',
+      description: '管理导航栏的显示顺序和可见性',
       icon: Settings,
-      link: '/admin/module-settings',
+      link: '/admin/module-control',
       color: 'text-orange-500',
     },
     {

@@ -60,7 +60,7 @@ export default function DepartmentsPage() {
   return (
     <div className="container mx-auto p-6">
       <div className="mb-8">
-        <h1 className="text-3xl font-bold mb-2">监管部门分布</h1>
+        <h1 className="text-2xl font-bold mb-2">监管部门分布</h1>
         <p className="text-muted-foreground">
           查看国家级和省级监管部门信息
         </p>

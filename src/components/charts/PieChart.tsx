@@ -144,7 +144,7 @@ export default function PieChart({ data, title, children, tooltipContent }: PieC
     <Card>
       <CardHeader>
         <div className="flex items-center gap-1.5">
-          <CardTitle>{title}</CardTitle>
+          <CardTitle className="text-xl">{title}</CardTitle>
           {tooltipContent && <TooltipInfo content={tooltipContent} />}
         </div>
       </CardHeader>

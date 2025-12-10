@@ -12,20 +12,10 @@ import {
 } from '@/components/ui/dropdown-menu';
 import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetTrigger } from '@/components/ui/sheet';
 import { supabase } from '@/db/supabase';
-import { getCurrentProfile, getSiteSettings } from '@/db/api';
-import type { Profile, SiteSettings } from '@/types/types';
+import { getCurrentProfile, getSiteSettings, getVisibleNavigationOrder } from '@/db/api';
+import type { Profile, SiteSettings, NavigationOrder } from '@/types/types';
 import { toast } from 'sonner';
-import routes from '@/routes';
 import { useModules } from '@/contexts/ModuleContext';
-
-// 路由路径到模块key的映射
-const routeToModuleMap: Record<string, string> = {
-  '/cases': 'cases',
-  '/news': 'news',
-  '/departments': 'departments',
-  '/trend-analysis': 'trends',
-  '/violation-analysis': 'issues',
-};
 
 export default function Header() {
   const location = useLocation();
@@ -33,22 +23,13 @@ export default function Header() {
   const [profile, setProfile] = useState<Profile | null>(null);
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const [siteSettings, setSiteSettings] = useState<SiteSettings | null>(null);
+  const [navigationItems, setNavigationItems] = useState<NavigationOrder[]>([]);
   const { isModuleEnabled } = useModules();
-  
-  // 根据模块设置过滤导航项
-  const navigation = routes
-    .filter((route) => route.visible !== false)
-    .filter((route) => {
-      const moduleKey = routeToModuleMap[route.path];
-      // 如果路由没有对应的模块key（如首页），则始终显示
-      if (!moduleKey) return true;
-      // 否则根据模块设置决定是否显示
-      return isModuleEnabled(moduleKey);
-    });
 
   useEffect(() => {
     loadProfile();
     loadSiteSettings();
+    loadNavigationOrder();
     
     // 监听认证状态变化
     const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
@@ -79,6 +60,22 @@ export default function Header() {
       setSiteSettings(data);
     } catch (error) {
       console.error('加载网站配置失败:', error);
+    }
+  };
+
+  const loadNavigationOrder = async () => {
+    try {
+      const data = await getVisibleNavigationOrder();
+      // 根据模块设置进一步过滤
+      const filteredData = data.filter(item => {
+        // 首页始终显示
+        if (item.module_key === 'home') return true;
+        // 其他模块根据模块设置决定
+        return isModuleEnabled(item.module_key);
+      });
+      setNavigationItems(filteredData);
+    } catch (error) {
+      console.error('加载导航配置失败:', error);
     }
   };
 
@@ -121,17 +118,17 @@ export default function Header() {
 
           {/* 桌面端导航 */}
           <div className="hidden md:flex items-center gap-6">
-            {navigation.map((item) => (
+            {navigationItems.map((item) => (
               <Link
-                key={item.path}
-                to={item.path}
+                key={item.module_key}
+                to={item.route_path}
                 className={`px-3 py-2 min-h-[44px] flex items-center text-sm font-medium rounded transition-colors ${
-                  location.pathname === item.path
+                  location.pathname === item.route_path
                     ? 'text-primary bg-primary/10'
                     : 'text-foreground hover:text-primary hover:bg-muted'
                 }`}
               >
-                {item.name}
+                {item.module_name}
               </Link>
             ))}
 
@@ -240,18 +237,18 @@ export default function Header() {
                   </SheetTitle>
                 </SheetHeader>
                 <div className="flex flex-col gap-2 mt-6">
-                  {navigation.map((item) => (
+                  {navigationItems.map((item) => (
                     <Link
-                      key={item.path}
-                      to={item.path}
+                      key={item.module_key}
+                      to={item.route_path}
                       onClick={() => setMobileMenuOpen(false)}
                       className={`px-4 py-3 min-h-[44px] flex items-center text-base font-medium rounded-lg transition-colors ${
-                        location.pathname === item.path
+                        location.pathname === item.route_path
                           ? 'text-primary bg-primary/10'
                           : 'text-foreground hover:text-primary hover:bg-muted'
                       }`}
                     >
-                      {item.name}
+                      {item.module_name}
                     </Link>
                   ))}
                 </div>

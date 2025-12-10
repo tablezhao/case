@@ -25,6 +25,7 @@ import { DateRangePicker } from '@/components/ui/date-range-picker';
 import { format } from 'date-fns';
 import { preprocessKeyword, generateSearchSuggestions, formatSearchResultCount } from '@/utils/searchUtils';
 import { parseExcelDate } from '@/lib/utils';
+import { sortDepartments } from '@/utils/sortUtils';
 
 export default function CaseManagePage() {
   const navigate = useNavigate();
@@ -108,7 +109,8 @@ export default function CaseManagePage() {
         getDepartments(),
         getPlatforms(),
       ]);
-      setDepartments(depts);
+      // 排序：国家级部门优先，省级部门在后
+      setDepartments(sortDepartments(depts));
       setPlatforms(plats);
     } catch (error) {
       console.error('加载基础数据失败:', error);
@@ -247,9 +249,9 @@ export default function CaseManagePage() {
       });
       if (!newDept) throw new Error('创建部门失败');
       
-      // 重新加载部门列表
+      // 重新加载部门列表并排序
       const updatedDepts = await getDepartments();
-      setDepartments(updatedDepts);
+      setDepartments(sortDepartments(updatedDepts));
       
       toast.success(`成功创建监管部门：${name}（可在"部门与平台"模块中补充详细信息）`);
       return newDept.id;

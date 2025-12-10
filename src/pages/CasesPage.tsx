@@ -34,6 +34,7 @@ import { toast } from 'sonner';
 import { useNavigate } from 'react-router-dom';
 import { format } from 'date-fns';
 import { preprocessKeyword, generateSearchSuggestions, formatSearchResultCount } from '@/utils/searchUtils';
+import { sortDepartments } from '@/utils/sortUtils';
 
 // 文本截断函数：限制为25个字符
 const truncateText = (text: string | null | undefined, maxLength: number = 25): string => {
@@ -103,7 +104,8 @@ export default function CasesPage() {
         getDepartments(),
         getPlatforms(),
       ]);
-      setDepartments(depts);
+      // 排序：国家级部门优先，省级部门在后
+      setDepartments(sortDepartments(depts));
       setPlatforms(plats);
     } catch (error) {
       console.error('加载基础数据失败:', error);
@@ -189,7 +191,7 @@ export default function CasesPage() {
           <div className="flex flex-col gap-4">
             <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
               <div>
-                <CardTitle className="text-xl sm:text-2xl">案例查询</CardTitle>
+                <CardTitle className="text-2xl">案例查询</CardTitle>
                 <p className="text-sm text-muted-foreground mt-1">
                   共 {total} 条案例
                   {hasActiveFilters && <span className="text-primary ml-2">（已筛选）</span>}
