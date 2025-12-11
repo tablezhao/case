@@ -44,7 +44,7 @@ export default function TrendAnalysisPage() {
   const [trendOverviewLoading, setTrendOverviewLoading] = useState(true);
   
   // 排名模块状态管理
-  const [selectedDimension, setSelectedDimension] = useState<TimeDimension>('yearly');
+  const [selectedDimension, setSelectedDimension] = useState<TimeDimension>('all');
   const [selectedYear, setSelectedYear] = useState<string>(new Date().getFullYear().toString());
   const [selectedMonth, setSelectedMonth] = useState<string>('01');
   const [selectedHalfYear, setSelectedHalfYear] = useState<'H1' | 'H2'>('H1');
@@ -57,7 +57,7 @@ export default function TrendAnalysisPage() {
 
   // 趋势分析模块状态管理
   const [applicationTrendData, setApplicationTrendData] = useState<any[]>([]);
-  const [selectedApplicationDataDimension, setSelectedApplicationDataDimension] = useState<TrendDimension>('yearly');
+  const [selectedApplicationDataDimension, setSelectedApplicationDataDimension] = useState<TrendDimension>('all');
   const [selectedTrendYear, setSelectedTrendYear] = useState<string>(new Date().getFullYear().toString());
   const [selectedTrendDepartment, setSelectedTrendDepartment] = useState<string>('');
   const [applicationTrendLoading, setApplicationTrendLoading] = useState(false);
