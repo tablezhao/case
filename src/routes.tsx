@@ -18,6 +18,7 @@ import FooterSettingsPage from './pages/admin/FooterSettingsPage';
 import ModuleControlPage from './pages/admin/ModuleControlPage';
 import HomeConfigPage from './pages/admin/HomeConfigPage';
 import SiteSettingsPage from './pages/admin/SiteSettingsPage';
+import ParseTestPage from './pages/admin/ParseTestPage';
 import ProtectedModuleRoute from './components/common/ProtectedModuleRoute';
 
 interface RouteConfig {
@@ -188,6 +189,14 @@ const routes: RouteConfig[] = [
     name: '网站基本信息',
     path: '/admin/site-settings',
     element: <SiteSettingsPage />,
+    visible: false,
+    requireAuth: true,
+    requireAdmin: true,
+  },
+  {
+    name: '解析测试工具',
+    path: '/admin/parse-test',
+    element: <ParseTestPage />,
     visible: false,
     requireAuth: true,
     requireAdmin: true,

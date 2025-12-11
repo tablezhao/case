@@ -2998,3 +2998,43 @@ export async function getAvailableYears(): Promise<string[]> {
     return [currentYear.toString()];
   }
 }
+
+/**
+ * 获取高频违规问题统计数据
+ * @param departmentId 监管部门ID（可选）
+ * @param dimension 数据维度：'all' | 'yearly' | 'monthly'
+ * @param year 年份（当dimension为yearly或monthly时必填）
+ * @param month 月份（当dimension为monthly时必填）
+ * @param limit 返回前N个高频问题，默认10
+ * @returns 高频问题列表
+ */
+export async function getHighFrequencyIssues(
+  departmentId?: string,
+  dimension: 'all' | 'yearly' | 'monthly' = 'all',
+  year?: number,
+  month?: number,
+  limit: number = 10
+): Promise<Array<{ violation_issue: string; frequency: number; percentage: number }>> {
+  try {
+    console.log('[getHighFrequencyIssues] 调用参数:', { departmentId, dimension, year, month, limit });
+    
+    const { data, error } = await supabase.rpc('get_high_frequency_issues', {
+      p_department_id: departmentId || null,
+      p_dimension: dimension,
+      p_year: year || null,
+      p_month: month || null,
+      p_limit: limit,
+    });
+    
+    if (error) {
+      console.error('[getHighFrequencyIssues] RPC调用失败:', error);
+      throw error;
+    }
+    
+    console.log('[getHighFrequencyIssues] 返回数据:', data);
+    return Array.isArray(data) ? data : [];
+  } catch (error) {
+    console.error('[getHighFrequencyIssues] 获取高频问题失败:', error);
+    throw error;
+  }
+}

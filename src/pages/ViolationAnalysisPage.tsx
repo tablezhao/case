@@ -1,519 +1,401 @@
-import { useEffect, useState } from 'react';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { Button } from '@/components/ui/button';
+import { useEffect, useState, useRef } from 'react';
+import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Skeleton } from '@/components/ui/skeleton';
-import { Badge } from '@/components/ui/badge';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
-import { Download, AlertTriangle } from 'lucide-react';
+import { Label } from '@/components/ui/label';
 import { toast } from 'sonner';
-import {
-  getViolationTypeAnalysis,
-  getViolationTimeTrend,
-  getViolationDepartmentAnalysis,
-  getViolationSeverityAnalysis,
-  exportViolationAnalysis,
-  getDepartments,
-} from '@/db/api';
+import { getHighFrequencyIssues, getDepartments, getAvailableYears } from '@/db/api';
+import { sortDepartments } from '@/utils/sortUtils';
 import type { RegulatoryDepartment } from '@/types/types';
-import {
-  ResponsiveContainer,
-  PieChart,
-  Pie,
-  Cell,
-  Tooltip,
-  Legend,
-  LineChart,
-  Line,
-  XAxis,
-  YAxis,
-  CartesianGrid,
-} from 'recharts';
+import ReactECharts from 'echarts-for-react';
+import PageMeta from '@/components/common/PageMeta';
+import { chartPalette } from '@/lib/colors';
 
-const COLORS = [
-  'hsl(var(--primary))',
-  'hsl(var(--secondary))',
-  '#FF6B35',
-  '#4ECDC4',
-  '#45B7D1',
-  '#FFA07A',
-  '#98D8C8',
-  '#F7DC6F',
-  '#BB8FCE',
-  '#85C1E2',
-  '#F8B739',
-  '#52B788',
-  '#E76F51',
-  '#2A9D8F',
-  '#E9C46A',
-];
+// 数据维度类型
+type DataDimension = 'all' | 'yearly' | 'monthly';
+
+// 高频问题数据类型
+interface HighFrequencyIssue {
+  violation_issue: string;
+  frequency: number;
+  percentage: number;
+}
 
 export default function ViolationAnalysisPage() {
-  const [loading, setLoading] = useState(false);
+  // 筛选条件状态
   const [departments, setDepartments] = useState<RegulatoryDepartment[]>([]);
-  const [selectedYear, setSelectedYear] = useState(new Date().getFullYear().toString());
-  const [selectedDepartments, setSelectedDepartments] = useState<string[]>([]);
+  const [selectedDepartment, setSelectedDepartment] = useState<string>('all');
+  const [dataDimension, setDataDimension] = useState<DataDimension>('all');
+  const [availableYears, setAvailableYears] = useState<string[]>([]);
+  const [selectedYear, setSelectedYear] = useState<string>('');
+  const [selectedMonth, setSelectedMonth] = useState<string>('1');
+  
+  // 数据状态
+  const [loading, setLoading] = useState(false);
+  const [issuesData, setIssuesData] = useState<HighFrequencyIssue[]>([]);
+  
+  // 容器宽度状态，用于响应式布局
+  const [containerWidth, setContainerWidth] = useState(0);
+  const chartContainerRef = useRef<HTMLDivElement>(null);
 
-  // 违规问题分析数据
-  const [violationTypeData, setViolationTypeData] = useState<any[]>([]);
-  const [violationTrendData, setViolationTrendData] = useState<any[]>([]);
-  const [violationDeptData, setViolationDeptData] = useState<any[]>([]);
-  const [violationSeverityData, setViolationSeverityData] = useState<any>(null);
+  // 月份选项
+  const months = Array.from({ length: 12 }, (_, i) => ({
+    value: (i + 1).toString(),
+    label: `${i + 1}月`,
+  }));
 
-  // 生成最近6年的年份选项
-  const currentYear = new Date().getFullYear();
-  const years = Array.from({ length: 6 }, (_, i) => (currentYear - i).toString());
-
+  // 初始化加载
   useEffect(() => {
     loadDepartments();
+    loadAvailableYears();
   }, []);
 
+  // 监听容器宽度变化
   useEffect(() => {
-    loadAnalysisData();
-  }, [selectedYear, selectedDepartments]);
+    const updateWidth = () => {
+      if (chartContainerRef.current) {
+        setContainerWidth(chartContainerRef.current.offsetWidth);
+      }
+    };
+    
+    updateWidth();
+    window.addEventListener('resize', updateWidth);
+    
+    return () => {
+      window.removeEventListener('resize', updateWidth);
+    };
+  }, []);
 
+  // 当筛选条件变化时重新加载数据
+  useEffect(() => {
+    if (dataDimension === 'all' || (dataDimension === 'yearly' && selectedYear) || (dataDimension === 'monthly' && selectedYear)) {
+      loadHighFrequencyIssues();
+    }
+  }, [selectedDepartment, dataDimension, selectedYear, selectedMonth]);
+
+  // 加载部门列表
   const loadDepartments = async () => {
     try {
       const depts = await getDepartments();
-      setDepartments(depts);
+      const sortedDepts = sortDepartments(depts);
+      setDepartments(sortedDepts);
     } catch (error) {
-      console.error('加载部门数据失败:', error);
+      console.error('加载部门列表失败:', error);
+      toast.error('加载部门列表失败');
     }
   };
 
-  const loadAnalysisData = async () => {
+  // 加载可用年份
+  const loadAvailableYears = async () => {
+    try {
+      const years = await getAvailableYears();
+      setAvailableYears(years);
+      if (years.length > 0) {
+        setSelectedYear(years[0]); // 默认选择最新年份
+      }
+    } catch (error) {
+      console.error('加载年份列表失败:', error);
+      toast.error('加载年份列表失败');
+    }
+  };
+
+  // 加载高频问题数据
+  const loadHighFrequencyIssues = async () => {
     try {
       setLoading(true);
-      const startDate = `${selectedYear}-01-01`;
-      const endDate = `${selectedYear}-12-31`;
-      const deptIds = selectedDepartments.length > 0 ? selectedDepartments : undefined;
-
-      const [typeData, trendData, deptData, severityData] = await Promise.all([
-        getViolationTypeAnalysis(deptIds, startDate, endDate),
-        getViolationTimeTrend(deptIds, selectedYear, 'month'),
-        getViolationDepartmentAnalysis(selectedYear, 10),
-        getViolationSeverityAnalysis(selectedYear),
-      ]);
-
-      setViolationTypeData(typeData);
-      setViolationTrendData(trendData);
-      setViolationDeptData(deptData);
-      setViolationSeverityData(severityData);
+      
+      const departmentId = selectedDepartment === 'all' ? undefined : selectedDepartment;
+      const year = (dataDimension === 'yearly' || dataDimension === 'monthly') ? parseInt(selectedYear) : undefined;
+      const month = dataDimension === 'monthly' ? parseInt(selectedMonth) : undefined;
+      
+      const data = await getHighFrequencyIssues(
+        departmentId,
+        dataDimension,
+        year,
+        month,
+        10 // 获取前10个高频问题
+      );
+      
+      setIssuesData(data);
     } catch (error) {
-      console.error('加载分析数据失败:', error);
-      toast.error('加载分析数据失败');
+      console.error('加载高频问题数据失败:', error);
+      toast.error('加载高频问题数据失败');
+      setIssuesData([]);
     } finally {
       setLoading(false);
     }
   };
 
-  const handleDepartmentChange = (value: string) => {
-    if (value === 'all') {
-      setSelectedDepartments([]);
-    } else {
-      if (selectedDepartments.includes(value)) {
-        setSelectedDepartments(selectedDepartments.filter(id => id !== value));
-      } else {
-        if (selectedDepartments.length >= 5) {
-          toast.error('最多只能选择5个监管部门');
-          return;
-        }
-        setSelectedDepartments([...selectedDepartments, value]);
-      }
+  // 处理数据维度变化
+  const handleDimensionChange = (value: DataDimension) => {
+    setDataDimension(value);
+    // 如果切换到按年或按月，确保有选中的年份
+    if ((value === 'yearly' || value === 'monthly') && !selectedYear && availableYears.length > 0) {
+      setSelectedYear(availableYears[0]);
     }
   };
 
-  const handleExportViolationData = async () => {
-    try {
-      const startDate = `${selectedYear}-01-01`;
-      const endDate = `${selectedYear}-12-31`;
-      const deptIds = selectedDepartments.length > 0 ? selectedDepartments : undefined;
-
-      const data = await exportViolationAnalysis(deptIds, startDate, endDate);
-
-      if (data.length === 0) {
-        toast.error('没有可导出的数据');
-        return;
-      }
-
-      const headers = ['通报日期', '应用名称', '开发者', '监管部门', '应用平台', '违规内容', '违规关键词'];
-      const csvContent = [
-        headers.join(','),
-        ...data.map(row => [
-          row.report_date,
-          `"${row.app_name}"`,
-          `"${row.app_developer}"`,
-          `"${row.department}"`,
-          `"${row.platform}"`,
-          `"${row.violation_content.replace(/"/g, '""')}"`,
-          `"${row.violation_keywords.replace(/"/g, '""')}"`,
-        ].join(','))
-      ].join('\n');
-
-      const blob = new Blob(['\ufeff' + csvContent], { type: 'text/csv;charset=utf-8;' });
-      const link = document.createElement('a');
-      link.href = URL.createObjectURL(blob);
-      link.download = `违规问题分析_${selectedYear}.csv`;
-      link.click();
-
-      toast.success('数据导出成功');
-    } catch (error) {
-      console.error('导出数据失败:', error);
-      toast.error('导出数据失败');
+  // 生成饼图配置
+  const getPieChartOption = () => {
+    if (issuesData.length === 0) {
+      return null;
     }
+
+    // 响应式布局判断
+    const isSmallScreen = containerWidth < 768;
+    const isMediumScreen = containerWidth >= 768 && containerWidth < 1024;
+
+    return {
+      tooltip: {
+        trigger: 'item',
+        formatter: '{b}<br/>频次: {c}<br/>占比: {d}%',
+        backgroundColor: 'rgba(255, 255, 255, 0.95)',
+        borderColor: '#ddd',
+        borderWidth: 1,
+        textStyle: {
+          color: '#333',
+          fontSize: 13,
+        },
+        padding: [10, 15],
+      },
+      legend: {
+        // 小屏幕使用底部横向布局，大屏幕使用右侧纵向布局
+        orient: isSmallScreen ? 'horizontal' : 'vertical',
+        [isSmallScreen ? 'bottom' : 'right']: isSmallScreen ? '0%' : '5%',
+        [isSmallScreen ? 'left' : 'top']: isSmallScreen ? 'center' : 'center',
+        // 图例文字样式
+        textStyle: {
+          fontSize: isSmallScreen ? 11 : 12,
+          overflow: 'truncate',
+          width: isSmallScreen ? 80 : 120,
+        },
+        // 图例项之间的间距
+        itemGap: isSmallScreen ? 8 : 10,
+        // 图例图标大小
+        itemWidth: isSmallScreen ? 12 : 14,
+        itemHeight: isSmallScreen ? 12 : 14,
+        // 启用图例滚动
+        type: isSmallScreen ? 'scroll' : 'plain',
+        pageButtonItemGap: 5,
+        pageButtonGap: 10,
+        pageIconSize: 12,
+        pageTextStyle: {
+          fontSize: 11,
+        },
+      },
+      series: [
+        {
+          name: '违规问题',
+          type: 'pie',
+          // 根据屏幕大小调整饼图位置和大小
+          radius: isSmallScreen ? ['30%', '55%'] : ['40%', '70%'],
+          center: isSmallScreen ? ['50%', '40%'] : ['40%', '50%'],
+          avoidLabelOverlap: false,
+          itemStyle: {
+            borderRadius: 6,
+            borderColor: '#fff',
+            borderWidth: 2,
+          },
+          label: {
+            show: false,
+            position: 'center',
+          },
+          emphasis: {
+            label: {
+              show: true,
+              fontSize: isSmallScreen ? 16 : 20,
+              fontWeight: 'bold',
+            },
+            itemStyle: {
+              shadowBlur: 15,
+              shadowOffsetX: 0,
+              shadowOffsetY: 0,
+              shadowColor: 'rgba(0, 0, 0, 0.3)',
+            },
+            scale: true,
+            scaleSize: 10,
+          },
+          labelLine: {
+            show: false,
+          },
+          data: issuesData.map((item, index) => ({
+            value: item.frequency,
+            name: item.violation_issue.length > 20 
+              ? item.violation_issue.substring(0, 20) + '...' 
+              : item.violation_issue,
+            itemStyle: {
+              // 使用与首页一致的配色方案
+              color: chartPalette[index % chartPalette.length],
+            },
+          })),
+        },
+      ],
+    };
   };
+
+  const pieChartOption = getPieChartOption();
 
   return (
     <div className="container mx-auto py-8 px-4 space-y-6">
+      <PageMeta title="问题分析" description="高频违规问题统计分析" />
+      
       {/* 页面标题 */}
-      <div className="flex items-center justify-between">
-        <div>
-          <h1 className="text-2xl font-bold">问题分析</h1>
-          <p className="text-muted-foreground mt-2">深度分析违规问题的多维度数据，识别高频问题和监管重点</p>
-        </div>
+      <div>
+        <h1 className="text-2xl font-bold">问题分析</h1>
+        <p className="text-muted-foreground mt-2">统计分析高频违规问题，识别监管重点</p>
       </div>
 
       {/* 筛选条件 */}
       <Card>
         <CardHeader>
           <CardTitle>筛选条件</CardTitle>
+          <CardDescription>选择监管部门和数据维度进行分析</CardDescription>
         </CardHeader>
         <CardContent>
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+            {/* 监管部门筛选 */}
             <div className="space-y-2">
-              <label className="text-sm font-medium">选择年份</label>
-              <Select value={selectedYear} onValueChange={setSelectedYear}>
+              <Label>监管部门</Label>
+              <Select value={selectedDepartment} onValueChange={setSelectedDepartment}>
                 <SelectTrigger>
                   <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  {years.map(year => (
-                    <SelectItem key={year} value={year}>
-                      {year}年
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </div>
-
-            <div className="space-y-2">
-              <label className="text-sm font-medium">选择监管部门（最多5个）</label>
-              <Select onValueChange={handleDepartmentChange}>
-                <SelectTrigger>
-                  <SelectValue placeholder={
-                    selectedDepartments.length === 0
-                      ? '全部部门'
-                      : `已选择 ${selectedDepartments.length} 个部门`
-                  } />
                 </SelectTrigger>
                 <SelectContent>
                   <SelectItem value="all">全部部门</SelectItem>
                   {departments.map(dept => (
                     <SelectItem key={dept.id} value={dept.id}>
-                      {selectedDepartments.includes(dept.id) ? '✓ ' : ''}{dept.name}
+                      {dept.name}
                     </SelectItem>
                   ))}
                 </SelectContent>
               </Select>
-              {selectedDepartments.length > 0 && (
-                <div className="flex flex-wrap gap-2 mt-2">
-                  {selectedDepartments.map(deptId => {
-                    const dept = departments.find(d => d.id === deptId);
-                    return dept ? (
-                      <Badge key={deptId} variant="secondary" className="cursor-pointer" onClick={() => handleDepartmentChange(deptId)}>
-                        {dept.name} ×
-                      </Badge>
-                    ) : null;
-                  })}
-                </div>
-              )}
             </div>
+
+            {/* 数据维度筛选 */}
+            <div className="space-y-2">
+              <Label>数据维度</Label>
+              <Select value={dataDimension} onValueChange={handleDimensionChange}>
+                <SelectTrigger>
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">全部数据</SelectItem>
+                  <SelectItem value="yearly">按年统计</SelectItem>
+                  <SelectItem value="monthly">按月统计</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+
+            {/* 年份筛选（当选择按年或按月时显示） */}
+            {(dataDimension === 'yearly' || dataDimension === 'monthly') && (
+              <div className="space-y-2">
+                <Label>选择年份</Label>
+                <Select value={selectedYear} onValueChange={setSelectedYear}>
+                  <SelectTrigger>
+                    <SelectValue placeholder="请选择年份" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {availableYears.map(year => (
+                      <SelectItem key={year} value={year}>
+                        {year}年
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+            )}
+
+            {/* 月份筛选（当选择按月时显示） */}
+            {dataDimension === 'monthly' && (
+              <div className="space-y-2">
+                <Label>选择月份</Label>
+                <Select value={selectedMonth} onValueChange={setSelectedMonth}>
+                  <SelectTrigger>
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {months.map(month => (
+                      <SelectItem key={month.value} value={month.value}>
+                        {month.label}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+            )}
           </div>
         </CardContent>
       </Card>
 
-      {/* 操作栏 */}
-      <Card>
-        <CardContent className="pt-6">
-          <div className="flex items-center justify-between">
-            <div className="flex items-center gap-2">
-              <AlertTriangle className="w-5 h-5 text-primary" />
-              <h3 className="text-lg font-semibold">违规问题深度分析</h3>
-            </div>
-            <Button onClick={handleExportViolationData} variant="outline" className="gap-2">
-              <Download className="w-4 h-4" />
-              导出分析数据
-            </Button>
-          </div>
-        </CardContent>
-      </Card>
-
-      {/* 违规类型分布 */}
+      {/* 高频问题分析 */}
       <Card>
         <CardHeader>
-          <CardTitle>违规类型分布（TOP 15）</CardTitle>
+          <CardTitle>高频问题分析（TOP 10）</CardTitle>
+          <CardDescription>
+            展示出现频次最高的10个违规问题及其占比分布
+          </CardDescription>
         </CardHeader>
         <CardContent>
           {loading ? (
-            <Skeleton className="h-96 bg-muted" />
-          ) : violationTypeData.length > 0 ? (
             <div className="space-y-4">
-              {/* 饼图 */}
-              <ResponsiveContainer width="100%" height={400}>
-                <PieChart>
-                  <Pie
-                    data={violationTypeData.slice(0, 15)}
-                    dataKey="count"
-                    nameKey="type"
-                    cx="50%"
-                    cy="50%"
-                    outerRadius={120}
-                    label={(entry) => `${entry.type.substring(0, 15)}${entry.type.length > 15 ? '...' : ''}`}
-                  >
-                    {violationTypeData.slice(0, 15).map((_, index) => (
-                      <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
-                    ))}
-                  </Pie>
-                  <Tooltip />
-                  <Legend />
-                </PieChart>
-              </ResponsiveContainer>
+              <Skeleton className="h-96 bg-muted" />
+              <Skeleton className="h-64 bg-muted" />
+            </div>
+          ) : issuesData.length > 0 ? (
+            <div className="grid grid-cols-1 lg:grid-cols-2 gap-6" ref={chartContainerRef}>
+              {/* 左侧：饼图 */}
+              <div className="space-y-4">
+                <h3 className="text-lg font-semibold">问题分布饼图</h3>
+                {pieChartOption && (
+                  <ReactECharts
+                    option={pieChartOption}
+                    style={{ height: '500px' }}
+                    opts={{ renderer: 'svg' }}
+                  />
+                )}
+              </div>
 
-              {/* 详细列表 */}
-              <div className="border rounded-lg overflow-hidden">
-                <Table>
-                  <TableHeader>
-                    <TableRow>
-                      <TableHead className="w-16">排名</TableHead>
-                      <TableHead>违规类型</TableHead>
-                      <TableHead className="text-right w-24">出现次数</TableHead>
-                      <TableHead className="text-right w-24">占比</TableHead>
-                    </TableRow>
-                  </TableHeader>
-                  <TableBody>
-                    {violationTypeData.slice(0, 15).map((item, index) => {
-                      const total = violationTypeData.reduce((sum, v) => sum + v.count, 0);
-                      const percentage = ((item.count / total) * 100).toFixed(1);
-                      return (
+              {/* 右侧：详细表格 */}
+              <div className="space-y-4">
+                <h3 className="text-lg font-semibold">问题详情列表</h3>
+                <div className="border rounded-lg overflow-hidden">
+                  <Table>
+                    <TableHeader>
+                      <TableRow>
+                        <TableHead className="w-16">排名</TableHead>
+                        <TableHead>违规问题</TableHead>
+                        <TableHead className="text-right w-20">频次</TableHead>
+                        <TableHead className="text-right w-20">占比</TableHead>
+                      </TableRow>
+                    </TableHeader>
+                    <TableBody>
+                      {issuesData.map((item, index) => (
                         <TableRow key={index}>
                           <TableCell className="font-medium">#{index + 1}</TableCell>
-                          <TableCell className="max-w-md truncate" title={item.type}>
-                            {item.type}
+                          <TableCell 
+                            className="max-w-xs truncate" 
+                            title={item.violation_issue}
+                          >
+                            {item.violation_issue}
                           </TableCell>
-                          <TableCell className="text-right">{item.count}</TableCell>
-                          <TableCell className="text-right">{percentage}%</TableCell>
+                          <TableCell className="text-right font-medium">
+                            {item.frequency}
+                          </TableCell>
+                          <TableCell className="text-right text-primary font-medium">
+                            {item.percentage}%
+                          </TableCell>
                         </TableRow>
-                      );
-                    })}
-                  </TableBody>
-                </Table>
+                      ))}
+                    </TableBody>
+                  </Table>
+                </div>
               </div>
             </div>
           ) : (
             <div className="text-center py-12 text-muted-foreground">
-              暂无违规类型数据
-            </div>
-          )}
-        </CardContent>
-      </Card>
-
-      {/* 违规问题时间趋势 */}
-      <Card>
-        <CardHeader>
-          <CardTitle>违规问题时间趋势（{selectedYear}年）</CardTitle>
-        </CardHeader>
-        <CardContent>
-          {loading ? (
-            <Skeleton className="h-96 bg-muted" />
-          ) : violationTrendData.length > 0 ? (
-            <ResponsiveContainer width="100%" height={400}>
-              <LineChart data={violationTrendData}>
-                <CartesianGrid strokeDasharray="3 3" />
-                <XAxis dataKey="time" />
-                <YAxis />
-                <Tooltip />
-                <Legend />
-                <Line
-                  type="monotone"
-                  dataKey="count"
-                  name="违规问题数量"
-                  stroke="hsl(var(--primary))"
-                  strokeWidth={2}
-                  dot={{ r: 4 }}
-                  activeDot={{ r: 6 }}
-                />
-              </LineChart>
-            </ResponsiveContainer>
-          ) : (
-            <div className="text-center py-12 text-muted-foreground">
-              暂无时间趋势数据
-            </div>
-          )}
-        </CardContent>
-      </Card>
-
-      {/* 违规问题与部门关联 */}
-      <Card>
-        <CardHeader>
-          <CardTitle>违规问题与监管部门关联分析（TOP 10）</CardTitle>
-        </CardHeader>
-        <CardContent>
-          {loading ? (
-            <Skeleton className="h-96 bg-muted" />
-          ) : violationDeptData.length > 0 ? (
-            <div className="space-y-6">
-              {violationDeptData.map((item, index) => (
-                <Card key={index} className="border-l-4 border-l-primary">
-                  <CardHeader className="pb-3">
-                    <div className="flex items-center justify-between">
-                      <CardTitle className="text-base">
-                        #{index + 1} {item.violation}
-                      </CardTitle>
-                      <Badge variant="secondary" className="text-base px-3 py-1">
-                        共{item.total}次
-                      </Badge>
-                    </div>
-                  </CardHeader>
-                  <CardContent>
-                    <div className="space-y-2">
-                      <p className="text-sm font-medium text-muted-foreground mb-2">
-                        主要监管部门：
-                      </p>
-                      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-2">
-                        {item.departments.slice(0, 6).map((dept: any) => (
-                          <div
-                            key={dept.departmentId}
-                            className="flex items-center justify-between p-2 rounded border bg-card"
-                          >
-                            <span className="text-sm truncate flex-1">
-                              {dept.departmentName}
-                            </span>
-                            <Badge variant="outline" className="ml-2">
-                              {dept.count}次
-                            </Badge>
-                          </div>
-                        ))}
-                      </div>
-                    </div>
-                  </CardContent>
-                </Card>
-              ))}
-            </div>
-          ) : (
-            <div className="text-center py-12 text-muted-foreground">
-              暂无部门关联数据
-            </div>
-          )}
-        </CardContent>
-      </Card>
-
-      {/* 违规问题严重程度分析 */}
-      <Card>
-        <CardHeader>
-          <CardTitle>违规问题严重程度分析（基于频次）</CardTitle>
-        </CardHeader>
-        <CardContent>
-          {loading ? (
-            <Skeleton className="h-96 bg-muted" />
-          ) : violationSeverityData ? (
-            <div className="space-y-6">
-              {/* 高频违规问题 */}
-              {violationSeverityData.high.length > 0 && (
-                <div>
-                  <div className="flex items-center gap-2 mb-4">
-                    <Badge variant="destructive" className="text-base px-3 py-1">
-                      高频问题
-                    </Badge>
-                    <span className="text-sm text-muted-foreground">
-                      （出现频次 ≥ 最大值的60%）
-                    </span>
-                  </div>
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-                    {violationSeverityData.high.map((item: any, index: number) => (
-                      <Card key={index} className="border-l-4 border-l-destructive">
-                        <CardContent className="pt-4">
-                          <div className="flex items-center justify-between">
-                            <span className="text-sm font-medium truncate flex-1">
-                              {item.violation}
-                            </span>
-                            <Badge variant="destructive" className="ml-2">
-                              {item.count}次
-                            </Badge>
-                          </div>
-                        </CardContent>
-                      </Card>
-                    ))}
-                  </div>
-                </div>
-              )}
-
-              {/* 中频违规问题 */}
-              {violationSeverityData.medium.length > 0 && (
-                <div>
-                  <div className="flex items-center gap-2 mb-4">
-                    <Badge className="text-base px-3 py-1 bg-orange-500">
-                      中频问题
-                    </Badge>
-                    <span className="text-sm text-muted-foreground">
-                      （出现频次 ≥ 最大值的30%）
-                    </span>
-                  </div>
-                  <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3">
-                    {violationSeverityData.medium.slice(0, 12).map((item: any, index: number) => (
-                      <Card key={index} className="border-l-4 border-l-orange-500">
-                        <CardContent className="pt-4">
-                          <div className="flex items-center justify-between">
-                            <span className="text-sm truncate flex-1" title={item.violation}>
-                              {item.violation}
-                            </span>
-                            <Badge variant="outline" className="ml-2">
-                              {item.count}次
-                            </Badge>
-                          </div>
-                        </CardContent>
-                      </Card>
-                    ))}
-                  </div>
-                </div>
-              )}
-
-              {/* 低频违规问题统计 */}
-              {violationSeverityData.low.length > 0 && (
-                <div>
-                  <div className="flex items-center gap-2 mb-4">
-                    <Badge variant="secondary" className="text-base px-3 py-1">
-                      低频问题
-                    </Badge>
-                    <span className="text-sm text-muted-foreground">
-                      （共{violationSeverityData.low.length}种，仅显示前15种）
-                    </span>
-                  </div>
-                  <div className="border rounded-lg overflow-hidden">
-                    <Table>
-                      <TableHeader>
-                        <TableRow>
-                          <TableHead>违规类型</TableHead>
-                          <TableHead className="text-right w-24">出现次数</TableHead>
-                        </TableRow>
-                      </TableHeader>
-                      <TableBody>
-                        {violationSeverityData.low.slice(0, 15).map((item: any, index: number) => (
-                          <TableRow key={index}>
-                            <TableCell className="max-w-md truncate" title={item.violation}>
-                              {item.violation}
-                            </TableCell>
-                            <TableCell className="text-right">{item.count}</TableCell>
-                          </TableRow>
-                        ))}
-                      </TableBody>
-                    </Table>
-                  </div>
-                </div>
-              )}
-            </div>
-          ) : (
-            <div className="text-center py-12 text-muted-foreground">
-              暂无严重程度分析数据
+              <p className="text-lg">暂无数据</p>
+              <p className="text-sm mt-2">请调整筛选条件后重试</p>
             </div>
           )}
         </CardContent>

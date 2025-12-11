@@ -1,6 +1,6 @@
 import { Link } from 'react-router-dom';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
-import { FileText, Newspaper, Users, Building2, Sparkles, Layout, Settings, Home, Globe } from 'lucide-react';
+import { FileText, Newspaper, Users, Building2, Sparkles, Layout, Settings, Home, Globe, Split } from 'lucide-react';
 
 export default function AdminPage() {
   const menuItems = [
@@ -66,6 +66,13 @@ export default function AdminPage() {
       icon: Globe,
       link: '/admin/site-settings',
       color: 'text-purple-500',
+    },
+    {
+      title: '解析测试工具',
+      description: '测试违规问题文本的语义拆分',
+      icon: Split,
+      link: '/admin/parse-test',
+      color: 'text-green-500',
     },
   ];
 
