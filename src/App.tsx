@@ -1,9 +1,7 @@
-// @ts-ignore  // 临时忽略类型声明错误，等待 react-router-dom 类型包安装
 import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-dom';
 import { Toaster } from '@/components/ui/sonner';
 import { ModuleProvider } from '@/contexts/ModuleContext';
 import { useBrowserTitle } from '@/hooks/useBrowserTitle';
-import { Analytics } from '@vercel/analytics/react';
 import Header from '@/components/common/Header';
 import Footer from '@/components/common/Footer';
 import routes from './routes';
@@ -31,7 +29,6 @@ export default function App() {
           </main>
           <Footer />
           <Toaster />
-          <Analytics />
         </div>
       </ModuleProvider>
     </Router>

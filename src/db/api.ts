@@ -2632,6 +2632,41 @@ export async function deleteLogo(url: string) {
   if (error) throw error;
 }
 
+// ============ Favicon相关 ============
+
+export async function uploadFavicon(file: File): Promise<string> {
+  const fileExt = file.name.split('.').pop();
+  const fileName = `favicon-${Date.now()}.${fileExt}`;
+  const filePath = `${fileName}`;
+
+  const { error: uploadError } = await supabase.storage
+    .from('app-800go8thhcsh_logos')
+    .upload(filePath, file, {
+      cacheControl: '3600',
+      upsert: false
+    });
+
+  if (uploadError) throw uploadError;
+
+  const { data } = supabase.storage
+    .from('app-800go8thhcsh_logos')
+    .getPublicUrl(filePath);
+
+  return data.publicUrl;
+}
+
+export async function deleteFavicon(url: string) {
+  // 从URL中提取文件路径
+  const urlParts = url.split('/');
+  const fileName = urlParts[urlParts.length - 1];
+
+  const { error } = await supabase.storage
+    .from('app-800go8thhcsh_logos')
+    .remove([fileName]);
+
+  if (error) throw error;
+}
+
 // ============ 趋势概览相关 ============
 
 /**

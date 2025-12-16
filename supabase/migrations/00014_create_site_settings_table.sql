@@ -32,9 +32,9 @@
 ## 5. 存储桶
 创建logo存储桶，用于上传Logo图片
 - 桶名：app-800go8thhcsh_logos
-- 公开访问
-- 文件大小限制：2MB
-- 允许的MIME类型：image/png, image/jpeg, image/svg+xml
+-- 公开访问
+-- 文件大小限制：2MB
+-- 允许的MIME类型：image/png, image/jpeg, image/svg+xml, image/x-icon, image/vnd.microsoft.icon
 */
 
 -- 创建网站基本信息配置表

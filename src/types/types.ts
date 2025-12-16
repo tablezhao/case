@@ -165,6 +165,7 @@ export interface SiteSettings {
   site_subtitle: string | null;
   browser_title: string | null;
   logo_url: string | null;
+  favicon_url: string | null;
   created_at: string;
   updated_at: string;
 }
