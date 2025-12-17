@@ -1944,133 +1944,45 @@ export async function getDepartmentRanking(params: {
   halfYear?: 'H1' | 'H2';
   limit?: number;
 }) {
-  const { dimension, year, month, halfYear, limit = 10 } = params;
-  
-  console.log('[getDepartmentRanking] 开始查询，参数:', params);
-  
-  // 构建查询条件
-  let query = supabase
-    .from('cases')
-    .select(`
-      report_date,
-      department_id,
-      application_count,
-      department:regulatory_departments(id, name)
-    `);
+  try {
+    // 调用Supabase rpc函数
+    const { data, error } = await supabase.rpc('get_department_ranking', {
+      p_dimension: params.dimension,
+      p_year: params.year,
+      p_month: params.month,
+      p_half_year: params.halfYear,
+      p_limit: params.limit || 10
+    });
 
-  // 根据维度添加日期过滤
-  if (dimension === 'monthly' && year && month) {
-    // 月度：指定年月
-    const startDate = `${year}-${month}-01`;
-    const endDate = `${year}-${month}-31`;
-    console.log('[getDepartmentRanking] 月度查询:', startDate, '至', endDate);
-    query = query
-      .gte('report_date', startDate)
-      .lte('report_date', endDate);
-  } else if (dimension === 'half-yearly' && year && halfYear) {
-    // 半年度：H1(1-6月) 或 H2(7-12月)
-    if (halfYear === 'H1') {
-      const startDate = `${year}-01-01`;
-      const endDate = `${year}-06-30`;
-      console.log('[getDepartmentRanking] 上半年查询:', startDate, '至', endDate);
-      query = query
-        .gte('report_date', startDate)
-        .lte('report_date', endDate);
-    } else {
-      const startDate = `${year}-07-01`;
-      const endDate = `${year}-12-31`;
-      console.log('[getDepartmentRanking] 下半年查询:', startDate, '至', endDate);
-      query = query
-        .gte('report_date', startDate)
-        .lte('report_date', endDate);
+    if (error) {
+      console.error('调用RPC函数失败:', error);
+      throw error;
     }
-  } else if (dimension === 'yearly' && year) {
-    // 年度：整年
-    const startDate = `${year}-01-01`;
-    const endDate = `${year}-12-31`;
-    console.log('[getDepartmentRanking] 年度查询:', startDate, '至', endDate);
-    query = query
-      .gte('report_date', startDate)
-      .lte('report_date', endDate);
-  } else {
-    console.log('[getDepartmentRanking] 全部时间段查询');
-  }
 
-  const { data, error } = await query;
+    // 转换数据结构，确保前端组件能正确处理
+    const transformedData = data.map(item => ({
+      departmentId: item.result_department_id,  // 映射新的返回列名
+      departmentName: item.department_name,
+      reportCount: Number(item.report_count),   // 转换为数字类型
+      appCount: Number(item.app_count)          // 转换为数字类型
+    }));
 
-  if (error) {
-    console.error('[getDepartmentRanking] 查询失败:', error);
+    // 按通报频次排序
+    const byReportCount = [...transformedData]
+      .sort((a, b) => b.reportCount - a.reportCount);
+
+    // 按通报应用量排序
+    const byAppCount = [...transformedData]
+      .sort((a, b) => b.appCount - a.appCount);
+
+    return {
+      byReportCount,
+      byAppCount
+    };
+  } catch (error) {
+    console.error('获取部门排名失败:', error);
     throw error;
   }
-
-  console.log('[getDepartmentRanking] 查询成功，返回', data?.length || 0, '条记录');
-
-  // 如果没有数据，返回空数组
-  if (!data || data.length === 0) {
-    console.log('[getDepartmentRanking] 没有数据，返回空结果');
-    return {
-      byReportCount: [],
-      byAppCount: [],
-    };
-  }
-
-  // 统计每个部门的数据
-  const deptStats: Record<string, {
-    name: string;
-    dates: Set<string>;
-    totalApps: number;
-  }> = {};
-
-  (data || []).forEach(item => {
-    if (!item.department_id || !item.department) {
-      console.warn('[getDepartmentRanking] 跳过无效记录:', item);
-      return;
-    }
-
-    const deptId = item.department_id;
-    const deptName = (item.department as any).name;
-    const appCount = item.application_count || 0;
-
-    if (!deptStats[deptId]) {
-      deptStats[deptId] = {
-        name: deptName,
-        dates: new Set(),
-        totalApps: 0,
-      };
-    }
-
-    // 通报频次：唯一日期数
-    deptStats[deptId].dates.add(item.report_date);
-    // 通报应用量：累加
-    deptStats[deptId].totalApps += appCount;
-  });
-
-  console.log('[getDepartmentRanking] 统计了', Object.keys(deptStats).length, '个部门');
-
-  // 转换为数组
-  const deptArray = Object.entries(deptStats).map(([id, info]) => ({
-    departmentId: id,
-    departmentName: info.name,
-    reportCount: info.dates.size, // 通报频次
-    appCount: info.totalApps, // 通报应用量
-  }));
-
-  // 按通报频次排序（降序）
-  const byReportCount = [...deptArray]
-    .sort((a, b) => b.reportCount - a.reportCount)
-    .slice(0, limit);
-
-  // 按通报应用量排序（降序）
-  const byAppCount = [...deptArray]
-    .sort((a, b) => b.appCount - a.appCount)
-    .slice(0, limit);
-
-  console.log('[getDepartmentRanking] 返回结果 - 通报频次TOP', byReportCount.length, '，应用量TOP', byAppCount.length);
-
-  return {
-    byReportCount,
-    byAppCount,
-  };
 }
 
 /**
