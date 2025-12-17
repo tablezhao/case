@@ -1332,53 +1332,81 @@ export async function getDepartmentDistribution() {
 
 // 获取国家级部门分布数据
 export async function getNationalDepartmentDistribution() {
-  const { data, error } = await supabase
-    .from('cases')
-    .select(`
-      department_id,
-      department:regulatory_departments(name, level)
-    `);
+  // 先获取所有国家级部门
+  const departments = await getNationalDepartments();
   
-  if (error) throw error;
+  if (departments.length === 0) {
+    return [];
+  }
   
-  const deptCounts: Record<string, number> = {};
-  (data || []).forEach(item => {
-    const dept = item.department as unknown as { name: string; level: string } | null;
-    // 只统计国家级部门
-    if (dept?.level === 'national') {
-      const deptName = dept?.name || '未知部门';
-      deptCounts[deptName] = (deptCounts[deptName] || 0) + 1;
-    }
-  });
-
-  return Object.entries(deptCounts)
-    .map(([name, count]) => ({ name, count }))
+  // 为每个部门获取统计数据
+  const departmentsWithStats = await Promise.all(
+    departments.map(async (dept) => {
+      // 获取该部门的所有案例（包含应用名称）
+      const { data: cases } = await supabase
+        .from('cases')
+        .select('app_name')
+        .eq('department_id', dept.id);
+      
+      const casesArray = Array.isArray(cases) ? cases : [];
+      
+      // 计算通报的相关应用数量：按应用名称去重统计
+      const uniqueApps = new Set(
+        casesArray
+          .map(item => item.app_name)
+          .filter(Boolean)
+      );
+      
+      return {
+        name: dept.name,
+        count: uniqueApps.size,
+      };
+    })
+  );
+  
+  // 返回排序后的数据
+  return departmentsWithStats
+    .filter(item => item.count > 0) // 过滤掉通报应用数量为0的部门
     .sort((a, b) => b.count - a.count);
 }
 
 // 获取省级部门分布数据
 export async function getProvincialDepartmentDistribution() {
-  const { data, error } = await supabase
-    .from('cases')
-    .select(`
-      department_id,
-      department:regulatory_departments(name, level)
-    `);
+  // 先获取所有省级部门
+  const departments = await getProvincialDepartments();
   
-  if (error) throw error;
+  if (departments.length === 0) {
+    return [];
+  }
   
-  const deptCounts: Record<string, number> = {};
-  (data || []).forEach(item => {
-    const dept = item.department as unknown as { name: string; level: string } | null;
-    // 只统计省级部门
-    if (dept?.level === 'provincial') {
-      const deptName = dept?.name || '未知部门';
-      deptCounts[deptName] = (deptCounts[deptName] || 0) + 1;
-    }
-  });
-
-  return Object.entries(deptCounts)
-    .map(([name, count]) => ({ name, count }))
+  // 为每个部门获取统计数据
+  const departmentsWithStats = await Promise.all(
+    departments.map(async (dept) => {
+      // 获取该部门的所有案例（包含应用名称）
+      const { data: cases } = await supabase
+        .from('cases')
+        .select('app_name')
+        .eq('department_id', dept.id);
+      
+      const casesArray = Array.isArray(cases) ? cases : [];
+      
+      // 计算通报的相关应用数量：按应用名称去重统计
+      const uniqueApps = new Set(
+        casesArray
+          .map(item => item.app_name)
+          .filter(Boolean)
+      );
+      
+      return {
+        name: dept.name,
+        count: uniqueApps.size,
+      };
+    })
+  );
+  
+  // 返回排序后的数据
+  return departmentsWithStats
+    .filter(item => item.count > 0) // 过滤掉通报应用数量为0的部门
     .sort((a, b) => b.count - a.count);
 }
 

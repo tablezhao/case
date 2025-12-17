@@ -480,23 +480,54 @@ export default function CaseManagePage() {
   const handleExportAll = async () => {
     try {
       setLoading(true);
-      toast.info('正在导出全部案例，请稍候...');
+      toast.info('正在导出全部案例，请稍候...', { duration: Infinity });
       
       // 预处理关键词
       const processedKeyword = preprocessKeyword(searchKeyword);
       
-      // 获取全部案例数据
-      const result = await searchCases({
+      // 分批获取数据，每次获取1000条
+      const batchSize = 1000;
+      let currentPage = 1;
+      let allCases: any[] = [];
+      let totalCases = 0;
+      
+      // 获取第一页数据，用于获取总条数
+      const firstPageResult = await searchCases({
         keyword: processedKeyword,
-        page: 1,
-        pageSize: total, // 获取全部数据
+        page: currentPage,
+        pageSize: batchSize,
         startDate: filters.startDate,
         endDate: filters.endDate,
         departmentIds: filters.departmentIds,
         platformIds: filters.platformIds,
       });
-
-      const exportData = result.data.map(c => ({
+      
+      allCases = [...firstPageResult.data];
+      totalCases = firstPageResult.total;
+      
+      // 计算总页数
+      const totalPages = Math.ceil(totalCases / batchSize);
+      
+      // 如果有更多页，继续获取
+      if (totalPages > 1) {
+        // 从第2页开始获取
+        for (currentPage = 2; currentPage <= totalPages; currentPage++) {
+          const result = await searchCases({
+            keyword: processedKeyword,
+            page: currentPage,
+            pageSize: batchSize,
+            startDate: filters.startDate,
+            endDate: filters.endDate,
+            departmentIds: filters.departmentIds,
+            platformIds: filters.platformIds,
+          });
+          
+          allCases = [...allCases, ...result.data];
+        }
+      }
+      
+      // 准备导出数据
+      const exportData = allCases.map(c => ({
         '通报日期': c.report_date,
         '应用名称': c.app_name,
         '开发者/运营者': c.app_developer || '',
@@ -506,6 +537,7 @@ export default function CaseManagePage() {
         '原文链接': c.source_url || '',
       }));
 
+      // 导出数据
       const worksheet = XLSX.utils.json_to_sheet(exportData);
       const workbook = XLSX.utils.book_new();
       XLSX.utils.book_append_sheet(workbook, worksheet, '案例数据');
@@ -513,7 +545,7 @@ export default function CaseManagePage() {
       const timestamp = new Date().toISOString().slice(0, 10);
       XLSX.writeFile(workbook, `案例数据_全部_${timestamp}.xlsx`);
       
-      toast.success(`✅ 成功导出全部 ${result.total} 条案例`);
+      toast.success(`✅ 成功导出全部 ${allCases.length} 条案例`);
     } catch (error) {
       console.error('导出失败:', error);
       toast.error('导出失败，请重试');
