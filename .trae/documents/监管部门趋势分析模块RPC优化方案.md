@@ -1,123 +1,289 @@
-# 监管部门趋势分析模块RPC优化方案
+# 基于现有RPC函数的部门分布优化方案
 
-## 一、优化背景
-当前趋势分析页面中的监管部门趋势分析模块使用前端JavaScript代码对从Supabase获取的原始数据进行分组和聚合，这种方式存在以下问题：
-1. 数据传输量大：需要传输所有原始数据到客户端
-2. 前端计算负载高：需要在客户端进行复杂的分组和聚合运算
-3. 代码复杂度高：前端需要维护复杂的数据处理逻辑
-4. 性能瓶颈：随着数据量增长，前端计算性能会下降
+## 一、现有RPC函数分析
+
+### 1. 函数功能
+
+用户提供的现有RPC函数具有以下功能：
+- 查询所有监管部门的数据
+- 统计每个部门的通报频次（按部门+日期去重）
+- 返回一个JSON对象，包含两个主要部分：
+  - `national`：国家级部门的通报频次统计
+  - `provincial`：省级部门的通报频次统计
+- 每个部门的统计数据包含 `name`（部门名称）和 `value`（通报频次）
+
+### 2. 现有函数的优势
+
+- **解决N+1查询问题**：将多个部门查询合并为一个RPC调用
+- **减少数据传输量**：只返回聚合后的结果
+- **降低前端计算负载**：将数据处理逻辑迁移到数据库端
+- **合并国家级和省级部门数据**：一次调用即可获取两种级别的部门分布数据
+
+### 3. 现有函数的局限性
+
+- **只统计通报频次**：不支持按应用数量统计
+- **返回字段名不一致**：返回`value`字段，而当前前端代码使用`count`字段
+- **省级部门无省份筛选**：不支持筛选特定省份的省级部门
+- **统计维度单一**：只支持按通报频次统计，不支持扩展其他统计维度
 
 ## 二、优化方案
-将监管部门趋势分析的数据处理逻辑迁移到Supabase RPC函数中，由数据库端负责数据的过滤、分组和聚合，前端只需要调用RPC函数并展示结果。
 
-### 1. 创建Supabase RPC函数
+基于现有RPC函数，我们可以通过以下方式优化国家级和省级部门分布模块，无需创建新的RPC函数：
 
-**SQL函数定义**：
+### 1. 修改前端代码适配现有RPC函数
+
+**修改`src/db/api.ts`中的函数**：
+
+```typescript
+// 获取国家级部门分布数据
+export async function getNationalDepartmentDistribution() {
+  try {
+    const { data, error } = await supabase.rpc('get_dept_distribution'); // 假设现有函数名为get_dept_distribution
+    
+    if (error) {
+      console.error('[getNationalDepartmentDistribution] RPC调用失败:', error);
+      throw error;
+    }
+    
+    // 适配现有函数返回格式，将value字段转换为count字段
+    const nationalData = (data?.national || []).map((item: any) => ({
+      name: item.name,
+      count: item.value
+    }));
+    
+    return nationalData;
+  } catch (error) {
+    console.error('[getNationalDepartmentDistribution] 获取国家级部门分布数据失败:', error);
+    throw error;
+  }
+}
+
+// 获取省级部门分布数据
+export async function getProvincialDepartmentDistribution(province?: string) {
+  try {
+    const { data, error } = await supabase.rpc('get_dept_distribution'); // 假设现有函数名为get_dept_distribution
+    
+    if (error) {
+      console.error('[getProvincialDepartmentDistribution] RPC调用失败:', error);
+      throw error;
+    }
+    
+    // 适配现有函数返回格式，将value字段转换为count字段
+    let provincialData = (data?.provincial || []).map((item: any) => ({
+      name: item.name,
+      count: item.value
+    }));
+    
+    // 注意：现有函数不支持按省份筛选，如果需要此功能，仍需创建新的RPC函数
+    // if (province) {
+    //   provincialData = provincialData.filter(item => item.province === province);
+    // }
+    
+    return provincialData;
+  } catch (error) {
+    console.error('[getProvincialDepartmentDistribution] 获取省级部门分布数据失败:', error);
+    throw error;
+  }
+}
+```
+
+### 2. 扩展现有函数支持应用数量统计
+
+如果需要支持按应用数量统计，可以扩展现有函数：
+
+**SQL函数扩展**：
 ```sql
--- 创建监管部门趋势分析统计函数
-CREATE OR REPLACE FUNCTION get_department_application_trend(
-  department_ids UUID[],
-  dimension TEXT,
-  year_param INT DEFAULT NULL
+-- 扩展现有函数，支持多维度统计
+CREATE OR REPLACE FUNCTION get_dept_distribution(
+  stat_dimension TEXT DEFAULT 'case_count'  -- case_count: 通报频次, app_count: 应用数量
 )
-RETURNS JSON
+RETURNS JSONB
 LANGUAGE plpgsql
 AS $$
 DECLARE
-  start_date DATE;
-  end_date DATE;
-  query_result JSON;
+  result jsonb;
 BEGIN
-  -- 根据维度设置日期范围
-  IF dimension = 'yearly' AND year_param IS NOT NULL THEN
-    start_date := TO_DATE(CONCAT(year_param, '-01-01'), 'YYYY-MM-DD');
-    end_date := TO_DATE(CONCAT(year_param, '-12-31'), 'YYYY-MM-DD');
-  ELSE
-    -- 全部数据
-    start_date := (SELECT MIN(report_date) FROM cases);
-    end_date := (SELECT MAX(report_date) FROM cases);
-  END IF;
-  
-  -- 查询并聚合数据
-  WITH case_stats AS (
+  WITH dept_stats AS (
     SELECT
-      c.report_date,
-      rd.id AS department_id,
-      rd.name AS department_name,
-      SUM(c.application_count) AS total_applications
-    FROM cases c
-    JOIN regulatory_departments rd ON c.department_id = rd.id
-    WHERE c.department_id = ANY(department_ids)
-      AND c.report_date BETWEEN start_date AND end_date
-    GROUP BY c.report_date, rd.id, rd.name
-    ORDER BY c.report_date
-  ),
-  -- 按日期分组，构建JSON结构
-  date_groups AS (
-    SELECT
-      report_date,
-      json_object_agg(department_name, total_applications) AS department_data
-    FROM case_stats
-    GROUP BY report_date
-    ORDER BY report_date
+      d.id,
+      d.name,
+      d.level,
+      d.province,
+      COUNT(DISTINCT c.department_id || '_' || c.report_date) as case_count,
+      COUNT(DISTINCT c.app_name) as app_count
+    FROM regulatory_departments d
+    LEFT JOIN cases c ON d.id = c.department_id
+    GROUP BY d.id, d.name, d.level, d.province
   )
-  -- 最终结果格式转换
-  SELECT json_agg(
-    json_build_object(
-      'date', report_date,
-      'data', department_data
-    )
-  ) INTO query_result
-  FROM date_groups;
+  SELECT jsonb_build_object(
+    'national', (SELECT jsonb_agg(
+      jsonb_build_object(
+        'name', name,
+        'value', CASE 
+          WHEN stat_dimension = 'app_count' THEN app_count 
+          ELSE case_count 
+        END,
+        'province', province
+      ) ORDER BY CASE 
+        WHEN stat_dimension = 'app_count' THEN app_count 
+        ELSE case_count 
+      END DESC
+    ) FROM dept_stats WHERE level = 'national' AND CASE 
+      WHEN stat_dimension = 'app_count' THEN app_count > 0 
+      ELSE case_count > 0 
+    END),
+    'provincial', (SELECT jsonb_agg(
+      jsonb_build_object(
+        'name', name,
+        'value', CASE 
+          WHEN stat_dimension = 'app_count' THEN app_count 
+          ELSE case_count 
+        END,
+        'province', province
+      ) ORDER BY CASE 
+        WHEN stat_dimension = 'app_count' THEN app_count 
+        ELSE case_count 
+      END DESC
+    ) FROM dept_stats WHERE level = 'provincial' AND CASE 
+      WHEN stat_dimension = 'app_count' THEN app_count > 0 
+      ELSE case_count > 0 
+    END)
+  ) INTO result;
   
-  RETURN query_result;
+  RETURN result;
 END;
 $$;
 ```
 
-### 2. 修改前端代码
-
-**修改`src/db/api.ts`中的`getDepartmentApplicationTrend`函数**：
+**前端代码适配扩展后的函数**：
 
 ```typescript
-export async function getDepartmentApplicationTrend(params: {
-  departmentIds: string[];
-  dimension: 'yearly' | 'all';
-  year?: string;
-}) {
-  const { departmentIds, dimension, year } = params;
-
-  console.log('[getDepartmentApplicationTrend] 开始查询，参数:', params);
-
-  if (!departmentIds || departmentIds.length === 0) {
-    console.log('[getDepartmentApplicationTrend] 未选择部门，返回空结果');
-    return [];
-  }
-
+// 获取国家级部门分布数据
+export async function getNationalDepartmentDistribution(
+  statDimension: 'case_count' | 'app_count' = 'app_count'
+) {
   try {
-    // 调用Supabase RPC函数
-    const { data, error } = await supabase.rpc('get_department_application_trend', {
-      department_ids: departmentIds,
-      dimension: dimension,
-      year_param: year ? parseInt(year) : null
+    const { data, error } = await supabase.rpc('get_dept_distribution', {
+      stat_dimension: statDimension
     });
-
+    
     if (error) {
-      console.error('[getDepartmentApplicationTrend] RPC调用失败:', error);
+      console.error('[getNationalDepartmentDistribution] RPC调用失败:', error);
       throw error;
     }
-
-    console.log('[getDepartmentApplicationTrend] 获取趋势数据成功', data);
     
-    // 处理返回数据，确保格式一致
-    const result = data.map((item: any) => ({
-      date: item.date,
-      ...item.data
+    // 适配函数返回格式，将value字段转换为count字段
+    const nationalData = (data?.national || []).map((item: any) => ({
+      name: item.name,
+      count: item.value
     }));
-
-    return result;
+    
+    return nationalData;
   } catch (error) {
-    console.error('[getDepartmentApplicationTrend] 获取趋势数据失败:', error);
+    console.error('[getNationalDepartmentDistribution] 获取国家级部门分布数据失败:', error);
+    throw error;
+  }
+}
+```
+
+### 3. 新增省份筛选功能
+
+如果需要支持按省份筛选省级部门，可以进一步扩展现有函数：
+
+**SQL函数扩展**：
+```sql
+-- 进一步扩展，支持按省份筛选
+CREATE OR REPLACE FUNCTION get_dept_distribution(
+  stat_dimension TEXT DEFAULT 'case_count',
+  province_param TEXT DEFAULT NULL
+)
+RETURNS JSONB
+LANGUAGE plpgsql
+AS $$
+DECLARE
+  result jsonb;
+BEGIN
+  WITH dept_stats AS (
+    SELECT
+      d.id,
+      d.name,
+      d.level,
+      d.province,
+      COUNT(DISTINCT c.department_id || '_' || c.report_date) as case_count,
+      COUNT(DISTINCT c.app_name) as app_count
+    FROM regulatory_departments d
+    LEFT JOIN cases c ON d.id = c.department_id
+    GROUP BY d.id, d.name, d.level, d.province
+  )
+  SELECT jsonb_build_object(
+    'national', (SELECT jsonb_agg(
+      jsonb_build_object(
+        'name', name,
+        'value', CASE 
+          WHEN stat_dimension = 'app_count' THEN app_count 
+          ELSE case_count 
+        END,
+        'province', province
+      ) ORDER BY CASE 
+        WHEN stat_dimension = 'app_count' THEN app_count 
+        ELSE case_count 
+      END DESC
+    ) FROM dept_stats WHERE level = 'national' AND CASE 
+      WHEN stat_dimension = 'app_count' THEN app_count > 0 
+      ELSE case_count > 0 
+    END),
+    'provincial', (SELECT jsonb_agg(
+      jsonb_build_object(
+        'name', name,
+        'value', CASE 
+          WHEN stat_dimension = 'app_count' THEN app_count 
+          ELSE case_count 
+        END,
+        'province', province
+      ) ORDER BY CASE 
+        WHEN stat_dimension = 'app_count' THEN app_count 
+        ELSE case_count 
+      END DESC
+    ) FROM dept_stats WHERE level = 'provincial' AND CASE 
+      WHEN stat_dimension = 'app_count' THEN app_count > 0 
+      ELSE case_count > 0 
+    END AND (province_param IS NULL OR province = province_param))
+  ) INTO result;
+  
+  RETURN result;
+END;
+$$;
+```
+
+**前端代码适配省份筛选功能**：
+
+```typescript
+// 获取省级部门分布数据
+export async function getProvincialDepartmentDistribution(
+  province?: string,
+  statDimension: 'case_count' | 'app_count' = 'app_count'
+) {
+  try {
+    const { data, error } = await supabase.rpc('get_dept_distribution', {
+      stat_dimension: statDimension,
+      province_param: province || null
+    });
+    
+    if (error) {
+      console.error('[getProvincialDepartmentDistribution] RPC调用失败:', error);
+      throw error;
+    }
+    
+    // 适配函数返回格式，将value字段转换为count字段
+    const provincialData = (data?.provincial || []).map((item: any) => ({
+      name: item.name,
+      count: item.value,
+      province: item.province
+    }));
+    
+    return provincialData;
+  } catch (error) {
+    console.error('[getProvincialDepartmentDistribution] 获取省级部门分布数据失败:', error);
     throw error;
   }
 }
@@ -125,26 +291,30 @@ export async function getDepartmentApplicationTrend(params: {
 
 ## 三、优化优势
 
-1. **减少数据传输量**：数据库只返回聚合后的结果，而不是所有原始数据
-2. **提高性能**：数据库在服务端进行聚合计算，通常比客户端计算更快
-3. **简化前端代码**：前端不需要再进行复杂的分组和聚合逻辑
-4. **数据一致性**：所有数据处理逻辑都在数据库端，确保数据一致性
-5. **更好的扩展性**：当数据量增长时，只需优化数据库端的查询，无需修改前端代码
+### 1. 基于现有函数的优化优势
 
-## 四、注意事项
+- **无需创建新函数**：可以直接使用或扩展现有RPC函数
+- **减少开发工作量**：避免了创建和测试新函数的过程
+- **保持系统稳定性**：基于现有成熟函数进行扩展，风险较低
+- **提高代码复用性**：一次调用即可获取多种级别的部门分布数据
 
-1. 确保在Supabase中正确创建RPC函数，并授予适当的权限
-2. 测试RPC函数的性能和正确性，确保与当前实现返回相同的结果
-3. 考虑添加错误处理和日志记录，便于调试
-4. 监控RPC函数的执行情况，及时优化性能
-5. 确保前端代码能够处理RPC函数可能返回的各种情况
+### 2. 扩展后的函数优势
 
-## 五、实施步骤
+- **支持多维度统计**：可以灵活切换按通报频次或应用数量统计
+- **支持省份筛选**：可以筛选特定省份的省级部门
+- **返回更多字段**：包含省份信息，便于后续扩展
+- **更好的扩展性**：可以方便地添加新的统计维度
 
-1. 在Supabase控制台中执行SQL语句，创建RPC函数
-2. 修改前端`getDepartmentApplicationTrend`函数，改为调用RPC函数
-3. 测试功能是否正常工作
-4. 监控性能和错误日志
-5. 根据测试结果进行必要的调整
+## 四、实施建议
 
-通过以上优化方案，可以显著提高监管部门趋势分析模块的性能和可维护性，为用户提供更好的体验。
+1. **评估现有函数性能**：在正式使用前，测试现有函数的性能和准确性
+2. **逐步扩展功能**：先使用现有函数进行基础优化，再根据需求逐步扩展功能
+3. **保持向后兼容**：扩展函数时，确保与现有代码兼容
+4. **测试返回数据格式**：确保函数返回的数据格式与前端代码期望的格式一致
+5. **监控函数执行情况**：在生产环境中监控函数的执行情况，及时发现和解决问题
+
+## 五、结论
+
+基于现有Supabase RPC函数，我们可以通过扩展其功能和修改前端代码来优化国家级和省级部门分布模块，无需创建新的RPC函数。这种方案既可以利用现有函数的优势，又可以满足我们的优化需求，是一种高效、低风险的优化方式。
+
+如果现有函数的性能或功能无法满足需求，再考虑创建新的更灵活的RPC函数。

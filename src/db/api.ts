@@ -1411,26 +1411,22 @@ export async function getProvincialDepartmentDistribution() {
 }
 
 // 获取平台分布数据
-export async function getPlatformDistribution() {
-  const { data, error } = await supabase
-    .from('cases')
-    .select(`
-      platform_id,
-      platform:app_platforms(name)
-    `);
-  
-  if (error) throw error;
-  
-  const platformCounts: Record<string, number> = {};
-  (data || []).forEach(item => {
-    const plat = item.platform as unknown as { name: string } | null;
-    const platformName = plat?.name || '未知平台';
-    platformCounts[platformName] = (platformCounts[platformName] || 0) + 1;
-  });
-
-  return Object.entries(platformCounts)
-    .map(([name, count]) => ({ name, count }))
-    .sort((a, b) => b.count - a.count);
+export async function getPlatformDistribution(statDimension: 'case_count' | 'app_count' = 'case_count') {
+  try {
+    const { data, error } = await supabase.rpc('get_platform_distribution', {
+      统计维度: statDimension
+    });
+    
+    if (error) {
+      console.error('[getPlatformDistribution] RPC调用失败:', error);
+      throw error;
+    }
+    
+    return data || [];
+  } catch (error) {
+    console.error('[getPlatformDistribution] 获取平台分布数据失败:', error);
+    throw error;
+  }
 }
 
 // 获取地理分布数据
