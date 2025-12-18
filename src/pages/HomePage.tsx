@@ -458,67 +458,97 @@ export default function HomePage() {
         </Card>
       )}
 
-      {/* 监管部门分布与应用平台分布 */}
+      {/* 监管部门分布 */}
       <div className="grid gap-4 sm:gap-6 grid-cols-1 2xl:grid-cols-2">
-        {/* 监管部门分布 */}
+        {/* 国家级部门分布 */}
         <Card>
           <CardHeader>
-            <div className="flex flex-col gap-4">
-              <div className="flex flex-col xl:flex-row xl:items-center xl:justify-between gap-3">
-                <div className="flex items-center gap-1.5">
-                  <CardTitle className="text-lg sm:text-xl">监管部门分布</CardTitle>
-                  <TooltipInfo
-                    content={
-                      <div className="space-y-2">
-                        <p className="font-semibold">统计说明</p>
-                        <p className="text-xs text-muted-foreground">
-                          展示各监管部门的通报活动分布情况，包括国家级部门和省级部门统计
-                        </p>
-                      </div>
-                    }
-                  />
-                </div>
-                <Tabs value={deptLevelView} onValueChange={(v) => setDeptLevelView(v as typeof deptLevelView)}>
-                  <TabsList className="grid grid-cols-2 w-full xl:w-auto xl:min-w-[240px]">
-                    <TabsTrigger value="national">国家级部门</TabsTrigger>
-                    <TabsTrigger value="provincial">省级部门</TabsTrigger>
-                  </TabsList>
-                </Tabs>
-              </div>
+            <div className="flex items-center gap-1.5">
+              <CardTitle className="text-lg sm:text-xl">国家级部门分布</CardTitle>
+              <TooltipInfo
+                content={
+                  <div className="space-y-2">
+                    <p className="font-semibold">统计说明</p>
+                    <p className="text-xs text-muted-foreground">
+                      展示国家级监管部门在全部数据周期内通报的相关应用数量分布情况
+                    </p>
+                    <p className="text-xs text-muted-foreground">
+                      数据包含各部门通报的相关应用总数量及其占同级部门应用总数的百分比
+                    </p>
+                    <p className="text-xs text-muted-foreground">
+                      统计范围：全部数据周期内国家级监管部门通报的相关应用
+                    </p>
+                    <p className="text-xs text-muted-foreground">
+                      数据说明：展示各部门通报的相关应用数量及其占同级部门应用总数的百分比
+                    </p>
+                  </div>
+                }
+              />
             </div>
           </CardHeader>
           <CardContent className="px-2 sm:px-6">
-            {deptLevelView === 'national' && (
-              <>
-                {chartsLoading ? (
-                  <Skeleton className="h-80 bg-muted" />
-                ) : nationalDeptData.length > 0 ? (
-                  <div className="w-full">
-                    <PieChart data={nationalDeptData} title="" />
-                  </div>
-                ) : (
-                  <div className="text-center py-8 text-muted-foreground">暂无国家级部门数据</div>
-                )}
-              </>
-            )}
-            
-            {deptLevelView === 'provincial' && (
-              <>
-                {chartsLoading ? (
-                  <Skeleton className="h-80 bg-muted" />
-                ) : provincialDeptData.length > 0 ? (
-                  <div className="w-full">
-                    <PieChart data={provincialDeptData} title="" />
-                  </div>
-                ) : (
-                  <div className="text-center py-8 text-muted-foreground">暂无省级部门数据</div>
-                )}
-              </>
+            {chartsLoading ? (
+              <Skeleton className="h-80 bg-muted" />
+            ) : nationalDeptData.length > 0 ? (
+              <div className="w-full">
+                <PieChart 
+                  data={nationalDeptData} 
+                  title="国家级部门通报相关应用分布"
+                  showHeader={false}
+                />
+              </div>
+            ) : (
+              <div className="text-center py-8 text-muted-foreground">暂无国家级部门数据</div>
             )}
           </CardContent>
         </Card>
 
-        {/* 应用平台分布 */}
+        {/* 省级部门分布 */}
+        <Card>
+          <CardHeader>
+            <div className="flex items-center gap-1.5">
+              <CardTitle className="text-lg sm:text-xl">省级部门分布</CardTitle>
+              <TooltipInfo
+                content={
+                  <div className="space-y-2">
+                    <p className="font-semibold">统计说明</p>
+                    <p className="text-xs text-muted-foreground">
+                      展示省级监管部门在全部数据周期内通报的相关应用数量分布情况
+                    </p>
+                    <p className="text-xs text-muted-foreground">
+                      数据包含各部门通报的相关应用总数量及其占同级部门应用总数的百分比
+                    </p>
+                    <p className="text-xs text-muted-foreground">
+                      统计范围：全部数据周期内省级监管部门通报的相关应用
+                    </p>
+                    <p className="text-xs text-muted-foreground">
+                      数据说明：展示各部门通报的相关应用数量及其占同级部门应用总数的百分比
+                    </p>
+                  </div>
+                }
+              />
+            </div>
+          </CardHeader>
+          <CardContent className="px-2 sm:px-6">
+            {chartsLoading ? (
+              <Skeleton className="h-80 bg-muted" />
+            ) : provincialDeptData.length > 0 ? (
+              <div className="w-full">
+                <PieChart 
+                  data={provincialDeptData} 
+                  title="省级部门通报相关应用分布"
+                  showHeader={false}
+                />
+              </div>
+            ) : (
+              <div className="text-center py-8 text-muted-foreground">暂无省级部门数据</div>
+            )}
+          </CardContent>
+        </Card>
+      </div>
+
+      {/* 应用平台分布 */}
+      <div className="grid gap-4 sm:gap-6 grid-cols-1 2xl:grid-cols-2">
         {isModuleVisible('platform_chart') && (
           chartsLoading ? (
             <Card>

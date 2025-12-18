@@ -9,9 +9,10 @@ interface PieChartProps {
   title: string;
   children?: ReactNode;
   tooltipContent?: ReactNode;
+  showHeader?: boolean;
 }
 
-export default function PieChart({ data, title, children, tooltipContent }: PieChartProps) {
+export default function PieChart({ data, title, children, tooltipContent, showHeader = true }: PieChartProps) {
   const chartRef = useRef<HTMLDivElement>(null);
   const [containerWidth, setContainerWidth] = useState(0);
 
@@ -26,8 +27,8 @@ export default function PieChart({ data, title, children, tooltipContent }: PieC
     const isSmallScreen = width < 768;
     const isMediumScreen = width >= 768 && width < 1024;
     
-    // 限制显示的图例数量，避免重叠
-    const maxLegendItems = isSmallScreen ? 5 : isMediumScreen ? 8 : 10;
+    // 调整图例数量限制，增加显示的部门数量
+    const maxLegendItems = isSmallScreen ? 8 : isMediumScreen ? 12 : 15;
     const displayData = data.slice(0, maxLegendItems);
     
     // 如果有更多数据，合并为"其他"
@@ -60,17 +61,17 @@ export default function PieChart({ data, title, children, tooltipContent }: PieC
         [isSmallScreen ? 'left' : 'top']: isSmallScreen ? 'center' : 'center',
         // 图例文字样式
         textStyle: {
-          fontSize: isSmallScreen ? 11 : 12,
+          fontSize: isSmallScreen ? 10 : 11,
           overflow: 'truncate',
-          width: isSmallScreen ? 80 : 120,
+          width: isSmallScreen ? 70 : 100,
         },
         // 图例项之间的间距
-        itemGap: isSmallScreen ? 8 : 10,
+        itemGap: isSmallScreen ? 6 : 8,
         // 图例图标大小
-        itemWidth: isSmallScreen ? 12 : 14,
-        itemHeight: isSmallScreen ? 12 : 14,
-        // 启用图例滚动
-        type: isSmallScreen ? 'scroll' : 'plain',
+        itemWidth: isSmallScreen ? 10 : 12,
+        itemHeight: isSmallScreen ? 10 : 12,
+        // 启用图例滚动，确保所有图例都能访问
+        type: 'scroll',
         pageButtonItemGap: 5,
         pageButtonGap: 10,
         pageIconSize: 12,
@@ -142,12 +143,14 @@ export default function PieChart({ data, title, children, tooltipContent }: PieC
 
   return (
     <Card>
-      <CardHeader>
-        <div className="flex items-center gap-1.5">
-          <CardTitle className="text-xl">{title}</CardTitle>
-          {tooltipContent && <TooltipInfo content={tooltipContent} />}
-        </div>
-      </CardHeader>
+      {showHeader && (
+        <CardHeader>
+          <div className="flex items-center gap-1.5">
+            <CardTitle className="text-xl">{title}</CardTitle>
+            {tooltipContent && <TooltipInfo content={tooltipContent} />}
+          </div>
+        </CardHeader>
+      )}
       <CardContent>
         <div ref={chartRef} className="w-full h-96" />
         {children}

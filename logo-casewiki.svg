@@ -1,0 +1,62 @@
+<svg width="512" height="512" viewBox="0 0 512 512" xmlns="http://www.w3.org/2000/svg">
+  <defs>
+    <!-- ============== 字母路径定义 (保持不变) ============== -->
+    <!-- C -->
+    <path id="text-C" d="M80,25 L80,0 L0,0 L0,120 L80,120 L80,95 L30,95 L30,25 Z" fill="#FFFFFF"/>
+    <!-- A -->
+    <path id="text-A" d="M10,120 L35,0 L65,0 L90,120 L68,120 L62,90 L38,90 L32,120 Z M50,30 L42,70 L58,70 Z" fill="#FFFFFF"/>
+    <!-- S -->
+    <path id="text-S" d="M80,0 L0,0 L0,25 L50,25 L50,47 L0,47 L0,120 L80,120 L80,95 L30,95 L30,73 L80,73 Z" fill="#FFFFFF"/>
+    <!-- E -->
+    <path id="text-E" d="M0,0 L75,0 L75,25 L30,25 L30,47 L70,47 L70,72 L30,72 L30,95 L75,95 L75,120 L0,120 Z" fill="#FFFFFF"/>
+    <!-- W -->
+    <path id="text-W" d="M0,0 L22,120 L48,120 L60,50 L72,120 L98,120 L120,0 L92,0 L85,80 L70,0 L50,0 L35,80 L28,0 Z" fill="#FFFFFF"/>
+    <!-- I -->
+    <path id="text-I" d="M0,0 L25,0 L25,120 L0,120 Z" fill="#FFFFFF"/>
+    <!-- K -->
+    <path id="text-K" d="M0,0 L28,0 L28,50 L68,0 L98,0 L52,55 L98,120 L65,120 L28,70 L28,120 L0,120 Z" fill="#FFFFFF"/>
+
+    <!-- 定义文字组合 -->
+    <g id="centered-stack">
+      <!-- 第一行：CASE -->
+      <g transform="translate(0, 0)">
+        <use href="#text-C" x="0" />
+        <use href="#text-A" x="90" />
+        <use href="#text-S" x="190" />
+        <use href="#text-E" x="280" />
+      </g>
+      
+      <!-- 第二行：WIKI -->
+      <!-- 保持之前的相对位置，X=10, Y=175，两行间距适中 -->
+      <g transform="translate(10, 175)">
+        <use href="#text-W" x="0" />
+        <use href="#text-I" x="130" />
+        <use href="#text-K" x="165" />
+        <use href="#text-I" x="270" />
+      </g>
+    </g>
+  </defs>
+
+  <!-- 蓝色背景 -->
+  <rect x="0" y="0" width="512" height="512" rx="30" ry="30" fill="#0078D4"/>
+
+  <!-- 
+    主容器终极定位：
+    translate(75, 175): 
+       - X=75: 让文字块水平居中。
+       - Y=175: 这是一个精确平衡点。
+         它让右上角翘起的 E 距离顶部约 45px，
+         同时让左下角沉底的 W 距离底部也约 45px。
+  -->
+  <g transform="translate(75, 175) skewY(-20)">
+    
+    <!-- 【残影层】 -->
+    <g transform="translate(15, 15)" opacity="0.25">
+      <use href="#centered-stack" />
+    </g>
+
+    <!-- 【主体层】 -->
+    <use href="#centered-stack" />
+
+  </g>
+</svg>
