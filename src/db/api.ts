@@ -1279,32 +1279,38 @@ export async function getMonthlyTrend(year?: string) {
 }
 
 // 获取每月被通报的应用数量趋势
-export async function getMonthlyAppCountTrend(year?: string) {
-  let query = supabase.from('cases').select('report_date, app_name');
-  
-  if (year) {
-    query = query.gte('report_date', `${year}-01-01`).lte('report_date', `${year}-12-31`);
+export async function getMonthlyAppCountTrend(timeRange: 'recent6' | 'thisYear' | 'all' = 'all') {
+  try {
+    console.log('[getMonthlyAppCountTrend] 开始获取月度应用数量趋势', { timeRange });
+    
+    // 使用Supabase RPC函数获取数据
+    const { data, error } = await supabase.rpc('get_monthly_app_count_trend', {
+      time_range: timeRange
+    });
+    
+    if (error) {
+      console.error('[getMonthlyAppCountTrend] RPC调用失败:', error);
+      throw error;
+    }
+    
+    // 确保返回数据类型为number，处理可能的类型转换问题
+    const result = data?.map(item => ({
+      month: item.month,
+      count: Number(item.count) // 显式转换为number类型，确保类型安全
+    })) || [];
+    
+    console.log('[getMonthlyAppCountTrend] 获取月度应用数量趋势成功', { 
+      timeRange, 
+      dataLength: result.length,
+      startMonth: result.length > 0 ? result[0].month : null,
+      endMonth: result.length > 0 ? result[result.length - 1].month : null
+    });
+    
+    return result;
+  } catch (error) {
+    console.error('[getMonthlyAppCountTrend] 获取月度应用数量趋势失败:', error);
+    throw error;
   }
-
-  const { data, error } = await query;
-  
-  if (error) throw error;
-  
-  // 按月份分组，统计每月不同的应用数量
-  const monthAppSets: Record<string, Set<string>> = {};
-  (data || []).forEach(item => {
-    const month = item.report_date.substring(0, 7);
-    if (!monthAppSets[month]) {
-      monthAppSets[month] = new Set();
-    }
-    if (item.app_name) {
-      monthAppSets[month].add(item.app_name);
-    }
-  });
-
-  return Object.entries(monthAppSets)
-    .map(([month, appSet]) => ({ month, count: appSet.size }))
-    .sort((a, b) => a.month.localeCompare(b.month));
 }
 
 // 获取部门分布数据（所有部门）

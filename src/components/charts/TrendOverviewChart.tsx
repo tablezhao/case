@@ -12,29 +12,13 @@ interface TrendOverviewChartProps {
 }
 
 export default function TrendOverviewChart({ data, timeRange }: TrendOverviewChartProps) {
-  // 根据时间范围筛选数据
+  // 数据已在服务端筛选，只需确保排序正确
   const filteredData = useMemo(() => {
     if (!data || data.length === 0) return [];
-
-    const now = new Date();
-    const currentYear = now.getFullYear();
-    const currentMonth = now.getMonth() + 1;
-
-    let filtered = [...data];
-
-    if (timeRange === 'recent6') {
-      // 近6个月
-      const sixMonthsAgo = new Date(now.getFullYear(), now.getMonth() - 5, 1);
-      const cutoffMonth = `${sixMonthsAgo.getFullYear()}-${String(sixMonthsAgo.getMonth() + 1).padStart(2, '0')}`;
-      filtered = data.filter(item => item.month >= cutoffMonth);
-    } else if (timeRange === 'thisYear') {
-      // 本年至今
-      filtered = data.filter(item => item.month.startsWith(String(currentYear)));
-    }
-
-    // 确保数据按月份排序
-    return filtered.sort((a, b) => a.month.localeCompare(b.month));
-  }, [data, timeRange]);
+    
+    // 确保数据按月份排序，保证时间序列的连续性和可读性
+    return [...data].sort((a, b) => a.month.localeCompare(b.month));
+  }, [data]);
 
   // 格式化月份显示
   const formatMonth = (month: string) => {
@@ -109,3 +93,6 @@ export default function TrendOverviewChart({ data, timeRange }: TrendOverviewCha
     </div>
   );
 }
+
+
+

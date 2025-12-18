@@ -89,7 +89,7 @@ export default function HomePage() {
         getYearlyAppTrend(),
         getMonthlyReportTrend(),
         getYearlyReportTrend(),
-        getMonthlyAppCountTrend(),
+        getMonthlyAppCountTrend(trendOverviewRange), // 使用当前时间范围加载
         getNationalDepartmentDistribution(),
         getProvincialDepartmentDistribution(),
       ]);
@@ -98,6 +98,21 @@ export default function HomePage() {
       setYearlyAppData(yearlyAppTrend);
       setMonthlyReportData(monthlyReportTrend);
       setYearlyReportData(yearlyReportTrend);
+      
+      // 数据完整性验证和日志记录
+      if (monthlyAppCountTrend && monthlyAppCountTrend.length > 0) {
+        const startMonth = monthlyAppCountTrend[0].month;
+        const endMonth = monthlyAppCountTrend[monthlyAppCountTrend.length - 1].month;
+        console.log('[HomePage] 初始趋势概览数据加载成功', {
+          timeRange: trendOverviewRange,
+          dataLength: monthlyAppCountTrend.length,
+          startMonth,
+          endMonth
+        });
+      } else {
+        console.warn('[HomePage] 初始趋势概览数据为空', { timeRange: trendOverviewRange });
+      }
+      
       setTrendOverviewData(monthlyAppCountTrend);
       setNationalDeptData(nationalDeptDist);
       setProvincialDeptData(provincialDeptDist);
@@ -361,7 +376,36 @@ export default function HomePage() {
                   }
                 />
               </div>
-              <Tabs value={trendOverviewRange} onValueChange={(v) => setTrendOverviewRange(v as 'recent6' | 'thisYear' | 'all')}>
+              <Tabs value={trendOverviewRange} onValueChange={async (v) => {
+                const range = v as 'recent6' | 'thisYear' | 'all';
+                setTrendOverviewRange(range);
+                setChartsLoading(true);
+                try {
+                  console.log('[HomePage] 开始加载趋势概览数据', { timeRange: range });
+                  const monthlyAppCountTrend = await getMonthlyAppCountTrend(range);
+                  
+                  // 数据完整性验证
+                  if (monthlyAppCountTrend && monthlyAppCountTrend.length > 0) {
+                    const startMonth = monthlyAppCountTrend[0].month;
+                    const endMonth = monthlyAppCountTrend[monthlyAppCountTrend.length - 1].month;
+                    console.log('[HomePage] 趋势概览数据加载成功', {
+                      timeRange: range,
+                      dataLength: monthlyAppCountTrend.length,
+                      startMonth,
+                      endMonth
+                    });
+                  } else {
+                    console.warn('[HomePage] 趋势概览数据为空', { timeRange: range });
+                  }
+                  
+                  setTrendOverviewData(monthlyAppCountTrend);
+                } catch (error) {
+                  console.error('[HomePage] 加载趋势概览数据失败:', error);
+                  toast.error('加载趋势概览数据失败');
+                } finally {
+                  setChartsLoading(false);
+                }
+              }}>
                 <TabsList className="grid grid-cols-3 w-full xl:w-auto xl:min-w-[280px]">
                   <TabsTrigger value="recent6">近6个月</TabsTrigger>
                   <TabsTrigger value="thisYear">本年至今</TabsTrigger>
