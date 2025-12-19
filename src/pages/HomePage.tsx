@@ -639,6 +639,8 @@ export default function HomePage() {
             <PieChart 
               data={violationData} 
               title="问题分布饼图"
+              limit={10}
+              showPercentage={true}
               tooltipContent={
                 <div className="space-y-3">
                   <p className="font-semibold text-base">统计说明</p>

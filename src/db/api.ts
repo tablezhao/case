@@ -2081,69 +2081,105 @@ export async function getDepartmentApplicationTrend(params: {
 
 // ============ 违规问题分析 ============
 
+import { normalizeKeyword } from './compliance_rules';
+
 /**
  * 提取违规问题关键词
  * @param violationContent 违规内容文本
  * @returns 违规问题关键词数组
  */
-function extractViolationKeywords(violationContent: string): string[] {
+export function extractViolationKeywords(violationContent: string): string[] {
   if (!violationContent || violationContent === '未提供违规内容') return [];
 
   const keywords: string[] = [];
   
-  // 常见违规问题关键词模式
+  // 常见违规问题关键词模式（与后端 SQL 保持一致）
   const patterns = [
-    /违规(收集|使用|处理|共享|传输).*?(个人信息|用户信息|隐私信息)/g,
-    /未(经|经过|经用户)同意.*?(收集|使用|处理|共享)/g,
+    // 1. 个人信息收集与使用类
+    /违规(收集|使用|处理|共享|传输|存储).*?(个人信息|用户信息|隐私信息|ID|设备信息|通讯录|位置|照片)/g,
+    /未(经|经过|经用户)同意.*?(收集|使用|处理|共享|提供|上传)(.*?(个人信息|用户信息|隐私信息|ID|设备信息|通讯录|位置|照片))?/g,
     /超范围(收集|使用|处理)/g,
-    /强制.*?授权/g,
+    /过度(索取|收集).*?权限/g,
+    
+    // 2. 权限获取类
+    /强制.*?(授权|权限)/g,
     /频繁.*?申请.*?权限/g,
-    /过度.*?(索取|收集).*?权限/g,
-    /未(提供|明示).*?(隐私政策|用户协议)/g,
-    /未(公开|公示).*?(收集|使用)规则/g,
-    /未(提供|设置).*?(注销|删除|撤回).*?功能/g,
-    /未(经|经过).*?同意.*?(推送|发送).*?(信息|消息|广告)/g,
+    /频繁.*?(自启动|关联启动)/g,
+    /私自.*?(收集|获取|调用|使用)/g,
+    
+    // 3. 隐私政策与告知类
+    /未(提供|明示|公开|公示).*?(隐私政策|用户协议|收集规则|使用规则)/g,
+    /隐私政策.*?难以(访问|阅读)/g,
+    /未(完整|真实|准确).*?告知/g,
+    
+    // 4. 用户权益类
+    /未(提供|设置).*?(注销|删除|撤回|更正|投诉).*?功能/g,
     /欺骗.*?误导.*?用户/g,
-    /诱导.*?用户/g,
+    /诱导.*?用户.*?(点击|下载|安装)/g,
+    
+    // 5. 广告与推送类
     /违规.*?(广告|推送|弹窗)/g,
+    /未(经|经过).*?同意.*?(推送|发送).*?(信息|消息|广告)/g,
+    /弹窗.*?无法(关闭|消除)/g,
+    
+    // 6. 费用与扣费类
     /恶意.*?(吸费|扣费)/g,
-    /私自.*?(下载|安装|调用)/g,
+    /自动.*?(扣费|续费)/g,
+    
+    // 7. 软件安装与行为类
+    /私自.*?(下载|安装)/g,
     /捆绑.*?安装/g,
     /强制.*?更新/g,
+    /静默.*?(下载|安装)/g,
+    
+    // 8. 第三方SDK类
     /违规.*?SDK/g,
     /第三方.*?SDK.*?违规/g,
     /未经.*?许可.*?(调用|使用).*?接口/g,
   ];
 
-  patterns.forEach(pattern => {
-    const matches = violationContent.match(pattern);
-    if (matches) {
-      matches.forEach(match => {
-        // 清理和标准化关键词
-        let keyword = match.trim();
-        // 限制长度
-        if (keyword.length > 30) {
-          keyword = keyword.substring(0, 30) + '...';
-        }
-        if (keyword && !keywords.includes(keyword)) {
-          keywords.push(keyword);
-        }
-      });
+  // 1. 按分号切割（统一处理中文和英文分号）
+  const parts = violationContent.replace(/；/g, ';').split(';');
+
+  // 2. 遍历每个片段
+  parts.forEach(part => {
+    const trimmedPart = part.trim();
+    if (!trimmedPart || trimmedPart.length < 4) return;
+
+    let hasMatch = false;
+
+    // 3. 正则匹配
+    patterns.forEach(pattern => {
+      // 重置正则的 lastIndex，因为是全局匹配
+      pattern.lastIndex = 0;
+      const matches = trimmedPart.match(pattern);
+      if (matches) {
+        matches.forEach(match => {
+          let keyword = match.trim();
+          // 限制长度
+          if (keyword.length > 50) {
+            keyword = keyword.substring(0, 50) + '...';
+          }
+          
+          // === 智能补全与标准化 ===
+          const normalizedKeyword = normalizeKeyword(keyword);
+          
+          if (normalizedKeyword && !keywords.includes(normalizedKeyword)) {
+            keywords.push(normalizedKeyword);
+            hasMatch = true;
+          }
+        });
+      }
+    });
+
+    // 4. 兜底处理：如果片段未匹配任何正则，且长度适中，尝试标准化后保留
+    if (!hasMatch && trimmedPart.length <= 50) {
+       const normalizedFallback = normalizeKeyword(trimmedPart);
+       if (!keywords.includes(normalizedFallback)) {
+          keywords.push(normalizedFallback);
+       }
     }
   });
-
-  // 如果没有匹配到关键词，尝试提取简短的句子
-  if (keywords.length === 0) {
-    const sentences = violationContent.split(/[。；;]/).filter(s => s.trim().length > 0);
-    if (sentences.length > 0) {
-      const firstSentence = sentences[0].trim();
-      if (firstSentence.length <= 50) {
-        keywords.push(firstSentence);
-      } else {
-        keywords.push(firstSentence.substring(0, 50) + '...');
-      }
-    }
-  }
 
   return keywords;
 }

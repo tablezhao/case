@@ -11,9 +11,20 @@ interface PieChartProps {
   tooltipContent?: ReactNode;
   showHeader?: boolean;
   className?: string;
+  limit?: number;
+  showPercentage?: boolean;
 }
 
-export default function PieChart({ data, title, children, tooltipContent, showHeader = true, className }: PieChartProps) {
+export default function PieChart({ 
+  data, 
+  title, 
+  children, 
+  tooltipContent, 
+  showHeader = true, 
+  className,
+  limit,
+  showPercentage = false
+}: PieChartProps) {
   const chartRef = useRef<HTMLDivElement>(null);
   const [containerWidth, setContainerWidth] = useState(0);
 
@@ -29,7 +40,8 @@ export default function PieChart({ data, title, children, tooltipContent, showHe
     const isMediumScreen = width >= 768 && width < 1024;
     
     // 调整图例数量限制，增加显示的部门数量
-    const maxLegendItems = isSmallScreen ? 8 : isMediumScreen ? 12 : 15;
+    // 如果指定了 limit，则优先使用 limit
+    const maxLegendItems = limit || (isSmallScreen ? 8 : isMediumScreen ? 12 : 15);
     const displayData = data.slice(0, maxLegendItems);
     
     // 如果有更多数据，合并为"其他"
@@ -87,21 +99,31 @@ export default function PieChart({ data, title, children, tooltipContent, showHe
           // 根据屏幕大小调整饼图位置和大小
           radius: isSmallScreen ? ['30%', '55%'] : ['40%', '70%'],
           center: isSmallScreen ? ['50%', '40%'] : ['40%', '50%'],
-          avoidLabelOverlap: false,
+          avoidLabelOverlap: true,
           itemStyle: {
             borderRadius: 6,
             borderColor: '#fff',
             borderWidth: 2,
           },
           label: {
-            show: false,
-            position: 'center',
+            show: showPercentage,
+            position: 'outside',
+            formatter: '{b}\n{d}%',
+            fontSize: isSmallScreen ? 10 : 12,
+            lineHeight: 15,
+            color: '#666'
+          },
+          labelLine: {
+            show: showPercentage,
+            length: isSmallScreen ? 10 : 15,
+            length2: isSmallScreen ? 10 : 15,
           },
           emphasis: {
             label: {
               show: true,
-              fontSize: isSmallScreen ? 16 : 20,
+              fontSize: isSmallScreen ? 14 : 16,
               fontWeight: 'bold',
+              formatter: '{b}: {d}%'
             },
             itemStyle: {
               shadowBlur: 15,
@@ -111,9 +133,6 @@ export default function PieChart({ data, title, children, tooltipContent, showHe
             },
             scale: true,
             scaleSize: 10,
-          },
-          labelLine: {
-            show: false,
           },
           data: chartData.map((item, index) => ({
             name: item.name,
