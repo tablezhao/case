@@ -447,11 +447,29 @@ export async function searchCases(params: SearchCasesParams): Promise<SearchCase
     throw error;
   }
 
-  const results = Array.isArray(data) ? data : [];
-  const total = results.length > 0 ? results[0].total_count : 0;
+  type SearchCasesRow = {
+    id: string;
+    app_name: string;
+    app_developer: string | null;
+    department_id: string | null;
+    platform_id: string | null;
+    violation_content: string | null;
+    source_url: string | null;
+    report_date: string;
+    created_at: string;
+    updated_at: string;
+    department_name: string | null;
+    department_province: string | null;
+    platform_name: string | null;
+    total_count: number | string;
+    rank: number | null;
+  };
+
+  const results: SearchCasesRow[] = Array.isArray(data) ? (data as SearchCasesRow[]) : [];
+  const total = results.length > 0 ? Number(results[0].total_count) : 0;
 
   // 转换数据格式
-  const cases: CaseWithDetails[] = results.map((item: any) => ({
+  const cases: CaseWithDetails[] = results.map((item) => ({
     id: item.id,
     app_name: item.app_name,
     app_developer: item.app_developer,
@@ -462,21 +480,24 @@ export async function searchCases(params: SearchCasesParams): Promise<SearchCase
     report_date: item.report_date,
     created_at: item.created_at,
     updated_at: item.updated_at,
-    department: item.department_name ? {
-      id: item.department_id,
-      name: item.department_name,
-      location: item.department_province || '',
-      level: 'national' as const,
-      province: item.department_province || '',
-      created_at: '',
-      updated_at: '',
-    } : null,
-    platform: item.platform_name ? {
-      id: item.platform_id,
-      name: item.platform_name,
-      created_at: '',
-      updated_at: '',
-    } : null,
+    department:
+      item.department_id && item.department_name
+        ? {
+            id: item.department_id,
+            name: item.department_name,
+            level: item.department_province ? 'provincial' : 'national',
+            province: item.department_province,
+            created_at: '',
+          }
+        : undefined,
+    platform:
+      item.platform_id && item.platform_name
+        ? {
+            id: item.platform_id,
+            name: item.platform_name,
+            created_at: '',
+          }
+        : undefined,
   }));
 
   return {
@@ -1245,7 +1266,8 @@ export async function getYearlyTrend() {
   if (error) throw error;
   
   const yearCounts: Record<string, number> = {};
-  (data || []).forEach(item => {
+  const rows = Array.isArray(data) ? (data as Array<{ report_date: string }>) : [];
+  rows.forEach((item) => {
     const year = item.report_date.substring(0, 4);
     yearCounts[year] = (yearCounts[year] || 0) + 1;
   });
@@ -1268,7 +1290,8 @@ export async function getMonthlyTrend(year?: string) {
   if (error) throw error;
   
   const monthCounts: Record<string, number> = {};
-  (data || []).forEach(item => {
+  const rows = Array.isArray(data) ? (data as Array<{ report_date: string }>) : [];
+  rows.forEach((item) => {
     const month = item.report_date.substring(0, 7);
     monthCounts[month] = (monthCounts[month] || 0) + 1;
   });
@@ -1294,10 +1317,14 @@ export async function getMonthlyAppCountTrend(timeRange: 'recent6' | 'thisYear' 
     }
     
     // 确保返回数据类型为number，处理可能的类型转换问题
-    const result = data?.map(item => ({
+    const rows = Array.isArray(data)
+      ? (data as Array<{ month: string; count: number | string | null }>)
+      : [];
+
+    const result = rows.map((item) => ({
       month: item.month,
-      count: Number(item.count) // 显式转换为number类型，确保类型安全
-    })) || [];
+      count: Number(item.count ?? 0),
+    }));
     
     console.log('[getMonthlyAppCountTrend] 获取月度应用数量趋势成功', { 
       timeRange, 
@@ -1474,15 +1501,18 @@ export async function getViolationKeywords() {
   if (error) throw error;
   
   const keywords: Record<string, number> = {};
-  (data || []).forEach(item => {
-    if (!item.violation_content) return;
+  const rows = Array.isArray(data) ? (data as Array<{ violation_content: string | null }>) : [];
+
+  rows.forEach((item) => {
+    const content = item.violation_content;
+    if (!content) return;
     
     // 简单的关键词提取（实际应用中可以使用更复杂的NLP算法）
-    const words = item.violation_content
+    const words = content
       .split(/[，。、；：！？\s]+/)
-      .filter(w => w.length >= 2 && w.length <= 10);
+      .filter((w) => w.length >= 2 && w.length <= 10);
     
-    words.forEach(word => {
+    words.forEach((word) => {
       keywords[word] = (keywords[word] || 0) + 1;
     });
   });
@@ -1509,7 +1539,7 @@ export async function getRecentNews(limit = 5) {
 }
 
 // ============ 页脚配置相关 ============
-export async function getFooterSettings() {
+export async function getFooterSettings(): Promise<FooterSettings[]> {
   const { data, error } = await supabase
     .from('footer_settings')
     .select('*')
@@ -1517,20 +1547,20 @@ export async function getFooterSettings() {
     .order('display_order', { ascending: true });
   
   if (error) throw error;
-  return Array.isArray(data) ? data : [];
+  return Array.isArray(data) ? (data as FooterSettings[]) : [];
 }
 
-export async function getAllFooterSettings() {
+export async function getAllFooterSettings(): Promise<FooterSettings[]> {
   const { data, error } = await supabase
     .from('footer_settings')
     .select('*')
     .order('display_order', { ascending: true });
   
   if (error) throw error;
-  return Array.isArray(data) ? data : [];
+  return Array.isArray(data) ? (data as FooterSettings[]) : [];
 }
 
-export async function getFooterSettingBySection(section: string) {
+export async function getFooterSettingBySection(section: string): Promise<FooterSettings | null> {
   const { data, error } = await supabase
     .from('footer_settings')
     .select('*')
@@ -1538,14 +1568,14 @@ export async function getFooterSettingBySection(section: string) {
     .maybeSingle();
   
   if (error) throw error;
-  return data;
+  return (data as FooterSettings | null) ?? null;
 }
 
 export async function updateFooterSetting(
   id: string,
   updates: {
     title?: string;
-    content?: any;
+    content?: FooterSettings['content'];
     display_order?: number;
     is_active?: boolean;
   }
@@ -1962,11 +1992,20 @@ export async function getDepartmentRanking(params: {
     }
 
     // 转换数据结构，确保前端组件能正确处理
-    const transformedData = data.map(item => ({
+    const rows = Array.isArray(data)
+      ? (data as Array<{
+          result_department_id: string;
+          department_name: string;
+          report_count: number | string;
+          app_count: number | string;
+        }>)
+      : [];
+
+    const transformedData = rows.map((item) => ({
       departmentId: item.result_department_id,  // 映射新的返回列名
       departmentName: item.department_name,
       reportCount: Number(item.report_count),   // 转换为数字类型
-      appCount: Number(item.app_count)          // 转换为数字类型
+      appCount: Number(item.app_count),         // 转换为数字类型
     }));
 
     // 按通报频次排序
@@ -2024,9 +2063,13 @@ export async function getDepartmentApplicationTrend(params: {
     console.log('[getDepartmentApplicationTrend] 获取趋势数据成功', data);
     
     // 处理返回数据，确保格式一致
-    const result = data.map((item: any) => ({
+    const rows = Array.isArray(data)
+      ? (data as Array<{ date: string; data: Record<string, unknown> }>)
+      : [];
+
+    const result = rows.map((item) => ({
       date: item.date,
-      ...item.data
+      ...item.data,
     }));
 
     return result;
@@ -2117,39 +2160,45 @@ export async function getViolationTypeAnalysis(
   startDate?: string,
   endDate?: string
 ) {
-  let query = supabase
-    .from('cases')
-    .select('violation_content, report_date, department_id');
+  const maxRetries = 3;
+  let retryCount = 0;
+  let lastError: any;
 
-  // 应用筛选条件
-  if (departmentIds && departmentIds.length > 0) {
-    query = query.in('department_id', departmentIds);
+  while (retryCount < maxRetries) {
+    try {
+      const { data, error } = await supabase.rpc('get_violation_type_analysis', {
+        department_ids: departmentIds && departmentIds.length > 0 ? departmentIds : null,
+        start_date: startDate || null,
+        end_date: endDate || null
+      });
+
+      if (error) {
+        throw error;
+      }
+
+      const result = (data || []).map((item: any) => ({
+        type: item.type,
+        count: Number(item.count)
+      }));
+
+      // 数据一致性检查日志
+      const totalCount = result.reduce((sum: number, item: any) => sum + item.count, 0);
+      console.log(`[getViolationTypeAnalysis] 获取完成: ${result.length} 个分类, 总计 ${totalCount} 条记录`);
+
+      return result;
+    } catch (error) {
+      lastError = error;
+      retryCount++;
+      console.warn(`获取违规问题类型分析失败 (尝试 ${retryCount}/${maxRetries}):`, error);
+      if (retryCount < maxRetries) {
+        // 简单的指数退避策略
+        await new Promise(resolve => setTimeout(resolve, 500 * Math.pow(2, retryCount - 1)));
+      }
+    }
   }
-  if (startDate) {
-    query = query.gte('report_date', startDate);
-  }
-  if (endDate) {
-    query = query.lte('report_date', endDate);
-  }
 
-  const { data, error } = await query;
-
-  if (error) throw error;
-
-  // 统计违规问题类型
-  const typeCount: Record<string, number> = {};
-  
-  (data || []).forEach(item => {
-    const keywords = extractViolationKeywords(item.violation_content || '');
-    keywords.forEach(keyword => {
-      typeCount[keyword] = (typeCount[keyword] || 0) + 1;
-    });
-  });
-
-  // 转换为数组并排序
-  return Object.entries(typeCount)
-    .map(([type, count]) => ({ type, count }))
-    .sort((a, b) => b.count - a.count);
+  console.error('获取违规问题类型分析最终失败:', lastError);
+  throw lastError;
 }
 
 /**

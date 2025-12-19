@@ -22,6 +22,7 @@ import {
   getPlatformDistribution,
   getViolationKeywords,
   getRecentNews,
+  getViolationTypeAnalysis,
   getFrontendConfigs,
 } from '@/db/api';
 import {
@@ -39,6 +40,7 @@ export default function HomePage() {
   const [nationalDeptData, setNationalDeptData] = useState<{ name: string; count: number }[]>([]);
   const [provincialDeptData, setProvincialDeptData] = useState<{ name: string; count: number }[]>([]);
   const [platformData, setPlatformData] = useState<{ name: string; count: number }[]>([]);
+  const [violationData, setViolationData] = useState<{ name: string; count: number }[]>([]);
   const [keywords, setKeywords] = useState<{ name: string; value: number }[]>([]);
   const [recentNews, setRecentNews] = useState<RegulatoryNewsWithDetails[]>([]);
   const [configs, setConfigs] = useState<FrontendConfig[]>([]);
@@ -119,15 +121,18 @@ export default function HomePage() {
         try {
           const [
             platformDist,
+            violationDist,
             keywordsData,
             newsData,
           ] = await Promise.all([
             getPlatformDistribution(),
+            getViolationTypeAnalysis(),
             getViolationKeywords(),
             getRecentNews(5),
           ]);
           
           setPlatformData(platformDist);
+          setViolationData(violationDist.map(item => ({ name: item.type, count: item.count })));
           setKeywords(keywordsData);
           setRecentNews(newsData);
         } catch (error) {
@@ -612,6 +617,39 @@ export default function HomePage() {
                     <div>
                       <div className="font-semibold mb-1">🔢 显示数量</div>
                       <div className="text-muted-foreground">展示通报数量最多的前10个平台，其余平台归入"其他"类别</div>
+                    </div>
+                  </div>
+                </div>
+              }
+            />
+          ) : null
+        )}
+
+        {isModuleVisible('violation_chart') && (
+          chartsLoading ? (
+            <Card>
+              <CardHeader>
+                <CardTitle className="text-xl">问题分布饼图</CardTitle>
+              </CardHeader>
+              <CardContent>
+                <Skeleton className="h-80 bg-muted" />
+              </CardContent>
+            </Card>
+          ) : violationData.length > 0 ? (
+            <PieChart 
+              data={violationData} 
+              title="问题分布饼图"
+              tooltipContent={
+                <div className="space-y-3">
+                  <p className="font-semibold text-base">统计说明</p>
+                  <div className="space-y-2.5 text-xs leading-relaxed">
+                    <div>
+                      <div className="font-semibold mb-1">🚫 问题类型</div>
+                      <div className="text-muted-foreground">统计被通报应用存在的具体违规问题类型，如"违规收集个人信息"等</div>
+                    </div>
+                    <div>
+                      <div className="font-semibold mb-1">🔢 显示数量</div>
+                      <div className="text-muted-foreground">基于全量数据统计，展示各类问题占比（Top 10以外自动归为"其他"）</div>
                     </div>
                   </div>
                 </div>
