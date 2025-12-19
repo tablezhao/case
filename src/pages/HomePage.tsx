@@ -1,16 +1,15 @@
-import { useEffect, useState, useMemo, memo } from 'react';
-import { FileText, Building2, Calendar, AlertCircle } from 'lucide-react';
+import { useEffect, useState } from 'react';
+import { FileText, Calendar, AlertCircle } from 'lucide-react';
 import StatsCard from '@/components/home/StatsCard';
 import TrendComparisonChart from '@/components/charts/TrendComparisonChart';
 import TrendOverviewChart from '@/components/charts/TrendOverviewChart';
 import PieChart from '@/components/charts/PieChart';
 import WordCloud from '@/components/charts/WordCloud';
 
-import StatisticsInfo from '@/components/common/StatisticsInfo';
 import TooltipInfo from '@/components/ui/tooltip-info';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Skeleton } from '@/components/ui/skeleton';
-import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { toast } from 'sonner';
 import {
   getMonthlyAppTrend,
@@ -18,7 +17,6 @@ import {
   getMonthlyReportTrend,
   getYearlyReportTrend,
   getMonthlyAppCountTrend,
-  getDepartmentDistribution,
   getNationalDepartmentDistribution,
   getProvincialDepartmentDistribution,
   getPlatformDistribution,
@@ -28,7 +26,6 @@ import {
 } from '@/db/api';
 import {
   getStatsOverviewOptimized,
-  getAllChartsDataOptimized,
 } from '@/db/api-optimized';
 import type { StatsOverview, RegulatoryNewsWithDetails, FrontendConfig } from '@/types/types';
 import { Link } from 'react-router-dom';
@@ -39,7 +36,6 @@ export default function HomePage() {
   const [yearlyAppData, setYearlyAppData] = useState<{ year: string; count: number }[]>([]);
   const [monthlyReportData, setMonthlyReportData] = useState<{ month: string; count: number }[]>([]);
   const [yearlyReportData, setYearlyReportData] = useState<{ year: string; count: number }[]>([]);
-  const [deptData, setDeptData] = useState<{ name: string; count: number }[]>([]);
   const [nationalDeptData, setNationalDeptData] = useState<{ name: string; count: number }[]>([]);
   const [provincialDeptData, setProvincialDeptData] = useState<{ name: string; count: number }[]>([]);
   const [platformData, setPlatformData] = useState<{ name: string; count: number }[]>([]);
@@ -51,7 +47,6 @@ export default function HomePage() {
   const [chartsLoading, setChartsLoading] = useState(true);
   const [trendView, setTrendView] = useState<'monthly' | 'yearly'>('monthly');
   const [trendDimension, setTrendDimension] = useState<'app' | 'report' | 'comparison'>('app');
-  const [deptLevelView, setDeptLevelView] = useState<'national' | 'provincial'>('national');
   const [timeDimension, setTimeDimension] = useState<'month' | 'quarter' | 'year'>('month');
   const [trendOverviewData, setTrendOverviewData] = useState<{ month: string; count: number }[]>([]);
   const [trendOverviewRange, setTrendOverviewRange] = useState<'recent6' | 'thisYear' | 'all'>('recent6');
@@ -123,18 +118,15 @@ export default function HomePage() {
       setTimeout(async () => {
         try {
           const [
-            deptDist,
             platformDist,
             keywordsData,
             newsData,
           ] = await Promise.all([
-            getDepartmentDistribution(),
             getPlatformDistribution(),
             getViolationKeywords(),
             getRecentNews(5),
           ]);
           
-          setDeptData(deptDist);
           setPlatformData(platformDist);
           setKeywords(keywordsData);
           setRecentNews(newsData);
