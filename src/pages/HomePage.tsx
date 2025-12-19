@@ -132,7 +132,7 @@ export default function HomePage() {
           ]);
           
           setPlatformData(platformDist);
-          setViolationData(violationDist.map(item => ({ name: item.type, count: item.count })));
+          setViolationData(violationDist.map((item: { type: string; count: number }) => ({ name: item.type, count: item.count })));
           setKeywords(keywordsData);
           setRecentNews(newsData);
         } catch (error) {
@@ -508,20 +508,22 @@ export default function HomePage() {
               <CardTitle className="text-lg sm:text-xl">国家级部门分布</CardTitle>
               <TooltipInfo
                 content={
-                  <div className="space-y-2">
-                    <p className="font-semibold">统计说明</p>
-                    <p className="text-xs text-muted-foreground">
-                      展示国家级监管部门在全部数据周期内通报的相关应用数量分布情况
-                    </p>
-                    <p className="text-xs text-muted-foreground">
-                      数据包含各部门通报的相关应用总数量及其占同级部门应用总数的百分比
-                    </p>
-                    <p className="text-xs text-muted-foreground">
-                      统计范围：全部数据周期内国家级监管部门通报的相关应用
-                    </p>
-                    <p className="text-xs text-muted-foreground">
-                      数据说明：展示各部门通报的相关应用数量及其占同级部门应用总数的百分比
-                    </p>
+                  <div className="space-y-3">
+                    <p className="font-semibold text-base">统计说明</p>
+                    <div className="space-y-2.5 text-xs leading-relaxed">
+                      <div>
+                        <div className="font-semibold mb-1">🏛️ 部门分布</div>
+                        <div className="text-muted-foreground">统计国家级监管部门通报的应用数量，展示各部门的监管力度分布</div>
+                      </div>
+                      <div>
+                        <div className="font-semibold mb-1">📊 统计逻辑</div>
+                        <div className="text-muted-foreground">按应用名称去重统计，同一部门多次通报同一应用只计算1次</div>
+                      </div>
+                      <div>
+                        <div className="font-semibold mb-1">📅 数据范围</div>
+                        <div className="text-muted-foreground">统计范围覆盖全部数据周期</div>
+                      </div>
+                    </div>
                   </div>
                 }
               />
@@ -536,6 +538,7 @@ export default function HomePage() {
                   data={nationalDeptData} 
                   title="国家级部门通报相关应用分布"
                   showHeader={false}
+                  showPercentage={true}
                   className="border-none shadow-none"
                 />
               </div>
@@ -552,20 +555,22 @@ export default function HomePage() {
               <CardTitle className="text-lg sm:text-xl">省级部门分布</CardTitle>
               <TooltipInfo
                 content={
-                  <div className="space-y-2">
-                    <p className="font-semibold">统计说明</p>
-                    <p className="text-xs text-muted-foreground">
-                      展示省级监管部门在全部数据周期内通报的相关应用数量分布情况
-                    </p>
-                    <p className="text-xs text-muted-foreground">
-                      数据包含各部门通报的相关应用总数量及其占同级部门应用总数的百分比
-                    </p>
-                    <p className="text-xs text-muted-foreground">
-                      统计范围：全部数据周期内省级监管部门通报的相关应用
-                    </p>
-                    <p className="text-xs text-muted-foreground">
-                      数据说明：展示各部门通报的相关应用数量及其占同级部门应用总数的百分比
-                    </p>
+                  <div className="space-y-3">
+                    <p className="font-semibold text-base">统计说明</p>
+                    <div className="space-y-2.5 text-xs leading-relaxed">
+                      <div>
+                        <div className="font-semibold mb-1">🏛️ 部门分布</div>
+                        <div className="text-muted-foreground">统计省级监管部门通报的应用数量，展示各部门的监管力度分布</div>
+                      </div>
+                      <div>
+                        <div className="font-semibold mb-1">📊 统计逻辑</div>
+                        <div className="text-muted-foreground">按应用名称去重统计，同一部门多次通报同一应用只计算1次</div>
+                      </div>
+                      <div>
+                        <div className="font-semibold mb-1">📅 数据范围</div>
+                        <div className="text-muted-foreground">统计范围覆盖全部数据周期</div>
+                      </div>
+                    </div>
                   </div>
                 }
               />
@@ -580,6 +585,7 @@ export default function HomePage() {
                   data={provincialDeptData} 
                   title="省级部门通报相关应用分布"
                   showHeader={false}
+                  showPercentage={true}
                   className="border-none shadow-none"
                 />
               </div>
@@ -604,8 +610,10 @@ export default function HomePage() {
             </Card>
           ) : platformData.length > 0 ? (
             <PieChart 
-              data={platformData.slice(0, 10)} 
+              data={platformData} 
               title="应用平台分布"
+              limit={10}
+              showPercentage={true}
               tooltipContent={
                 <div className="space-y-3">
                   <p className="font-semibold text-base">统计说明</p>
