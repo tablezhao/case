@@ -10,9 +10,10 @@ interface PieChartProps {
   children?: ReactNode;
   tooltipContent?: ReactNode;
   showHeader?: boolean;
+  className?: string;
 }
 
-export default function PieChart({ data, title, children, tooltipContent, showHeader = true }: PieChartProps) {
+export default function PieChart({ data, title, children, tooltipContent, showHeader = true, className }: PieChartProps) {
   const chartRef = useRef<HTMLDivElement>(null);
   const [containerWidth, setContainerWidth] = useState(0);
 
@@ -142,7 +143,7 @@ export default function PieChart({ data, title, children, tooltipContent, showHe
   }, [data, title, containerWidth]);
 
   return (
-    <Card>
+    <Card className={className}>
       {showHeader && (
         <CardHeader>
           <div className="flex items-center gap-1.5">

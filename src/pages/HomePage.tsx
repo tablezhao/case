@@ -539,6 +539,7 @@ export default function HomePage() {
                   data={nationalDeptData} 
                   title="国家级部门通报相关应用分布"
                   showHeader={false}
+                  className="border-none shadow-none"
                 />
               </div>
             ) : (
@@ -582,6 +583,7 @@ export default function HomePage() {
                   data={provincialDeptData} 
                   title="省级部门通报相关应用分布"
                   showHeader={false}
+                  className="border-none shadow-none"
                 />
               </div>
             ) : (

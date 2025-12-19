@@ -170,8 +170,12 @@ export async function getDepartmentDistributionOptimized() {
   if (error) throw error;
 
   const result = {
-    national: Array.isArray(data?.national) ? data.national : [],
-    provincial: Array.isArray(data?.provincial) ? data.provincial : [],
+    national: Array.isArray(data?.national) 
+      ? data.national.map(item => ({ name: item.name, count: item.value || 0 })) 
+      : [],
+    provincial: Array.isArray(data?.provincial) 
+      ? data.provincial.map(item => ({ name: item.name, count: item.value || 0 })) 
+      : [],
   };
 
   cacheManager.set(cacheKey, result);
