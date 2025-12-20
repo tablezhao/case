@@ -144,7 +144,6 @@ export default function ViolationAnalysisPage() {
 
     // 响应式布局判断
     const isSmallScreen = containerWidth < 768;
-    const isMediumScreen = containerWidth >= 768 && containerWidth < 1024;
 
     return {
       tooltip: {
@@ -238,7 +237,7 @@ export default function ViolationAnalysisPage() {
 
   return (
     <div className="container mx-auto py-8 px-4 space-y-6">
-      <PageMeta title="问题分析" description="高频违规问题统计分析" />
+      <PageMeta description="高频违规问题统计分析" />
       
       {/* 页面标题 */}
       <div>

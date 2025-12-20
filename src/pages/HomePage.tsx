@@ -1,10 +1,8 @@
 import { useEffect, useState } from 'react';
 import { FileText, Calendar, AlertCircle } from 'lucide-react';
 import StatsCard from '@/components/home/StatsCard';
-import TrendComparisonChart from '@/components/charts/TrendComparisonChart';
 import TrendOverviewChart from '@/components/charts/TrendOverviewChart';
 import PieChart from '@/components/charts/PieChart';
-import WordCloud from '@/components/charts/WordCloud';
 
 import TooltipInfo from '@/components/ui/tooltip-info';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -12,15 +10,10 @@ import { Skeleton } from '@/components/ui/skeleton';
 import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { toast } from 'sonner';
 import {
-  getMonthlyAppTrend,
-  getYearlyAppTrend,
-  getMonthlyReportTrend,
-  getYearlyReportTrend,
   getMonthlyAppCountTrend,
   getNationalDepartmentDistribution,
   getProvincialDepartmentDistribution,
   getPlatformDistribution,
-  getViolationKeywords,
   getRecentNews,
   getViolationTypeAnalysis,
   getFrontendConfigs,
@@ -33,22 +26,15 @@ import { Link } from 'react-router-dom';
 
 export default function HomePage() {
   const [stats, setStats] = useState<StatsOverview | null>(null);
-  const [monthlyAppData, setMonthlyAppData] = useState<{ month: string; count: number }[]>([]);
-  const [yearlyAppData, setYearlyAppData] = useState<{ year: string; count: number }[]>([]);
-  const [monthlyReportData, setMonthlyReportData] = useState<{ month: string; count: number }[]>([]);
-  const [yearlyReportData, setYearlyReportData] = useState<{ year: string; count: number }[]>([]);
   const [nationalDeptData, setNationalDeptData] = useState<{ name: string; count: number }[]>([]);
   const [provincialDeptData, setProvincialDeptData] = useState<{ name: string; count: number }[]>([]);
   const [platformData, setPlatformData] = useState<{ name: string; count: number }[]>([]);
   const [violationData, setViolationData] = useState<{ name: string; count: number }[]>([]);
-  const [keywords, setKeywords] = useState<{ name: string; value: number }[]>([]);
   const [recentNews, setRecentNews] = useState<RegulatoryNewsWithDetails[]>([]);
   const [configs, setConfigs] = useState<FrontendConfig[]>([]);
   const [loading, setLoading] = useState(true);
   const [statsLoading, setStatsLoading] = useState(true);
   const [chartsLoading, setChartsLoading] = useState(true);
-  const [trendView, setTrendView] = useState<'monthly' | 'yearly'>('monthly');
-  const [trendDimension, setTrendDimension] = useState<'app' | 'report' | 'comparison'>('app');
   const [timeDimension, setTimeDimension] = useState<'month' | 'quarter' | 'year'>('month');
   const [trendOverviewData, setTrendOverviewData] = useState<{ month: string; count: number }[]>([]);
   const [trendOverviewRange, setTrendOverviewRange] = useState<'recent6' | 'thisYear' | 'all'>('recent6');
@@ -72,30 +58,16 @@ export default function HomePage() {
       setStatsLoading(false);
       
       // 第二批：并行加载所有图表数据
-      // 优先加载趋势图和部门分布（用户最关注的数据）
       const [
-        monthlyAppTrend,
-        yearlyAppTrend,
-        monthlyReportTrend,
-        yearlyReportTrend,
         monthlyAppCountTrend,
         nationalDeptDist,
         provincialDeptDist,
       ] = await Promise.all([
-        getMonthlyAppTrend(),
-        getYearlyAppTrend(),
-        getMonthlyReportTrend(),
-        getYearlyReportTrend(),
         getMonthlyAppCountTrend(trendOverviewRange), // 使用当前时间范围加载
         getNationalDepartmentDistribution(),
         getProvincialDepartmentDistribution(),
       ]);
 
-      setMonthlyAppData(monthlyAppTrend);
-      setYearlyAppData(yearlyAppTrend);
-      setMonthlyReportData(monthlyReportTrend);
-      setYearlyReportData(yearlyReportTrend);
-      
       // 数据完整性验证和日志记录
       if (monthlyAppCountTrend && monthlyAppCountTrend.length > 0) {
         const startMonth = monthlyAppCountTrend[0].month;
@@ -122,18 +94,15 @@ export default function HomePage() {
           const [
             platformDist,
             violationDist,
-            keywordsData,
             newsData,
           ] = await Promise.all([
             getPlatformDistribution(),
             getViolationTypeAnalysis(),
-            getViolationKeywords(),
             getRecentNews(5),
           ]);
           
           setPlatformData(platformDist);
           setViolationData(violationDist.map((item: { type: string; count: number }) => ({ name: item.type, count: item.count })));
-          setKeywords(keywordsData);
           setRecentNews(newsData);
         } catch (error) {
           console.error('加载次要数据失败:', error);
@@ -151,7 +120,6 @@ export default function HomePage() {
 
   const isModuleVisible = (moduleKey: string) => {
     // 所有首页模块现在都由frontend_config统一控制
-    // trend_chart和wordcloud已完全迁移到frontend_config系统
     const config = configs.find((c) => c.module_key === moduleKey);
     return config?.is_visible !== false;
   };
@@ -423,82 +391,6 @@ export default function HomePage() {
         </CardContent>
       </Card>
 
-      {isModuleVisible('trend_chart') && (
-        <Card>
-          <CardHeader>
-            <div className="flex flex-col gap-4">
-              <div className="flex flex-col xl:flex-row xl:items-center xl:justify-between gap-3">
-                <div className="flex items-center gap-1.5">
-                  <CardTitle className="text-lg sm:text-xl">通报趋势分析</CardTitle>
-                  <TooltipInfo
-                    content={
-                      <div className="space-y-3">
-                        <p className="font-semibold text-base">统计说明</p>
-                        <div className="space-y-2.5 text-xs leading-relaxed">
-                          <div>
-                            <div className="font-semibold mb-1">📱 通报应用数量</div>
-                            <div className="text-muted-foreground">按应用名称去重统计，同一应用在多个平台被通报只计算1次</div>
-                          </div>
-                          <div>
-                            <div className="font-semibold mb-1">📢 通报频次</div>
-                            <div className="text-muted-foreground">按"部门+日期"去重统计，同一部门在同一天发布的通报算作1次通报活动</div>
-                          </div>
-                          <div>
-                            <div className="font-semibold mb-1">🔗 数据关系</div>
-                            <div className="text-muted-foreground">1次通报活动可能涉及多个应用</div>
-                          </div>
-                        </div>
-                      </div>
-                    }
-                  />
-                </div>
-                <Tabs value={trendView} onValueChange={(v) => setTrendView(v as 'monthly' | 'yearly')}>
-                  <TabsList className="grid grid-cols-2 w-full xl:w-auto xl:min-w-[240px]">
-                    <TabsTrigger value="monthly" className="text-sm">月度视图</TabsTrigger>
-                    <TabsTrigger value="yearly" className="text-sm">年度视图</TabsTrigger>
-                  </TabsList>
-                </Tabs>
-              </div>
-              <Tabs value={trendDimension} onValueChange={(v) => setTrendDimension(v as 'app' | 'report' | 'comparison')}>
-                <TabsList className="grid grid-cols-3 w-full">
-                  <TabsTrigger value="app" className="text-sm">通报应用数量</TabsTrigger>
-                  <TabsTrigger value="report" className="text-sm">通报频次</TabsTrigger>
-                  <TabsTrigger value="comparison" className="text-sm">对比分析</TabsTrigger>
-                </TabsList>
-              </Tabs>
-            </div>
-          </CardHeader>
-          <CardContent className="px-2 sm:px-6">
-            {chartsLoading ? (
-              <Skeleton className="h-80 bg-muted" />
-            ) : (
-              <>
-                {trendView === 'monthly' && (
-                  <TrendComparisonChart 
-                    appData={monthlyAppData} 
-                    reportData={monthlyReportData}
-                    type="monthly"
-                    mode={trendDimension}
-                  />
-                )}
-                {trendView === 'yearly' && (
-                  <TrendComparisonChart 
-                    appData={yearlyAppData} 
-                    reportData={yearlyReportData}
-                    type="yearly"
-                    mode={trendDimension}
-                  />
-                )}
-                {((trendView === 'monthly' && monthlyAppData.length === 0 && monthlyReportData.length === 0) ||
-                  (trendView === 'yearly' && yearlyAppData.length === 0 && yearlyReportData.length === 0)) && (
-                  <div className="text-center py-8 text-muted-foreground">暂无数据</div>
-                )}
-              </>
-            )}
-          </CardContent>
-        </Card>
-      )}
-
       {/* 监管部门分布 */}
       <div className="grid gap-4 sm:gap-6 grid-cols-1 2xl:grid-cols-2">
         {/* 国家级部门分布 */}
@@ -660,41 +552,6 @@ export default function HomePage() {
                     <div>
                       <div className="font-semibold mb-1">🔢 显示数量</div>
                       <div className="text-muted-foreground">基于全量数据统计，展示各类问题占比（Top 10以外自动归为"其他"）</div>
-                    </div>
-                  </div>
-                </div>
-              }
-            />
-          ) : null
-        )}
-      </div>
-
-      <div className="grid gap-4 sm:gap-6 grid-cols-1 2xl:grid-cols-2">
-        {isModuleVisible('wordcloud') && (
-          chartsLoading ? (
-            <Card>
-              <CardHeader>
-                <CardTitle>违规问题词云</CardTitle>
-              </CardHeader>
-              <CardContent>
-                <Skeleton className="h-80 bg-muted" />
-              </CardContent>
-            </Card>
-          ) : keywords.length > 0 ? (
-            <WordCloud 
-              data={keywords} 
-              title="违规问题词云"
-              tooltipContent={
-                <div className="space-y-3">
-                  <p className="font-semibold text-base">统计说明</p>
-                  <div className="space-y-2.5 text-xs leading-relaxed">
-                    <div>
-                      <div className="font-semibold mb-1">☁️ 词云展示</div>
-                      <div className="text-muted-foreground">提取违规问题描述中的关键词，字体大小代表出现频率</div>
-                    </div>
-                    <div>
-                      <div className="font-semibold mb-1">🔍 热点问题</div>
-                      <div className="text-muted-foreground">快速识别当前监管重点关注的违规问题类型</div>
                     </div>
                   </div>
                 </div>

@@ -171,10 +171,10 @@ export async function getDepartmentDistributionOptimized() {
 
   const result = {
     national: Array.isArray(data?.national) 
-      ? data.national.map(item => ({ name: item.name, count: item.value || 0 })) 
+      ? data.national.map((item: { name: string; value?: number | null }) => ({ name: item.name, count: item.value || 0 })) 
       : [],
     provincial: Array.isArray(data?.provincial) 
-      ? data.provincial.map(item => ({ name: item.name, count: item.value || 0 })) 
+      ? data.provincial.map((item: { name: string; value?: number | null }) => ({ name: item.name, count: item.value || 0 })) 
       : [],
   };
 
@@ -193,25 +193,6 @@ export async function getPlatformDistributionOptimized() {
   if (cached) return cached;
 
   const { data, error } = await supabase.rpc('get_platform_distribution_stats');
-
-  if (error) throw error;
-
-  const result = Array.isArray(data) ? data : [];
-  cacheManager.set(cacheKey, result);
-
-  return result;
-}
-
-/**
- * 获取违规问题关键词数据（优化版）
- */
-export async function getViolationKeywordsOptimized() {
-  const cacheKey = 'violation_keywords';
-  
-  const cached = cacheManager.get<any[]>(cacheKey);
-  if (cached) return cached;
-
-  const { data, error } = await supabase.rpc('get_violation_keywords_stats');
 
   if (error) throw error;
 
@@ -256,14 +237,12 @@ export async function getAllChartsDataOptimized() {
     monthlyTrend,
     departmentDist,
     platformDist,
-    violationKeywords,
     geographicDist,
   ] = await Promise.all([
     getYearlyTrendOptimized(),
     getMonthlyTrendOptimized(),
     getDepartmentDistributionOptimized(),
     getPlatformDistributionOptimized(),
-    getViolationKeywordsOptimized(),
     getGeographicDistributionOptimized(),
   ]);
 
@@ -272,7 +251,6 @@ export async function getAllChartsDataOptimized() {
     monthlyTrend,
     departmentDist,
     platformDist,
-    violationKeywords,
     geographicDist,
   };
 
