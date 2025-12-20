@@ -149,26 +149,28 @@ RETURNS TABLE (
   count bigint
 )
 LANGUAGE plpgsql
-AS $$
+AS $
 BEGIN
   RETURN QUERY
   WITH filtered_cases AS (
-    SELECT violation_content
+    SELECT violation_keywords
     FROM cases
     WHERE
       (department_ids IS NULL OR department_id = ANY(department_ids::uuid[]))
       AND (start_date IS NULL OR report_date >= start_date::date)
       AND (end_date IS NULL OR report_date <= end_date::date)
+      AND violation_keywords IS NOT NULL
   ),
   extracted_keywords AS (
-    SELECT unnest(extract_violation_keywords(violation_content)) as keyword
+    SELECT unnest(violation_keywords) as keyword
     FROM filtered_cases
   )
   SELECT
     keyword as type,
     count(*) as count
   FROM extracted_keywords
+  WHERE keyword IS NOT NULL AND keyword != ''
   GROUP BY keyword
   ORDER BY count DESC;
 END;
-$$;
+$;

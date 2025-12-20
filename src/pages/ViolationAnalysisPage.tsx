@@ -349,7 +349,7 @@ export default function ViolationAnalysisPage() {
                 {pieChartOption && (
                   <ReactECharts
                     option={pieChartOption}
-                    style={{ height: '500px' }}
+                    style={{ height: '500px', touchAction: 'none' }}
                     opts={{ renderer: 'svg' }}
                   />
                 )}

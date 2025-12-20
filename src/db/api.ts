@@ -1279,6 +1279,95 @@ export async function getMonthlyAppCountTrend(timeRange: 'recent6' | 'thisYear' 
   }
 }
 
+export async function getHomeChartsData(timeRange: TimeRangeType = 'all') {
+  const { data, error } = await supabase.rpc('get_home_charts_core_data', {
+    time_range: timeRange,
+  });
+
+  if (error) throw error;
+
+  const payload = data as unknown;
+
+  const isRecord = (value: unknown): value is Record<string, unknown> =>
+    typeof value === 'object' && value !== null;
+
+  const toNumber = (value: unknown): number => {
+    if (typeof value === 'number') return value;
+    if (typeof value === 'string') return Number(value) || 0;
+    return 0;
+  };
+
+  const parseTrend = (value: unknown): Array<{ month: string; count: number }> => {
+    if (!Array.isArray(value)) return [];
+    return value
+      .map((item) => {
+        if (!isRecord(item)) return null;
+        const month = typeof item.month === 'string' ? item.month : '';
+        if (!month) return null;
+        return { month, count: toNumber(item.count) };
+      })
+      .filter((item): item is { month: string; count: number } => item !== null);
+  };
+
+  const parseNameCount = (value: unknown): Array<{ name: string; count: number }> => {
+    if (!Array.isArray(value)) return [];
+    return value
+      .map((item) => {
+        if (!isRecord(item)) return null;
+        const name = typeof item.name === 'string' ? item.name : '';
+        if (!name) return null;
+        return { name, count: toNumber(item.count) };
+      })
+      .filter((item): item is { name: string; count: number } => item !== null);
+  };
+
+  if (!isRecord(payload)) {
+    return {
+      trend: [],
+      national: [],
+      provincial: [],
+      platform: [],
+    };
+  }
+
+  return {
+    trend: parseTrend(payload.trend),
+    national: parseNameCount(payload.national),
+    provincial: parseNameCount(payload.provincial),
+    platform: parseNameCount(payload.platform),
+  };
+}
+
+export async function getHomeViolationData(timeRange: TimeRangeType = 'all') {
+  const { data, error } = await supabase.rpc('get_home_violation_data', {
+    time_range: timeRange,
+  });
+
+  if (error) throw error;
+
+  const payload = data as unknown;
+
+  const isRecord = (value: unknown): value is Record<string, unknown> =>
+    typeof value === 'object' && value !== null;
+
+  const toNumber = (value: unknown): number => {
+    if (typeof value === 'number') return value;
+    if (typeof value === 'string') return Number(value) || 0;
+    return 0;
+  };
+
+  if (!Array.isArray(payload)) return [];
+
+  return payload
+    .map((item) => {
+      if (!isRecord(item)) return null;
+      const name = typeof item.name === 'string' ? item.name : '';
+      if (!name) return null;
+      return { name, count: toNumber(item.count) };
+    })
+    .filter((item): item is { name: string; count: number } => item !== null);
+}
+
 // 获取部门分布数据（所有部门）
 export async function getDepartmentDistribution() {
   const { data, error } = await supabase
@@ -1304,97 +1393,111 @@ export async function getDepartmentDistribution() {
 
 // 获取国家级部门分布数据
 export async function getNationalDepartmentDistribution(timeRange: TimeRangeType = 'all') {
-  // 先获取所有国家级部门
   const departments = await getNationalDepartments();
-  
+
   if (departments.length === 0) {
     return [];
   }
 
+  const departmentNameById = new Map(departments.map((dept) => [dept.id, dept.name]));
+  const departmentIds = departments.map((dept) => dept.id);
+
   const { startDate, endDate } = calculateTimeRange(timeRange);
-  
-  // 为每个部门获取统计数据
-  const departmentsWithStats = await Promise.all(
-    departments.map(async (dept) => {
-      // 获取该部门的所有案例（包含应用名称）
-      let query = supabase
-        .from('cases')
-        .select('app_name, report_date')
-        .eq('department_id', dept.id);
 
-      if (timeRange !== 'all') {
-        query = query.gte('report_date', startDate).lte('report_date', endDate);
-      }
+  let query = supabase
+    .from('cases')
+    .select('department_id, app_name')
+    .in('department_id', departmentIds);
 
-      const { data: cases } = await query;
-      
-      const casesArray = Array.isArray(cases) ? cases : [];
-      
-      // 计算通报的相关应用数量：按应用名称去重统计
-      const uniqueApps = new Set(
-        casesArray
-          .map(item => item.app_name)
-          .filter(Boolean)
-      );
-      
-      return {
-        name: dept.name,
-        count: uniqueApps.size,
-      };
-    })
-  );
-  
-  // 返回排序后的数据
-  return departmentsWithStats
-    .filter(item => item.count > 0) // 过滤掉通报应用数量为0的部门
+  if (timeRange !== 'all') {
+    query = query.gte('report_date', startDate).lte('report_date', endDate);
+  }
+
+  const { data, error } = await query;
+
+  if (error) throw error;
+
+  type Row = { department_id: string | null; app_name: string | null };
+  const rows = Array.isArray(data) ? (data as unknown as Row[]) : [];
+
+  const appSetsByDepartmentId = new Map<string, Set<string>>();
+  rows.forEach((row) => {
+    const departmentId = row.department_id || '';
+    const appName = row.app_name || '';
+    if (!departmentId || !appName) return;
+
+    const existing = appSetsByDepartmentId.get(departmentId);
+    if (existing) {
+      existing.add(appName);
+      return;
+    }
+
+    const set = new Set<string>();
+    set.add(appName);
+    appSetsByDepartmentId.set(departmentId, set);
+  });
+
+  return Array.from(appSetsByDepartmentId.entries())
+    .map(([departmentId, apps]) => ({
+      name: departmentNameById.get(departmentId) || '未知部门',
+      count: apps.size,
+    }))
+    .filter((item) => item.count > 0)
     .sort((a, b) => b.count - a.count);
 }
 
 // 获取省级部门分布数据
 export async function getProvincialDepartmentDistribution(timeRange: TimeRangeType = 'all') {
-  // 先获取所有省级部门
   const departments = await getProvincialDepartments();
-  
+
   if (departments.length === 0) {
     return [];
   }
 
+  const departmentNameById = new Map(departments.map((dept) => [dept.id, dept.name]));
+  const departmentIds = departments.map((dept) => dept.id);
+
   const { startDate, endDate } = calculateTimeRange(timeRange);
-  
-  // 为每个部门获取统计数据
-  const departmentsWithStats = await Promise.all(
-    departments.map(async (dept) => {
-      // 获取该部门的所有案例（包含应用名称）
-      let query = supabase
-        .from('cases')
-        .select('app_name, report_date')
-        .eq('department_id', dept.id);
 
-      if (timeRange !== 'all') {
-        query = query.gte('report_date', startDate).lte('report_date', endDate);
-      }
+  let query = supabase
+    .from('cases')
+    .select('department_id, app_name')
+    .in('department_id', departmentIds);
 
-      const { data: cases } = await query;
-      
-      const casesArray = Array.isArray(cases) ? cases : [];
-      
-      // 计算通报的相关应用数量：按应用名称去重统计
-      const uniqueApps = new Set(
-        casesArray
-          .map(item => item.app_name)
-          .filter(Boolean)
-      );
-      
-      return {
-        name: dept.name,
-        count: uniqueApps.size,
-      };
-    })
-  );
-  
-  // 返回排序后的数据
-  return departmentsWithStats
-    .filter(item => item.count > 0) // 过滤掉通报应用数量为0的部门
+  if (timeRange !== 'all') {
+    query = query.gte('report_date', startDate).lte('report_date', endDate);
+  }
+
+  const { data, error } = await query;
+
+  if (error) throw error;
+
+  type Row = { department_id: string | null; app_name: string | null };
+  const rows = Array.isArray(data) ? (data as unknown as Row[]) : [];
+
+  const appSetsByDepartmentId = new Map<string, Set<string>>();
+  rows.forEach((row) => {
+    const departmentId = row.department_id || '';
+    const appName = row.app_name || '';
+    if (!departmentId || !appName) return;
+
+    const existing = appSetsByDepartmentId.get(departmentId);
+    if (existing) {
+      existing.add(appName);
+      return;
+    }
+
+    const set = new Set<string>();
+    set.add(appName);
+    appSetsByDepartmentId.set(departmentId, set);
+  });
+
+  return Array.from(appSetsByDepartmentId.entries())
+    .map(([departmentId, apps]) => ({
+      name: departmentNameById.get(departmentId) || '未知部门',
+      count: apps.size,
+    }))
+    .filter((item) => item.count > 0)
     .sort((a, b) => b.count - a.count);
 }
 

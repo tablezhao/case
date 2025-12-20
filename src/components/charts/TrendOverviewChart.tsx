@@ -38,6 +38,11 @@ export default function TrendOverviewChart({ data, timeRange }: TrendOverviewCha
 
   const option = useMemo<EChartsOption>(() => {
     return {
+      animation: false,
+      animationDuration: 0,
+      animationDurationUpdate: 0,
+      animationEasing: 'linear',
+      animationEasingUpdate: 'linear',
       tooltip: {
         trigger: 'axis',
         axisPointer: { type: 'line' },
@@ -133,10 +138,15 @@ export default function TrendOverviewChart({ data, timeRange }: TrendOverviewCha
 
   return (
     <div className="w-full h-[300px]">
-      <ReactECharts option={option} style={{ height: 300, width: '100%' }} notMerge lazyUpdate />
+      <ReactECharts
+        option={option}
+        style={{ height: 300, width: '100%', touchAction: 'none' }}
+        notMerge
+        lazyUpdate
+        opts={{ renderer: 'svg' }}
+      />
     </div>
   );
 }
-
 
 

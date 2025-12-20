@@ -19,11 +19,10 @@ AS $$
   WITH filtered_cases AS (
     -- Step 1: Filter cases
     SELECT 
-      violation_content
+      violation_keywords
     FROM cases
     WHERE 
-      violation_content IS NOT NULL 
-      AND violation_content != ''
+      violation_keywords IS NOT NULL
       -- Department filter
       AND (p_department_id IS NULL OR department_id = p_department_id)
       -- Dimension filter
@@ -34,10 +33,9 @@ AS $$
       )
   ),
   extracted_issues AS (
-    -- Step 2: Use the standardized regex extraction function
-    -- This ensures consistency with the HomePage chart
+    -- Step 2: Use precomputed keyword extraction (write-time)
     SELECT 
-      unnest(extract_violation_keywords(violation_content)) as issue
+      unnest(violation_keywords) as issue
     FROM filtered_cases
   ),
   issue_counts AS (

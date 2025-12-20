@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
-import { FileText, Calendar, AlertCircle } from 'lucide-react';
+import { FileText, Calendar, AlertCircle, Loader2 } from 'lucide-react';
 import StatsCard from '@/components/home/StatsCard';
 import TrendOverviewChart from '@/components/charts/TrendOverviewChart';
 import PieChart from '@/components/charts/PieChart';
@@ -9,14 +9,11 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { toast } from 'sonner';
-import { calculateTimeRange, type TimeRangeType } from '@/utils/timeRangeUtils';
+import { type TimeRangeType } from '@/utils/timeRangeUtils';
 import {
-  getMonthlyAppCountTrend,
-  getNationalDepartmentDistribution,
-  getProvincialDepartmentDistribution,
-  getPlatformDistribution,
+  getHomeChartsData,
+  getHomeViolationData,
   getRecentNews,
-  getViolationTypeAnalysis,
   getFrontendConfigs,
 } from '@/db/api';
 import {
@@ -26,6 +23,7 @@ import type { StatsOverview, RegulatoryNewsWithDetails, FrontendConfig } from '@
 import { Link } from 'react-router-dom';
 
 const CHARTS_CACHE_TTL_MS = 5 * 60 * 1000;
+const CHARTS_RANGE_DEBOUNCE_MS = 180;
 
 function parseTimeRangeParam(value: string | null): TimeRangeType | null {
   if (value === 'recent6' || value === 'thisYear' || value === 'all') return value;
@@ -43,6 +41,8 @@ export default function HomePage() {
   const [loading, setLoading] = useState(true);
   const [statsLoading, setStatsLoading] = useState(true);
   const [chartsLoading, setChartsLoading] = useState(true);
+  const [chartsUpdating, setChartsUpdating] = useState(false);
+  const [violationUpdating, setViolationUpdating] = useState(false);
   const [newsLoading, setNewsLoading] = useState(true);
   const [timeDimension, setTimeDimension] = useState<'month' | 'quarter' | 'year'>('month');
   const [trendOverviewData, setTrendOverviewData] = useState<{ month: string; count: number }[]>([]);
@@ -50,6 +50,7 @@ export default function HomePage() {
     const initial = parseTimeRangeParam(new URLSearchParams(window.location.search).get('range'));
     return initial ?? 'recent6';
   });
+  const [chartsDataRange, setChartsDataRange] = useState<TimeRangeType>(trendOverviewRange);
 
   const chartsCacheRef = useRef<
     Map<
@@ -64,81 +65,119 @@ export default function HomePage() {
       }
     >
   >(new Map());
+  const violationCacheRef = useRef<
+    Map<
+      TimeRangeType,
+      {
+        timestamp: number;
+        data: { name: string; count: number }[];
+      }
+    >
+  >(new Map());
   const chartsRequestIdRef = useRef(0);
+  const chartsDataRangeRef = useRef<TimeRangeType>(chartsDataRange);
+  const lastPushedHistoryRangeRef = useRef<TimeRangeType | null>(null);
 
-  const handleRangeChange = useCallback(
+  useEffect(() => {
+    chartsDataRangeRef.current = chartsDataRange;
+  }, [chartsDataRange]);
+
+  const pushRangeToHistory = useCallback((range: TimeRangeType) => {
+    if (lastPushedHistoryRangeRef.current === range) return;
+    const url = new URL(window.location.href);
+    const current = parseTimeRangeParam(url.searchParams.get('range'));
+    if (current === range) {
+      lastPushedHistoryRangeRef.current = range;
+      return;
+    }
+    url.searchParams.set('range', range);
+    window.history.pushState({ range }, '', url.toString());
+    lastPushedHistoryRangeRef.current = range;
+  }, []);
+
+  const applyRangeChange = useCallback(
     async (range: TimeRangeType, updateHistory = true) => {
       const cached = chartsCacheRef.current.get(range);
+      const cachedViolation = violationCacheRef.current.get(range);
       if (cached && Date.now() - cached.timestamp <= CHARTS_CACHE_TTL_MS) {
-        setTrendOverviewRange(range);
         setTrendOverviewData(cached.trend);
         setNationalDeptData(cached.national);
         setProvincialDeptData(cached.provincial);
         setPlatformData(cached.platform);
-        setViolationData(cached.violation);
+        if (cachedViolation && Date.now() - cachedViolation.timestamp <= CHARTS_CACHE_TTL_MS) {
+          setViolationData(cachedViolation.data);
+        }
+        setChartsDataRange(range);
         setChartsLoading(false);
+        setChartsUpdating(false);
 
         if (updateHistory) {
-          const url = new URL(window.location.href);
-          url.searchParams.set('range', range);
-          window.history.pushState({ range }, '', url.toString());
+          pushRangeToHistory(range);
         }
 
         return;
       }
 
-      setTrendOverviewRange(range);
-      if (updateHistory) {
-        const url = new URL(window.location.href);
-        url.searchParams.set('range', range);
-        window.history.pushState({ range }, '', url.toString());
-      }
-
       const requestId = ++chartsRequestIdRef.current;
-      setChartsLoading(true);
+      if (!chartsLoading) setChartsUpdating(true);
 
       try {
-        const { startDate, endDate } = calculateTimeRange(range);
-        const [trendData, nationalData, provincialData, platformDist, violationDist] = await Promise.all([
-          getMonthlyAppCountTrend(range),
-          getNationalDepartmentDistribution(range),
-          getProvincialDepartmentDistribution(range),
-          getPlatformDistribution('case_count', range),
-          range === 'all' ? getViolationTypeAnalysis() : getViolationTypeAnalysis(undefined, startDate, endDate),
-        ]);
+        const charts = await getHomeChartsData(range);
 
         if (requestId !== chartsRequestIdRef.current) return;
 
-        const violation = violationDist.map((item) => ({
-          name: item.type,
-          count: item.count,
-        }));
+        setTrendOverviewData(charts.trend);
+        setNationalDeptData(charts.national);
+        setProvincialDeptData(charts.provincial);
+        setPlatformData(charts.platform);
+        setChartsDataRange(range);
+        setChartsLoading(false);
+        setChartsUpdating(false);
 
-        setTrendOverviewData(trendData);
-        setNationalDeptData(nationalData);
-        setProvincialDeptData(provincialData);
-        setPlatformData(platformDist);
-        setViolationData(violation);
+        if (updateHistory) {
+          pushRangeToHistory(range);
+        }
 
         chartsCacheRef.current.set(range, {
           timestamp: Date.now(),
-          trend: trendData,
-          national: nationalData,
-          provincial: provincialData,
-          platform: platformDist,
-          violation,
+          trend: charts.trend,
+          national: charts.national,
+          provincial: charts.provincial,
+          platform: charts.platform,
+          violation: [],
         });
+
+        const cachedViolation = violationCacheRef.current.get(range);
+        if (cachedViolation && Date.now() - cachedViolation.timestamp <= CHARTS_CACHE_TTL_MS) {
+          setViolationData(cachedViolation.data);
+          return;
+        }
+
+        setViolationUpdating(true);
+        const violation = await getHomeViolationData(range);
+        if (requestId !== chartsRequestIdRef.current) return;
+        setViolationData(violation);
+        violationCacheRef.current.set(range, { timestamp: Date.now(), data: violation });
       } catch (error) {
         if (requestId !== chartsRequestIdRef.current) return;
         console.error('[HomePage] 加载图表数据失败:', error);
         toast.error('数据更新失败，请重试');
+        setTrendOverviewRange(chartsDataRangeRef.current);
       } finally {
         if (requestId !== chartsRequestIdRef.current) return;
         setChartsLoading(false);
+        setChartsUpdating(false);
+        setViolationUpdating(false);
       }
     },
-    []
+    [chartsLoading, pushRangeToHistory]
   );
+
+  const requestRangeChange = useCallback((range: TimeRangeType, updateHistory = true) => {
+    if (range === trendOverviewRange && range === chartsDataRangeRef.current) return;
+    setTrendOverviewRange(range);
+    void applyRangeChange(range, updateHistory);
+  }, [applyRangeChange, chartsLoading, trendOverviewRange]);
 
   const loadData = useCallback(async () => {
     try {
@@ -160,7 +199,7 @@ export default function HomePage() {
       setLoading(false);
     }
 
-    void handleRangeChange(trendOverviewRange, false);
+    void applyRangeChange(trendOverviewRange, false);
 
     setNewsLoading(true);
     try {
@@ -171,7 +210,7 @@ export default function HomePage() {
     } finally {
       setNewsLoading(false);
     }
-  }, [handleRangeChange, trendOverviewRange]);
+  }, [applyRangeChange, trendOverviewRange]);
 
   useEffect(() => {
     void loadData();
@@ -180,14 +219,15 @@ export default function HomePage() {
   useEffect(() => {
     const onPopState = () => {
       const range = parseTimeRangeParam(new URLSearchParams(window.location.search).get('range')) ?? 'recent6';
-      void handleRangeChange(range, false);
+      setTrendOverviewRange(range);
+      void applyRangeChange(range, false);
     };
 
     window.addEventListener('popstate', onPopState);
     return () => {
       window.removeEventListener('popstate', onPopState);
     };
-  }, [handleRangeChange]);
+  }, [applyRangeChange]);
 
   const isModuleVisible = (moduleKey: string) => {
     // 所有首页模块现在都由frontend_config统一控制
@@ -196,9 +236,9 @@ export default function HomePage() {
   };
 
   const rangeDescription =
-    trendOverviewRange === 'recent6'
+    chartsDataRange === 'recent6'
       ? '统计近6个月内的数据'
-      : trendOverviewRange === 'thisYear'
+      : chartsDataRange === 'thisYear'
         ? '统计本年度至今的数据'
         : '统计全部历史数据';
 
@@ -419,7 +459,7 @@ export default function HomePage() {
                   }
                 />
               </div>
-              <Tabs value={trendOverviewRange} onValueChange={(v) => void handleRangeChange(v as TimeRangeType, true)}>
+              <Tabs value={trendOverviewRange} onValueChange={(v) => requestRangeChange(v as TimeRangeType, true)}>
                 <TabsList className="grid grid-cols-3 w-full xl:w-auto xl:min-w-[280px]">
                   <TabsTrigger value="recent6">近6个月</TabsTrigger>
                   <TabsTrigger value="thisYear">本年至今</TabsTrigger>
@@ -430,12 +470,24 @@ export default function HomePage() {
           </div>
         </CardHeader>
         <CardContent>
-          {chartsLoading ? (
+          {chartsLoading && trendOverviewData.length === 0 ? (
             <div className="space-y-3">
               <Skeleton className="h-[300px] w-full bg-muted" />
             </div>
           ) : (
-            <TrendOverviewChart data={trendOverviewData} timeRange={trendOverviewRange} />
+            <div className="relative">
+              <div className={chartsUpdating ? 'opacity-60 transition-opacity' : ''}>
+                <TrendOverviewChart data={trendOverviewData} timeRange={chartsDataRange} />
+              </div>
+              {chartsUpdating && (
+                <div className="absolute inset-0 flex items-center justify-center">
+                  <div className="flex items-center gap-2 rounded-md border bg-background/80 px-3 py-2 text-sm text-muted-foreground shadow-sm">
+                    <Loader2 className="h-4 w-4 animate-spin" />
+                    数据更新中
+                  </div>
+                </div>
+              )}
+            </div>
           )}
         </CardContent>
       </Card>
@@ -471,17 +523,27 @@ export default function HomePage() {
             </div>
           </CardHeader>
           <CardContent className="px-2 sm:px-6">
-            {chartsLoading ? (
+            {chartsLoading && nationalDeptData.length === 0 ? (
               <Skeleton className="h-80 bg-muted" />
             ) : nationalDeptData.length > 0 ? (
-              <div className="w-full">
-                <PieChart 
-                  data={nationalDeptData} 
-                  title="国家级部门通报相关应用分布"
-                  showHeader={false}
-                  showPercentage={true}
-                  className="border-none shadow-none"
-                />
+              <div className="relative w-full">
+                <div className={chartsUpdating ? 'opacity-60 transition-opacity' : ''}>
+                  <PieChart
+                    data={nationalDeptData}
+                    title="国家级部门通报相关应用分布"
+                    showHeader={false}
+                    showPercentage={true}
+                    className="border-none shadow-none"
+                  />
+                </div>
+                {chartsUpdating && (
+                  <div className="absolute inset-0 flex items-center justify-center">
+                    <div className="flex items-center gap-2 rounded-md border bg-background/80 px-3 py-2 text-sm text-muted-foreground shadow-sm">
+                      <Loader2 className="h-4 w-4 animate-spin" />
+                      数据更新中
+                    </div>
+                  </div>
+                )}
               </div>
             ) : (
               <div className="text-center py-8 text-muted-foreground">暂无国家级部门数据</div>
@@ -518,17 +580,27 @@ export default function HomePage() {
             </div>
           </CardHeader>
           <CardContent className="px-2 sm:px-6">
-            {chartsLoading ? (
+            {chartsLoading && provincialDeptData.length === 0 ? (
               <Skeleton className="h-80 bg-muted" />
             ) : provincialDeptData.length > 0 ? (
-              <div className="w-full">
-                <PieChart 
-                  data={provincialDeptData} 
-                  title="省级部门通报相关应用分布"
-                  showHeader={false}
-                  showPercentage={true}
-                  className="border-none shadow-none"
-                />
+              <div className="relative w-full">
+                <div className={chartsUpdating ? 'opacity-60 transition-opacity' : ''}>
+                  <PieChart
+                    data={provincialDeptData}
+                    title="省级部门通报相关应用分布"
+                    showHeader={false}
+                    showPercentage={true}
+                    className="border-none shadow-none"
+                  />
+                </div>
+                {chartsUpdating && (
+                  <div className="absolute inset-0 flex items-center justify-center">
+                    <div className="flex items-center gap-2 rounded-md border bg-background/80 px-3 py-2 text-sm text-muted-foreground shadow-sm">
+                      <Loader2 className="h-4 w-4 animate-spin" />
+                      数据更新中
+                    </div>
+                  </div>
+                )}
               </div>
             ) : (
               <div className="text-center py-8 text-muted-foreground">暂无省级部门数据</div>
@@ -540,7 +612,7 @@ export default function HomePage() {
       {/* 应用平台分布 */}
       <div className="grid gap-4 sm:gap-6 grid-cols-1 2xl:grid-cols-2">
         {isModuleVisible('platform_chart') && (
-          chartsLoading ? (
+          chartsLoading && platformData.length === 0 ? (
             <Card>
               <CardHeader>
                 <CardTitle className="text-xl">应用平台分布</CardTitle>
@@ -550,19 +622,21 @@ export default function HomePage() {
               </CardContent>
             </Card>
           ) : platformData.length > 0 ? (
-            <PieChart 
-              data={platformData} 
-              title="应用平台分布"
-              limit={10}
-              showPercentage={true}
+            <div className="relative">
+              <div className={chartsUpdating ? 'opacity-60 transition-opacity' : ''}>
+                <PieChart
+                  data={platformData}
+                  title="应用平台分布"
+                  limit={10}
+                  showPercentage={true}
                   tooltipContent={
                     <div className="space-y-3">
                       <p className="font-semibold text-base">统计说明</p>
                       <div className="space-y-2.5 text-xs leading-relaxed">
-                    <div>
-                      <div className="font-semibold mb-1">📦 平台分布</div>
-                      <div className="text-muted-foreground">统计被通报应用的来源平台，展示各平台的应用合规情况</div>
-                    </div>
+                        <div>
+                          <div className="font-semibold mb-1">📦 平台分布</div>
+                          <div className="text-muted-foreground">统计被通报应用的来源平台，展示各平台的应用合规情况</div>
+                        </div>
                         <div>
                           <div className="font-semibold mb-1">🔢 显示数量</div>
                           <div className="text-muted-foreground">展示通报数量最多的前10个平台，其余平台归入"其他"类别</div>
@@ -575,11 +649,21 @@ export default function HomePage() {
                     </div>
                   }
                 />
+              </div>
+              {chartsUpdating && (
+                <div className="absolute inset-0 flex items-center justify-center">
+                  <div className="flex items-center gap-2 rounded-md border bg-background/80 px-3 py-2 text-sm text-muted-foreground shadow-sm">
+                    <Loader2 className="h-4 w-4 animate-spin" />
+                    数据更新中
+                  </div>
+                </div>
+              )}
+            </div>
           ) : null
         )}
 
         {isModuleVisible('violation_chart') && (
-          chartsLoading ? (
+          chartsLoading && violationData.length === 0 ? (
             <Card>
               <CardHeader>
                 <CardTitle className="text-xl">问题分布饼图</CardTitle>
@@ -589,19 +673,21 @@ export default function HomePage() {
               </CardContent>
             </Card>
           ) : violationData.length > 0 ? (
-            <PieChart 
-              data={violationData} 
-              title="问题分布饼图"
-              limit={10}
-              showPercentage={true}
+            <div className="relative">
+              <div className={violationUpdating ? 'opacity-60 transition-opacity' : ''}>
+                <PieChart
+                  data={violationData}
+                  title="问题分布饼图"
+                  limit={10}
+                  showPercentage={true}
                   tooltipContent={
                     <div className="space-y-3">
                       <p className="font-semibold text-base">统计说明</p>
                       <div className="space-y-2.5 text-xs leading-relaxed">
-                    <div>
-                      <div className="font-semibold mb-1">🚫 问题类型</div>
-                      <div className="text-muted-foreground">统计被通报应用存在的具体违规问题类型，如"违规收集个人信息"等</div>
-                    </div>
+                        <div>
+                          <div className="font-semibold mb-1">🚫 问题类型</div>
+                          <div className="text-muted-foreground">统计被通报应用存在的具体违规问题类型，如"违规收集个人信息"等</div>
+                        </div>
                         <div>
                           <div className="font-semibold mb-1">🔢 显示数量</div>
                           <div className="text-muted-foreground">基于全量数据统计，展示各类问题占比（Top 10以外自动归为"其他"）</div>
@@ -614,6 +700,16 @@ export default function HomePage() {
                     </div>
                   }
                 />
+              </div>
+              {violationUpdating && (
+                <div className="absolute inset-0 flex items-center justify-center">
+                  <div className="flex items-center gap-2 rounded-md border bg-background/80 px-3 py-2 text-sm text-muted-foreground shadow-sm">
+                    <Loader2 className="h-4 w-4 animate-spin" />
+                    数据更新中
+                  </div>
+                </div>
+              )}
+            </div>
           ) : null
         )}
       </div>
