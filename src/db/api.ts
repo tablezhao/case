@@ -552,6 +552,34 @@ export async function getCases(
   };
 }
 
+export async function getCasesDateBounds(): Promise<{
+  minReportDate: string | null;
+  maxReportDate: string | null;
+}> {
+  const { data: minRow, error: minError } = await supabase
+    .from('cases')
+    .select('report_date')
+    .order('report_date', { ascending: true })
+    .limit(1)
+    .maybeSingle();
+
+  if (minError) throw minError;
+
+  const { data: maxRow, error: maxError } = await supabase
+    .from('cases')
+    .select('report_date')
+    .order('report_date', { ascending: false })
+    .limit(1)
+    .maybeSingle();
+
+  if (maxError) throw maxError;
+
+  return {
+    minReportDate: minRow?.report_date ?? null,
+    maxReportDate: maxRow?.report_date ?? null,
+  };
+}
+
 export async function getCaseById(id: string): Promise<CaseWithDetails | null> {
   const { data, error } = await supabase
     .from('cases')

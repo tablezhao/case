@@ -13,6 +13,8 @@ import { toast } from 'sonner';
 interface DateRangePickerProps {
   value?: { from?: Date; to?: Date };
   onChange?: (range: { from?: Date; to?: Date }) => void;
+  minDate?: Date;
+  maxDate?: Date;
   className?: string;
   placeholder?: string;
 }
@@ -20,6 +22,8 @@ interface DateRangePickerProps {
 export function DateRangePicker({
   value,
   onChange,
+  minDate,
+  maxDate,
   className,
   placeholder = '选择日期范围',
 }: DateRangePickerProps) {
@@ -168,11 +172,13 @@ export function DateRangePicker({
               <Calendar
                 initialFocus
                 mode="range"
-                defaultMonth={date?.from}
+                defaultMonth={date?.from ?? minDate}
                 selected={date}
                 onSelect={handleDateChange}
                 numberOfMonths={2}
                 locale={zhCN}
+                fromDate={minDate}
+                toDate={maxDate}
               />
             </div>
           </div>

@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { searchCases, getDepartments, getPlatforms } from '@/db/api';
+import { searchCases, getCasesDateBounds, getDepartments, getPlatforms } from '@/db/api';
 import type { CaseWithDetails, RegulatoryDepartment, AppPlatform, CaseFilterParams } from '@/types/types';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -52,6 +52,8 @@ export default function CasesPage() {
   const [page, setPage] = useState(1);
   const [pageSize] = useState(20);
   const [loading, setLoading] = useState(true);
+  const [minSelectableDate, setMinSelectableDate] = useState<Date | undefined>();
+  const [maxSelectableDate, setMaxSelectableDate] = useState<Date | undefined>();
 
   // 关键词搜索
   const [keyword, setKeyword] = useState('');
@@ -100,13 +102,30 @@ export default function CasesPage() {
 
   const loadInitialData = async () => {
     try {
-      const [depts, plats] = await Promise.all([
+      const [depts, plats, dateBounds] = await Promise.all([
         getDepartments(),
         getPlatforms(),
+        getCasesDateBounds(),
       ]);
       // 排序：国家级部门优先，省级部门在后
       setDepartments(sortDepartments(depts));
       setPlatforms(plats);
+
+      if (dateBounds.minReportDate) {
+        const minYear = Number(dateBounds.minReportDate.slice(0, 4));
+        if (!Number.isNaN(minYear)) {
+          // 最早可选日期取“最早数据年份”的 1 月 1 日
+          setMinSelectableDate(new Date(minYear, 0, 1));
+        }
+      }
+
+      if (dateBounds.maxReportDate) {
+        const maxYear = Number(dateBounds.maxReportDate.slice(0, 4));
+        if (!Number.isNaN(maxYear)) {
+          // 最晚可选日期取“最晚数据年份”的 12 月 31 日
+          setMaxSelectableDate(new Date(maxYear, 11, 31));
+        }
+      }
     } catch (error) {
       console.error('加载基础数据失败:', error);
     }
@@ -271,6 +290,8 @@ export default function CasesPage() {
                     value={filters.dateRange}
                     onChange={(range) => setFilters({ ...filters, dateRange: range })}
                     placeholder="选择日期范围"
+                    minDate={minSelectableDate}
+                    maxDate={maxSelectableDate}
                   />
                 </div>
 
