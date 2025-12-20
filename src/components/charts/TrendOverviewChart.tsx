@@ -1,5 +1,7 @@
 import { useMemo } from 'react';
-import { AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from 'recharts';
+import ReactECharts from 'echarts-for-react';
+import type { EChartsOption } from 'echarts';
+import { chartColorsWithAlpha, chartColors } from '@/lib/colors';
 
 interface TrendData {
   month: string;
@@ -12,34 +14,19 @@ interface TrendOverviewChartProps {
 }
 
 export default function TrendOverviewChart({ data, timeRange }: TrendOverviewChartProps) {
-  // 数据已在服务端筛选，只需确保排序正确
   const filteredData = useMemo(() => {
     if (!data || data.length === 0) return [];
     
-    // 确保数据按月份排序，保证时间序列的连续性和可读性
     return [...data].sort((a, b) => a.month.localeCompare(b.month));
   }, [data]);
 
-  // 格式化月份显示
   const formatMonth = (month: string) => {
     const [year, mon] = month.split('-');
     return `${year}年${mon}月`;
   };
 
-  // 自定义 Tooltip
-  const CustomTooltip = ({ active, payload }: any) => {
-    if (active && payload && payload.length) {
-      return (
-        <div className="bg-background border border-border rounded-lg shadow-lg px-3 py-2">
-          <p className="text-sm font-medium">{formatMonth(payload[0].payload.month)}</p>
-          <p className="text-sm text-primary font-semibold">
-            应用数量：{payload[0].value} 个
-          </p>
-        </div>
-      );
-    }
-    return null;
-  };
+  const rangeLabel =
+    timeRange === 'recent6' ? '近6个月' : timeRange === 'thisYear' ? '本年至今' : '全部';
 
   if (!filteredData || filteredData.length === 0) {
     return (
@@ -49,47 +36,104 @@ export default function TrendOverviewChart({ data, timeRange }: TrendOverviewCha
     );
   }
 
+  const option = useMemo<EChartsOption>(() => {
+    return {
+      tooltip: {
+        trigger: 'axis',
+        axisPointer: { type: 'line' },
+        backgroundColor: 'rgba(255, 255, 255, 0.95)',
+        borderColor: chartColors.primary,
+        borderWidth: 1,
+        textStyle: {
+          color: '#333',
+          fontSize: 13,
+        },
+        padding: [10, 14],
+        formatter: (params: unknown) => {
+          if (!Array.isArray(params) || params.length === 0) return '';
+          const first = params[0];
+          if (!first || typeof first !== 'object') return '';
+
+          const maybe = first as { axisValue?: string; data?: number; value?: number };
+          const month = typeof maybe.axisValue === 'string' ? maybe.axisValue : '';
+          const value =
+            typeof maybe.data === 'number'
+              ? maybe.data
+              : typeof maybe.value === 'number'
+                ? maybe.value
+                : 0;
+
+          return [
+            `<div style="font-weight:600;margin-bottom:4px;">${formatMonth(month)}</div>`,
+            `<div style="color:${chartColors.primary};font-weight:600;">应用数量：${value} 个</div>`,
+            `<div style="margin-top:4px;color:#666;font-size:12px;">范围：${rangeLabel}</div>`,
+          ].join('');
+        },
+      },
+      grid: {
+        left: 36,
+        right: 20,
+        top: 18,
+        bottom: 42,
+      },
+      xAxis: {
+        type: 'category',
+        boundaryGap: false,
+        data: filteredData.map((d) => d.month),
+        axisLabel: {
+          formatter: (value: string) => formatMonth(value),
+          color: '#666',
+          fontSize: 12,
+        },
+        axisLine: { lineStyle: { color: '#ddd' } },
+        axisTick: { show: false },
+      },
+      yAxis: {
+        type: 'value',
+        axisLabel: {
+          color: '#666',
+          fontSize: 12,
+        },
+        splitLine: { lineStyle: { color: '#eee' } },
+      },
+      series: [
+        {
+          name: '应用数量',
+          type: 'line',
+          smooth: true,
+          data: filteredData.map((d) => d.count),
+          symbol: 'circle',
+          symbolSize: 6,
+          lineStyle: {
+            width: 3,
+            color: chartColors.primary,
+          },
+          itemStyle: {
+            color: chartColors.primary,
+            borderColor: '#fff',
+            borderWidth: 2,
+          },
+          areaStyle: {
+            color: {
+              type: 'linear',
+              x: 0,
+              y: 0,
+              x2: 0,
+              y2: 1,
+              colorStops: [
+                { offset: 0, color: chartColorsWithAlpha.primary(0.28) },
+                { offset: 1, color: chartColorsWithAlpha.primary(0.02) },
+              ],
+            },
+          },
+        },
+      ],
+    };
+  }, [filteredData, rangeLabel]);
+
   return (
     <div className="w-full h-[300px]">
-      <ResponsiveContainer width="100%" height="100%">
-        <AreaChart
-          data={filteredData}
-          margin={{ top: 10, right: 10, left: 0, bottom: 0 }}
-        >
-          <defs>
-            <linearGradient id="colorCount" x1="0" y1="0" x2="0" y2="1">
-              <stop offset="5%" stopColor="hsl(var(--primary))" stopOpacity={0.3} />
-              <stop offset="95%" stopColor="hsl(var(--primary))" stopOpacity={0} />
-            </linearGradient>
-          </defs>
-          <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" opacity={0.3} />
-          <XAxis
-            dataKey="month"
-            tickFormatter={formatMonth}
-            stroke="hsl(var(--muted-foreground))"
-            fontSize={12}
-            tickLine={false}
-            axisLine={{ stroke: 'hsl(var(--border))' }}
-          />
-          <YAxis
-            stroke="hsl(var(--muted-foreground))"
-            fontSize={12}
-            tickLine={false}
-            axisLine={{ stroke: 'hsl(var(--border))' }}
-            label={{ value: '应用数量', angle: -90, position: 'insideLeft', style: { fill: 'hsl(var(--muted-foreground))', fontSize: 12 } }}
-          />
-          <Tooltip content={<CustomTooltip />} />
-          <Area
-            type="monotone"
-            dataKey="count"
-            stroke="hsl(var(--primary))"
-            strokeWidth={2}
-            fillOpacity={1}
-            fill="url(#colorCount)"
-            animationDuration={800}
-          />
-        </AreaChart>
-      </ResponsiveContainer>
+      <ReactECharts option={option} style={{ height: 300, width: '100%' }} notMerge lazyUpdate />
     </div>
   );
 }

@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import { FileText, Calendar, AlertCircle } from 'lucide-react';
 import StatsCard from '@/components/home/StatsCard';
 import TrendOverviewChart from '@/components/charts/TrendOverviewChart';
@@ -9,6 +9,7 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { toast } from 'sonner';
+import { calculateTimeRange, type TimeRangeType } from '@/utils/timeRangeUtils';
 import {
   getMonthlyAppCountTrend,
   getNationalDepartmentDistribution,
@@ -24,6 +25,13 @@ import {
 import type { StatsOverview, RegulatoryNewsWithDetails, FrontendConfig } from '@/types/types';
 import { Link } from 'react-router-dom';
 
+const CHARTS_CACHE_TTL_MS = 5 * 60 * 1000;
+
+function parseTimeRangeParam(value: string | null): TimeRangeType | null {
+  if (value === 'recent6' || value === 'thisYear' || value === 'all') return value;
+  return null;
+}
+
 export default function HomePage() {
   const [stats, setStats] = useState<StatsOverview | null>(null);
   const [nationalDeptData, setNationalDeptData] = useState<{ name: string; count: number }[]>([]);
@@ -35,94 +43,164 @@ export default function HomePage() {
   const [loading, setLoading] = useState(true);
   const [statsLoading, setStatsLoading] = useState(true);
   const [chartsLoading, setChartsLoading] = useState(true);
+  const [newsLoading, setNewsLoading] = useState(true);
   const [timeDimension, setTimeDimension] = useState<'month' | 'quarter' | 'year'>('month');
   const [trendOverviewData, setTrendOverviewData] = useState<{ month: string; count: number }[]>([]);
-  const [trendOverviewRange, setTrendOverviewRange] = useState<'recent6' | 'thisYear' | 'all'>('recent6');
+  const [trendOverviewRange, setTrendOverviewRange] = useState<TimeRangeType>(() => {
+    const initial = parseTimeRangeParam(new URLSearchParams(window.location.search).get('range'));
+    return initial ?? 'recent6';
+  });
 
-  useEffect(() => {
-    loadData();
-  }, []);
+  const chartsCacheRef = useRef<
+    Map<
+      TimeRangeType,
+      {
+        timestamp: number;
+        trend: { month: string; count: number }[];
+        national: { name: string; count: number }[];
+        provincial: { name: string; count: number }[];
+        platform: { name: string; count: number }[];
+        violation: { name: string; count: number }[];
+      }
+    >
+  >(new Map());
+  const chartsRequestIdRef = useRef(0);
 
-  const loadData = async () => {
+  const handleRangeChange = useCallback(
+    async (range: TimeRangeType, updateHistory = true) => {
+      const cached = chartsCacheRef.current.get(range);
+      if (cached && Date.now() - cached.timestamp <= CHARTS_CACHE_TTL_MS) {
+        setTrendOverviewRange(range);
+        setTrendOverviewData(cached.trend);
+        setNationalDeptData(cached.national);
+        setProvincialDeptData(cached.provincial);
+        setPlatformData(cached.platform);
+        setViolationData(cached.violation);
+        setChartsLoading(false);
+
+        if (updateHistory) {
+          const url = new URL(window.location.href);
+          url.searchParams.set('range', range);
+          window.history.pushState({ range }, '', url.toString());
+        }
+
+        return;
+      }
+
+      setTrendOverviewRange(range);
+      if (updateHistory) {
+        const url = new URL(window.location.href);
+        url.searchParams.set('range', range);
+        window.history.pushState({ range }, '', url.toString());
+      }
+
+      const requestId = ++chartsRequestIdRef.current;
+      setChartsLoading(true);
+
+      try {
+        const { startDate, endDate } = calculateTimeRange(range);
+        const [trendData, nationalData, provincialData, platformDist, violationDist] = await Promise.all([
+          getMonthlyAppCountTrend(range),
+          getNationalDepartmentDistribution(range),
+          getProvincialDepartmentDistribution(range),
+          getPlatformDistribution('case_count', range),
+          range === 'all' ? getViolationTypeAnalysis() : getViolationTypeAnalysis(undefined, startDate, endDate),
+        ]);
+
+        if (requestId !== chartsRequestIdRef.current) return;
+
+        const violation = violationDist.map((item) => ({
+          name: item.type,
+          count: item.count,
+        }));
+
+        setTrendOverviewData(trendData);
+        setNationalDeptData(nationalData);
+        setProvincialDeptData(provincialData);
+        setPlatformData(platformDist);
+        setViolationData(violation);
+
+        chartsCacheRef.current.set(range, {
+          timestamp: Date.now(),
+          trend: trendData,
+          national: nationalData,
+          provincial: provincialData,
+          platform: platformDist,
+          violation,
+        });
+      } catch (error) {
+        if (requestId !== chartsRequestIdRef.current) return;
+        console.error('[HomePage] 加载图表数据失败:', error);
+        toast.error('数据更新失败，请重试');
+      } finally {
+        if (requestId !== chartsRequestIdRef.current) return;
+        setChartsLoading(false);
+      }
+    },
+    []
+  );
+
+  const loadData = useCallback(async () => {
     try {
       setLoading(true);
-      
-      // 第一批：加载核心统计数据和配置（优先显示）- 使用优化版API
+      setStatsLoading(true);
+
       const [statsData, configsData] = await Promise.all([
-        getStatsOverviewOptimized(), // 使用优化版，带缓存
+        getStatsOverviewOptimized(),
         getFrontendConfigs(),
       ]);
-      
+
       setStats(statsData);
       setConfigs(configsData);
-      setStatsLoading(false);
-      
-      // 第二批：并行加载所有图表数据
-      const [
-        monthlyAppCountTrend,
-        nationalDeptDist,
-        provincialDeptDist,
-      ] = await Promise.all([
-        getMonthlyAppCountTrend(trendOverviewRange), // 使用当前时间范围加载
-        getNationalDepartmentDistribution(),
-        getProvincialDepartmentDistribution(),
-      ]);
-
-      // 数据完整性验证和日志记录
-      if (monthlyAppCountTrend && monthlyAppCountTrend.length > 0) {
-        const startMonth = monthlyAppCountTrend[0].month;
-        const endMonth = monthlyAppCountTrend[monthlyAppCountTrend.length - 1].month;
-        console.log('[HomePage] 初始趋势概览数据加载成功', {
-          timeRange: trendOverviewRange,
-          dataLength: monthlyAppCountTrend.length,
-          startMonth,
-          endMonth
-        });
-      } else {
-        console.warn('[HomePage] 初始趋势概览数据为空', { timeRange: trendOverviewRange });
-      }
-      
-      setTrendOverviewData(monthlyAppCountTrend);
-      setNationalDeptData(nationalDeptDist);
-      setProvincialDeptData(provincialDeptDist);
-      setChartsLoading(false);
-      
-      // 第三批：延迟加载次要数据（平台分布、关键词、资讯）
-      // 使用setTimeout延迟加载，避免阻塞主要内容的渲染
-      setTimeout(async () => {
-        try {
-          const [
-            platformDist,
-            violationDist,
-            newsData,
-          ] = await Promise.all([
-            getPlatformDistribution(),
-            getViolationTypeAnalysis(),
-            getRecentNews(5),
-          ]);
-          
-          setPlatformData(platformDist);
-          setViolationData(violationDist.map((item: { type: string; count: number }) => ({ name: item.type, count: item.count })));
-          setRecentNews(newsData);
-        } catch (error) {
-          console.error('加载次要数据失败:', error);
-          // 次要数据加载失败不影响主要功能，只记录错误
-        }
-      }, 100); // 延迟100ms加载
-      
     } catch (error) {
       console.error('加载数据失败:', error);
       toast.error(`加载数据失败: ${error instanceof Error ? error.message : '未知错误'}`);
     } finally {
+      setStatsLoading(false);
       setLoading(false);
     }
-  };
+
+    void handleRangeChange(trendOverviewRange, false);
+
+    setNewsLoading(true);
+    try {
+      const newsData = await getRecentNews(5);
+      setRecentNews(newsData);
+    } catch (error) {
+      console.error('[HomePage] 加载资讯失败:', error);
+    } finally {
+      setNewsLoading(false);
+    }
+  }, [handleRangeChange, trendOverviewRange]);
+
+  useEffect(() => {
+    void loadData();
+  }, [loadData]);
+
+  useEffect(() => {
+    const onPopState = () => {
+      const range = parseTimeRangeParam(new URLSearchParams(window.location.search).get('range')) ?? 'recent6';
+      void handleRangeChange(range, false);
+    };
+
+    window.addEventListener('popstate', onPopState);
+    return () => {
+      window.removeEventListener('popstate', onPopState);
+    };
+  }, [handleRangeChange]);
 
   const isModuleVisible = (moduleKey: string) => {
     // 所有首页模块现在都由frontend_config统一控制
     const config = configs.find((c) => c.module_key === moduleKey);
     return config?.is_visible !== false;
   };
+
+  const rangeDescription =
+    trendOverviewRange === 'recent6'
+      ? '统计近6个月内的数据'
+      : trendOverviewRange === 'thisYear'
+        ? '统计本年度至今的数据'
+        : '统计全部历史数据';
 
   if (loading && statsLoading) {
     // 初始加载状态：显示完整骨架屏
@@ -341,36 +419,7 @@ export default function HomePage() {
                   }
                 />
               </div>
-              <Tabs value={trendOverviewRange} onValueChange={async (v) => {
-                const range = v as 'recent6' | 'thisYear' | 'all';
-                setTrendOverviewRange(range);
-                setChartsLoading(true);
-                try {
-                  console.log('[HomePage] 开始加载趋势概览数据', { timeRange: range });
-                  const monthlyAppCountTrend = await getMonthlyAppCountTrend(range);
-                  
-                  // 数据完整性验证
-                  if (monthlyAppCountTrend && monthlyAppCountTrend.length > 0) {
-                    const startMonth = monthlyAppCountTrend[0].month;
-                    const endMonth = monthlyAppCountTrend[monthlyAppCountTrend.length - 1].month;
-                    console.log('[HomePage] 趋势概览数据加载成功', {
-                      timeRange: range,
-                      dataLength: monthlyAppCountTrend.length,
-                      startMonth,
-                      endMonth
-                    });
-                  } else {
-                    console.warn('[HomePage] 趋势概览数据为空', { timeRange: range });
-                  }
-                  
-                  setTrendOverviewData(monthlyAppCountTrend);
-                } catch (error) {
-                  console.error('[HomePage] 加载趋势概览数据失败:', error);
-                  toast.error('加载趋势概览数据失败');
-                } finally {
-                  setChartsLoading(false);
-                }
-              }}>
+              <Tabs value={trendOverviewRange} onValueChange={(v) => void handleRangeChange(v as TimeRangeType, true)}>
                 <TabsList className="grid grid-cols-3 w-full xl:w-auto xl:min-w-[280px]">
                   <TabsTrigger value="recent6">近6个月</TabsTrigger>
                   <TabsTrigger value="thisYear">本年至今</TabsTrigger>
@@ -413,7 +462,7 @@ export default function HomePage() {
                       </div>
                       <div>
                         <div className="font-semibold mb-1">📅 数据范围</div>
-                        <div className="text-muted-foreground">统计范围覆盖全部数据周期</div>
+                        <div className="text-muted-foreground">{rangeDescription}</div>
                       </div>
                     </div>
                   </div>
@@ -460,7 +509,7 @@ export default function HomePage() {
                       </div>
                       <div>
                         <div className="font-semibold mb-1">📅 数据范围</div>
-                        <div className="text-muted-foreground">统计范围覆盖全部数据周期</div>
+                        <div className="text-muted-foreground">{rangeDescription}</div>
                       </div>
                     </div>
                   </div>
@@ -506,22 +555,26 @@ export default function HomePage() {
               title="应用平台分布"
               limit={10}
               showPercentage={true}
-              tooltipContent={
-                <div className="space-y-3">
-                  <p className="font-semibold text-base">统计说明</p>
-                  <div className="space-y-2.5 text-xs leading-relaxed">
+                  tooltipContent={
+                    <div className="space-y-3">
+                      <p className="font-semibold text-base">统计说明</p>
+                      <div className="space-y-2.5 text-xs leading-relaxed">
                     <div>
                       <div className="font-semibold mb-1">📦 平台分布</div>
                       <div className="text-muted-foreground">统计被通报应用的来源平台，展示各平台的应用合规情况</div>
                     </div>
-                    <div>
-                      <div className="font-semibold mb-1">🔢 显示数量</div>
-                      <div className="text-muted-foreground">展示通报数量最多的前10个平台，其余平台归入"其他"类别</div>
+                        <div>
+                          <div className="font-semibold mb-1">🔢 显示数量</div>
+                          <div className="text-muted-foreground">展示通报数量最多的前10个平台，其余平台归入"其他"类别</div>
+                        </div>
+                        <div>
+                          <div className="font-semibold mb-1">📅 数据范围</div>
+                          <div className="text-muted-foreground">{rangeDescription}</div>
+                        </div>
+                      </div>
                     </div>
-                  </div>
-                </div>
-              }
-            />
+                  }
+                />
           ) : null
         )}
 
@@ -541,22 +594,26 @@ export default function HomePage() {
               title="问题分布饼图"
               limit={10}
               showPercentage={true}
-              tooltipContent={
-                <div className="space-y-3">
-                  <p className="font-semibold text-base">统计说明</p>
-                  <div className="space-y-2.5 text-xs leading-relaxed">
+                  tooltipContent={
+                    <div className="space-y-3">
+                      <p className="font-semibold text-base">统计说明</p>
+                      <div className="space-y-2.5 text-xs leading-relaxed">
                     <div>
                       <div className="font-semibold mb-1">🚫 问题类型</div>
                       <div className="text-muted-foreground">统计被通报应用存在的具体违规问题类型，如"违规收集个人信息"等</div>
                     </div>
-                    <div>
-                      <div className="font-semibold mb-1">🔢 显示数量</div>
-                      <div className="text-muted-foreground">基于全量数据统计，展示各类问题占比（Top 10以外自动归为"其他"）</div>
+                        <div>
+                          <div className="font-semibold mb-1">🔢 显示数量</div>
+                          <div className="text-muted-foreground">基于全量数据统计，展示各类问题占比（Top 10以外自动归为"其他"）</div>
+                        </div>
+                        <div>
+                          <div className="font-semibold mb-1">📅 数据范围</div>
+                          <div className="text-muted-foreground">{rangeDescription}</div>
+                        </div>
+                      </div>
                     </div>
-                  </div>
-                </div>
-              }
-            />
+                  }
+                />
           ) : null
         )}
       </div>
@@ -567,7 +624,7 @@ export default function HomePage() {
             <CardTitle className="text-lg sm:text-xl">近期监管资讯</CardTitle>
           </CardHeader>
           <CardContent className="px-3 sm:px-6">
-            {chartsLoading ? (
+            {newsLoading ? (
               <div className="space-y-3">
                 {[...Array(5)].map((_, i) => (
                   <Skeleton key={i} className="h-24 bg-muted" />

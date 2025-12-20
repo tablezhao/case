@@ -16,6 +16,7 @@ import type {
   SiteSettings,
   NavigationOrder,
 } from '@/types/types';
+import { calculateTimeRange, type TimeRangeType } from '@/utils/timeRangeUtils';
 
 // ============ 用户相关 ============
 export async function getProfiles() {
@@ -1302,22 +1303,30 @@ export async function getDepartmentDistribution() {
 }
 
 // 获取国家级部门分布数据
-export async function getNationalDepartmentDistribution() {
+export async function getNationalDepartmentDistribution(timeRange: TimeRangeType = 'all') {
   // 先获取所有国家级部门
   const departments = await getNationalDepartments();
   
   if (departments.length === 0) {
     return [];
   }
+
+  const { startDate, endDate } = calculateTimeRange(timeRange);
   
   // 为每个部门获取统计数据
   const departmentsWithStats = await Promise.all(
     departments.map(async (dept) => {
       // 获取该部门的所有案例（包含应用名称）
-      const { data: cases } = await supabase
+      let query = supabase
         .from('cases')
-        .select('app_name')
+        .select('app_name, report_date')
         .eq('department_id', dept.id);
+
+      if (timeRange !== 'all') {
+        query = query.gte('report_date', startDate).lte('report_date', endDate);
+      }
+
+      const { data: cases } = await query;
       
       const casesArray = Array.isArray(cases) ? cases : [];
       
@@ -1342,22 +1351,30 @@ export async function getNationalDepartmentDistribution() {
 }
 
 // 获取省级部门分布数据
-export async function getProvincialDepartmentDistribution() {
+export async function getProvincialDepartmentDistribution(timeRange: TimeRangeType = 'all') {
   // 先获取所有省级部门
   const departments = await getProvincialDepartments();
   
   if (departments.length === 0) {
     return [];
   }
+
+  const { startDate, endDate } = calculateTimeRange(timeRange);
   
   // 为每个部门获取统计数据
   const departmentsWithStats = await Promise.all(
     departments.map(async (dept) => {
       // 获取该部门的所有案例（包含应用名称）
-      const { data: cases } = await supabase
+      let query = supabase
         .from('cases')
-        .select('app_name')
+        .select('app_name, report_date')
         .eq('department_id', dept.id);
+
+      if (timeRange !== 'all') {
+        query = query.gte('report_date', startDate).lte('report_date', endDate);
+      }
+
+      const { data: cases } = await query;
       
       const casesArray = Array.isArray(cases) ? cases : [];
       
@@ -1382,22 +1399,67 @@ export async function getProvincialDepartmentDistribution() {
 }
 
 // 获取平台分布数据
-export async function getPlatformDistribution(statDimension: 'case_count' | 'app_count' = 'case_count') {
-  try {
-    const { data, error } = await supabase.rpc('get_platform_distribution', {
-      统计维度: statDimension
-    });
-    
-    if (error) {
-      console.error('[getPlatformDistribution] RPC调用失败:', error);
-      throw error;
-    }
-    
-    return data || [];
-  } catch (error) {
-    console.error('[getPlatformDistribution] 获取平台分布数据失败:', error);
-    throw error;
+export async function getPlatformDistribution(
+  statDimension: 'case_count' | 'app_count' = 'case_count',
+  timeRange: TimeRangeType = 'all'
+) {
+  const { startDate, endDate } = calculateTimeRange(timeRange);
+
+  let query = supabase
+    .from('cases')
+    .select('app_name, platform:app_platforms(name)');
+
+  if (timeRange !== 'all') {
+    query = query.gte('report_date', startDate).lte('report_date', endDate);
   }
+
+  const { data, error } = await query;
+
+  if (error) throw error;
+
+  type PlatformJoin = { name: string } | Array<{ name: string }> | null;
+  type PlatformRow = { app_name: string | null; platform: PlatformJoin };
+
+  const rows = Array.isArray(data) ? (data as unknown as PlatformRow[]) : [];
+
+  const getPlatformName = (platform: PlatformJoin): string => {
+    if (!platform) return '未知平台';
+    if (Array.isArray(platform)) return platform[0]?.name || '未知平台';
+    return platform.name || '未知平台';
+  };
+
+  if (statDimension === 'case_count') {
+    const counts = new Map<string, number>();
+    rows.forEach((row) => {
+      const platformName = getPlatformName(row.platform);
+      counts.set(platformName, (counts.get(platformName) || 0) + 1);
+    });
+
+    return Array.from(counts.entries())
+      .map(([name, count]) => ({ name, count }))
+      .sort((a, b) => b.count - a.count);
+  }
+
+  const appSets = new Map<string, Set<string>>();
+  rows.forEach((row) => {
+    const platformName = getPlatformName(row.platform);
+    const appName = row.app_name || '';
+    if (!appName) return;
+
+    const existing = appSets.get(platformName);
+    if (existing) {
+      existing.add(appName);
+      return;
+    }
+
+    const set = new Set<string>();
+    set.add(appName);
+    appSets.set(platformName, set);
+  });
+
+  return Array.from(appSets.entries())
+    .map(([name, apps]) => ({ name, count: apps.size }))
+    .sort((a, b) => b.count - a.count);
 }
 
 // 获取地理分布数据
@@ -2105,7 +2167,8 @@ export async function getViolationTypeAnalysis(
 ) {
   const maxRetries = 3;
   let retryCount = 0;
-  let lastError: any;
+  let lastError: unknown;
+  type ViolationTypeRow = { type: string | null; count: number | string | null };
 
   while (retryCount < maxRetries) {
     try {
@@ -2119,13 +2182,14 @@ export async function getViolationTypeAnalysis(
         throw error;
       }
 
-      const result = (data || []).map((item: any) => ({
-        type: item.type,
-        count: Number(item.count)
+      const rows = Array.isArray(data) ? (data as ViolationTypeRow[]) : [];
+      const result = rows.map((item) => ({
+        type: item.type || '未知',
+        count: Number(item.count ?? 0),
       }));
 
       // 数据一致性检查日志
-      const totalCount = result.reduce((sum: number, item: any) => sum + item.count, 0);
+      const totalCount = result.reduce((sum, item) => sum + item.count, 0);
       console.log(`[getViolationTypeAnalysis] 获取完成: ${result.length} 个分类, 总计 ${totalCount} 条记录`);
 
       return result;
@@ -2133,10 +2197,6 @@ export async function getViolationTypeAnalysis(
       lastError = error;
       retryCount++;
       console.warn(`获取违规问题类型分析失败 (尝试 ${retryCount}/${maxRetries}):`, error);
-      if (retryCount < maxRetries) {
-        // 简单的指数退避策略
-        await new Promise(resolve => setTimeout(resolve, 500 * Math.pow(2, retryCount - 1)));
-      }
     }
   }
 

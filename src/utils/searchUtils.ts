@@ -89,11 +89,11 @@ export function highlightKeyword(text: string, keyword: string): string {
  * 延迟执行函数（防抖）
  * 用于搜索输入框，避免频繁触发搜索
  */
-export function debounce<T extends (...args: any[]) => any>(
+export function debounce<T extends (...args: unknown[]) => void>(
   func: T,
   wait: number
 ): (...args: Parameters<T>) => void {
-  let timeout: NodeJS.Timeout | null = null;
+  let timeout: ReturnType<typeof setTimeout> | null = null;
   
   return function executedFunction(...args: Parameters<T>) {
     const later = () => {
