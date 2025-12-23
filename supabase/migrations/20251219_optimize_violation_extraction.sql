@@ -149,7 +149,7 @@ RETURNS TABLE (
   count bigint
 )
 LANGUAGE plpgsql
-AS $
+AS $$
 BEGIN
   RETURN QUERY
   WITH filtered_cases AS (
@@ -173,4 +173,4 @@ BEGIN
   GROUP BY keyword
   ORDER BY count DESC;
 END;
-$;
+$$;
