@@ -122,9 +122,10 @@ export default function TrendOverviewSection({ data, loading }: TrendOverviewSec
                     content={
                       <div className="space-y-1 text-xs">
                         <p className="font-semibold">统计口径：</p>
-                        <p>• 高风险：当月全部监管部门通报总频次 &gt; 5次</p>
-                        <p>• 中风险：当月全部监管部门通报总频次 &gt; 1次 且 ≤ 5次</p>
-                        <p>• 低风险：当月全部监管部门通报总频次 ≤ 1次</p>
+                        <p>• 高风险：当月全部监管部门通报活动次数 ≥ 10次</p>
+                        <p>• 中风险：当月全部监管部门通报活动次数 &gt; 5次 且 &lt; 10次</p>
+                        <p>• 低风险：当月全部监管部门通报活动次数 ≤ 5次</p>
+                        <p className="mt-2 text-muted-foreground">按"部门+日期"去重统计通报活动次数</p>
                       </div>
                     } 
                   />
@@ -157,7 +158,8 @@ export default function TrendOverviewSection({ data, loading }: TrendOverviewSec
                       <div className="space-y-1 text-xs">
                         <p className="font-semibold">统计口径：</p>
                         <p>• 统计范围：本年度1月至当前月份</p>
-                        <p>• 筛选条件：当月全部监管部门通报频次 ≥ 5次</p>
+                        <p>• 筛选条件：当月全部监管部门通报活动次数 &gt; 5次</p>
+                        <p className="mt-2 text-muted-foreground">按"部门+日期"去重统计通报活动次数</p>
                       </div>
                     } 
                   />

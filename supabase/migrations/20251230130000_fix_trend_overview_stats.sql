@@ -1,4 +1,6 @@
--- 创建趋势总览统计函数
+-- 修复趋势总览统计口径不一致问题
+-- 统一使用"部门+日期"去重统计通报活动次数
+
 CREATE OR REPLACE FUNCTION get_trend_overview(
   current_year INT,
   current_month INT
@@ -127,6 +129,6 @@ BEGIN
           ) AS yearly_platforms
         )
       )
-    );
+    ));
 END;
 $$;

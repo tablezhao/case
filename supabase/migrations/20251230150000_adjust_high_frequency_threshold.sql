@@ -1,4 +1,5 @@
--- 创建趋势总览统计函数
+-- 调整高频时段阈值：> 5次
+
 CREATE OR REPLACE FUNCTION get_trend_overview(
   current_year INT,
   current_month INT
@@ -18,8 +19,8 @@ BEGIN
       'current_month_risk', (
         SELECT json_build_object(
           'level', CASE
-            WHEN COUNT(DISTINCT department_id || '_' || report_date) > 10 THEN 'high'::TEXT
-            WHEN COUNT(DISTINCT department_id || '_' || report_date) > 2 THEN 'medium'::TEXT
+            WHEN COUNT(DISTINCT department_id || '_' || report_date) >= 10 THEN 'high'::TEXT
+            WHEN COUNT(DISTINCT department_id || '_' || report_date) > 5 THEN 'medium'::TEXT
             ELSE 'low'::TEXT
           END,
           'count', COUNT(DISTINCT department_id || '_' || report_date),
@@ -42,7 +43,7 @@ BEGIN
           FROM cases
           WHERE report_date BETWEEN year_start AND year_end
           GROUP BY DATE_TRUNC('month', report_date)
-          HAVING COUNT(DISTINCT department_id || '_' || report_date) >= 10
+          HAVING COUNT(DISTINCT department_id || '_' || report_date) > 5
         ) AS monthly_stats
       ),
       
@@ -127,6 +128,6 @@ BEGIN
           ) AS yearly_platforms
         )
       )
-    );
+    ));
 END;
 $$;

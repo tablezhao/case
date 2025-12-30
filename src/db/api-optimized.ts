@@ -60,57 +60,22 @@ export async function getStatsOverviewOptimized(): Promise<StatsOverview> {
   // 尝试从缓存获取
   const cached = cacheManager.get<StatsOverview>(cacheKey);
   if (cached) {
+    console.log('[getStatsOverviewOptimized] 使用缓存数据');
     return cached;
   }
 
-  // 调用后端RPC函数
-  const { data, error } = await supabase.rpc('get_homepage_stats');
+  console.log('[getStatsOverviewOptimized] 调用 RPC: get_dashboard_stats');
+  // 调用后端RPC函数 (get_dashboard_stats)
+  // 该函数直接返回符合 StatsOverview 接口的完整数据
+  const { data, error } = await supabase.rpc('get_dashboard_stats');
 
-  if (error) throw error;
+  if (error) {
+    console.error('[getStatsOverviewOptimized] RPC调用失败:', error);
+    throw error;
+  }
 
-  // 计算环比数据
-  const stats: StatsOverview = {
-    total_cases: data.total_cases || 0,
-    total_apps: data.total_apps || 0,
-    latest_report_date: data.latest_report_date || null,
-    latest_department: data.latest_department || null,
-    
-    // 本月数据
-    current_month_cases: data.current_month_cases || 0,
-    current_month_apps: data.current_month_apps || 0,
-    
-    // 本季度数据
-    current_quarter_cases: data.current_quarter_cases || 0,
-    current_quarter_apps: data.current_quarter_apps || 0,
-    
-    // 本年度数据
-    current_year_cases: data.current_year_cases || 0,
-    current_year_apps: data.current_year_apps || 0,
-    
-    // 月度环比
-    cases_change: (data.current_month_cases || 0) - (data.last_month_cases || 0),
-    cases_change_percent: data.last_month_cases === 0 ? 0 : 
-      (((data.current_month_cases || 0) - (data.last_month_cases || 0)) / data.last_month_cases) * 100,
-    apps_change: (data.current_month_apps || 0) - (data.last_month_apps || 0),
-    apps_change_percent: data.last_month_apps === 0 ? 0 :
-      (((data.current_month_apps || 0) - (data.last_month_apps || 0)) / data.last_month_apps) * 100,
-    
-    // 季度环比
-    quarter_cases_change: (data.current_quarter_cases || 0) - (data.last_quarter_cases || 0),
-    quarter_cases_change_percent: data.last_quarter_cases === 0 ? 0 :
-      (((data.current_quarter_cases || 0) - (data.last_quarter_cases || 0)) / data.last_quarter_cases) * 100,
-    quarter_apps_change: (data.current_quarter_apps || 0) - (data.last_quarter_apps || 0),
-    quarter_apps_change_percent: data.last_quarter_apps === 0 ? 0 :
-      (((data.current_quarter_apps || 0) - (data.last_quarter_apps || 0)) / data.last_quarter_apps) * 100,
-    
-    // 年度环比
-    year_cases_change: (data.current_year_cases || 0) - (data.last_year_cases || 0),
-    year_cases_change_percent: data.last_year_cases === 0 ? 0 :
-      (((data.current_year_cases || 0) - (data.last_year_cases || 0)) / data.last_year_cases) * 100,
-    year_apps_change: (data.current_year_apps || 0) - (data.last_year_apps || 0),
-    year_apps_change_percent: data.last_year_apps === 0 ? 0 :
-      (((data.current_year_apps || 0) - (data.last_year_apps || 0)) / data.last_year_apps) * 100,
-  };
+  const stats = data as StatsOverview;
+  console.log('[getStatsOverviewOptimized] 获取数据成功:', stats);
 
   // 存入缓存
   cacheManager.set(cacheKey, stats);

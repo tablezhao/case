@@ -1,4 +1,8 @@
--- 创建趋势总览统计函数
+-- 调整风险等级分类标准
+-- 高风险：>= 10次
+-- 中风险：> 5次 且 < 10次
+-- 低风险：<= 5次
+
 CREATE OR REPLACE FUNCTION get_trend_overview(
   current_year INT,
   current_month INT
@@ -18,8 +22,8 @@ BEGIN
       'current_month_risk', (
         SELECT json_build_object(
           'level', CASE
-            WHEN COUNT(DISTINCT department_id || '_' || report_date) > 10 THEN 'high'::TEXT
-            WHEN COUNT(DISTINCT department_id || '_' || report_date) > 2 THEN 'medium'::TEXT
+            WHEN COUNT(DISTINCT department_id || '_' || report_date) >= 10 THEN 'high'::TEXT
+            WHEN COUNT(DISTINCT department_id || '_' || report_date) > 5 THEN 'medium'::TEXT
             ELSE 'low'::TEXT
           END,
           'count', COUNT(DISTINCT department_id || '_' || report_date),
@@ -127,6 +131,6 @@ BEGIN
           ) AS yearly_platforms
         )
       )
-    );
+    ));
 END;
 $$;
