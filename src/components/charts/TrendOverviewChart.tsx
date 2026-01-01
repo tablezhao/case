@@ -28,14 +28,6 @@ export default function TrendOverviewChart({ data, timeRange }: TrendOverviewCha
   const rangeLabel =
     timeRange === 'recent6' ? '近6个月' : timeRange === 'thisYear' ? '本年至今' : '全部';
 
-  if (!filteredData || filteredData.length === 0) {
-    return (
-      <div className="flex items-center justify-center h-[300px] text-muted-foreground">
-        暂无数据
-      </div>
-    );
-  }
-
   const option = useMemo<EChartsOption>(() => {
     return {
       animation: false,
@@ -77,7 +69,7 @@ export default function TrendOverviewChart({ data, timeRange }: TrendOverviewCha
       },
       grid: {
         left: 36,
-        right: 20,
+        right: 36,
         top: 18,
         bottom: 42,
       },
@@ -99,24 +91,29 @@ export default function TrendOverviewChart({ data, timeRange }: TrendOverviewCha
           color: '#666',
           fontSize: 12,
         },
-        splitLine: { lineStyle: { color: '#eee' } },
+        splitLine: {
+          lineStyle: {
+            color: '#f3f4f6',
+            type: 'dashed',
+          },
+        },
       },
       series: [
         {
-          name: '应用数量',
+          data: filteredData.map((d) => d.count),
           type: 'line',
           smooth: true,
-          data: filteredData.map((d) => d.count),
           symbol: 'circle',
           symbolSize: 6,
+          showSymbol: false,
+          itemStyle: {
+            color: chartColors.primary,
+            borderWidth: 2,
+            borderColor: '#fff',
+          },
           lineStyle: {
             width: 3,
             color: chartColors.primary,
-          },
-          itemStyle: {
-            color: chartColors.primary,
-            borderColor: '#fff',
-            borderWidth: 2,
           },
           areaStyle: {
             color: {
@@ -126,8 +123,8 @@ export default function TrendOverviewChart({ data, timeRange }: TrendOverviewCha
               x2: 0,
               y2: 1,
               colorStops: [
-                { offset: 0, color: chartColorsWithAlpha.primary(0.28) },
-                { offset: 1, color: chartColorsWithAlpha.primary(0.02) },
+                { offset: 0, color: chartColorsWithAlpha.primary(0.2) },
+                { offset: 1, color: chartColorsWithAlpha.primary(0.0) },
               ],
             },
           },
@@ -135,6 +132,14 @@ export default function TrendOverviewChart({ data, timeRange }: TrendOverviewCha
       ],
     };
   }, [filteredData, rangeLabel]);
+
+  if (!filteredData || filteredData.length === 0) {
+    return (
+      <div className="flex items-center justify-center h-[300px] text-muted-foreground">
+        暂无数据
+      </div>
+    );
+  }
 
   return (
     <div className="w-full h-[300px]">
