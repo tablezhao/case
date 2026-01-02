@@ -401,6 +401,181 @@ export async function deletePlatform(id: string) {
   if (error) throw error;
 }
 
+/**
+ * 合并多个应用平台
+ * 将指定平台的案例数据合并到主平台，然后删除被合并的平台
+ * @param mainPlatformId 主平台ID（保留的平台）
+ * @param platformsToMerge 要合并的平台ID数组（将被删除）
+ * @returns 合并操作的统计信息
+ */
+export async function mergePlatforms(mainPlatformId: string, platformsToMerge: string[]) {
+  // 验证输入参数
+  if (!mainPlatformId) {
+    throw new Error('主平台ID不能为空');
+  }
+  
+  if (!platformsToMerge || platformsToMerge.length === 0) {
+    throw new Error('没有要合并的平台');
+  }
+  
+  // 验证主平台不在要合并的平台列表中
+  if (platformsToMerge.includes(mainPlatformId)) {
+    throw new Error('主平台不能在要合并的平台列表中');
+  }
+
+  try {
+    // 调用数据库函数执行合并
+    const { data, error } = await supabase.rpc('merge_app_platforms', {
+      main_platform_id: mainPlatformId,
+      platforms_to_merge: platformsToMerge
+    });
+
+    if (error) {
+      console.error('平台合并失败:', error);
+      throw error;
+    }
+
+    // 提取结果
+    const result = Array.isArray(data) && data.length > 0 ? data[0] : null;
+    
+    if (!result) {
+      throw new Error('合并操作未返回结果');
+    }
+
+    console.log(`平台合并成功: 主平台 "${result.main_platform_name}", 合并了 ${result.merged_platform_names?.length || 0} 个平台, 影响 ${result.merged_count} 条案例`);
+
+    return {
+      mergedCount: result.merged_count || 0,
+      mainPlatformName: result.main_platform_name,
+      mergedPlatformNames: result.merged_platform_names || [],
+      affectedCases: result.merged_count || 0
+    };
+  } catch (error) {
+    console.error('平台合并失败:', error);
+    throw error;
+  }
+}
+
+/**
+ * 计算编辑距离（Levenshtein Distance）
+ * 用于衡量两个字符串之间的差异
+ * @param str1 字符串1
+ * @param str2 字符串2
+ * @returns 编辑距离
+ */
+function levenshteinDistance(str1: string, str2: string): number {
+  const matrix = Array(str2.length + 1).fill(0)
+    .map(() => Array(str1.length + 1).fill(0));
+
+  for (let i = 0; i <= str1.length; i++) {
+    matrix[0][i] = i;
+  }
+
+  for (let j = 0; j <= str2.length; j++) {
+    matrix[j][0] = j;
+  }
+
+  for (let j = 1; j <= str2.length; j++) {
+    for (let i = 1; i <= str1.length; i++) {
+      const cost = str1[i - 1] === str2[j - 1] ? 0 : 1;
+      matrix[j][i] = Math.min(
+        matrix[j][i - 1] + 1,      // 插入
+        matrix[j - 1][i] + 1,      // 删除
+        matrix[j - 1][i - 1] + cost // 替换
+      );
+    }
+  }
+
+  return matrix[str2.length][str1.length];
+}
+
+/**
+ * 计算字符串相似度（基于编辑距离）
+ * 相似度值范围为 0-1，1 表示完全相同，0 表示完全不同
+ * @param str1 字符串1
+ * @param str2 字符串2
+ * @returns 相似度 (0-1)
+ */
+function calculateStringSimilarity(str1: string, str2: string): number {
+  // 预处理：移除常见的前缀和后缀，转换为小写
+  const normalize = (str: string) => {
+    return str.toLowerCase()
+      // 移除常见的平台名称前缀
+      .replace(/^(app\s+store|google\s+play|应用宝|华为应用市场|小米应用商店|oppo软件商店|vivo应用商店)/i, '')
+      // 移除常见的后缀
+      .replace(/(小程序|平台|版|官方|应用|app)?$/i, '')
+      // 移除空格
+      .replace(/\s+/g, '')
+      .trim();
+  };
+
+  const s1 = normalize(str1);
+  const s2 = normalize(str2);
+
+  // 特殊情况处理
+  if (s1 === s2) return 1.0;
+  if (s1.length === 0 || s2.length === 0) return 0.0;
+  if (s1.length === 1 && s2.length === 1) return s1 === s2 ? 1.0 : 0.0;
+
+  // 包含关系检查：如果一个字符串包含另一个，认为相似度较高
+  if (s1.includes(s2) || s2.includes(s1)) {
+    const minLen = Math.min(s1.length, s2.length);
+    const maxLen = Math.max(s1.length, s2.length);
+    return minLen / maxLen * 0.9; // 包含关系给予较高权重
+  }
+
+  // 使用编辑距离计算相似度
+  const distance = levenshteinDistance(s1, s2);
+  const maxLength = Math.max(s1.length, s2.length);
+  return 1 - distance / maxLength;
+}
+
+/**
+ * 查找相似的应用平台
+ * 使用编辑距离算法识别可能重复的平台
+ * @param threshold 相似度阈值（0-1），默认 0.7
+ * @returns 相似平台组数组
+ */
+export async function findSimilarPlatforms(threshold: number = 0.7): Promise<AppPlatform[][]> {
+  const { data: platforms, error } = await supabase
+    .from('app_platforms')
+    .select('*')
+    .order('name', { ascending: true });
+
+  if (error) throw error;
+  if (!platforms || platforms.length === 0) return [];
+
+  const similarGroups: AppPlatform[][] = [];
+  const processed = new Set<string>();
+
+  for (let i = 0; i < platforms.length; i++) {
+    const platformA = platforms[i];
+    if (processed.has(platformA.id)) continue;
+
+    const group = [platformA];
+    processed.add(platformA.id);
+
+    for (let j = i + 1; j < platforms.length; j++) {
+      const platformB = platforms[j];
+      if (processed.has(platformB.id)) continue;
+
+      // 使用模糊匹配算法比较平台名称相似度
+      const similarity = calculateStringSimilarity(platformA.name, platformB.name);
+      if (similarity >= threshold) {
+        group.push(platformB);
+        processed.add(platformB.id);
+      }
+    }
+
+    // 只返回有多个平台的组
+    if (group.length > 1) {
+      similarGroups.push(group);
+    }
+  }
+
+  return similarGroups;
+}
+
 // ============ 案例搜索相关 ============
 
 export interface SearchCasesParams {

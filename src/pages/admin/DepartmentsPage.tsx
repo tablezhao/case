@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { getDepartments, createDepartment, updateDepartment, deleteDepartment, getPlatforms, createPlatform, updatePlatform, deletePlatform } from '@/db/api';
+import { getDepartments, createDepartment, updateDepartment, deleteDepartment, getPlatforms, createPlatform, updatePlatform, deletePlatform, findSimilarPlatforms } from '@/db/api';
 import type { RegulatoryDepartment, AppPlatform } from '@/types/types';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -10,9 +10,10 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Badge } from '@/components/ui/badge';
-import { Plus, Pencil, Trash2, ArrowLeft } from 'lucide-react';
+import { Plus, Pencil, Trash2, ArrowLeft, Search, Merge } from 'lucide-react';
 import { toast } from 'sonner';
 import { useNavigate } from 'react-router-dom';
+import PlatformMergeDialog from '@/components/admin/PlatformMergeDialog';
 
 export default function DepartmentsPage() {
   const navigate = useNavigate();
@@ -20,6 +21,7 @@ export default function DepartmentsPage() {
   const [platforms, setPlatforms] = useState<AppPlatform[]>([]);
   const [deptDialogOpen, setDeptDialogOpen] = useState(false);
   const [platDialogOpen, setPlatDialogOpen] = useState(false);
+  const [mergeDialogOpen, setMergeDialogOpen] = useState(false);
   const [editingDept, setEditingDept] = useState<RegulatoryDepartment | null>(null);
   const [editingPlat, setEditingPlat] = useState<AppPlatform | null>(null);
 
@@ -164,6 +166,33 @@ export default function DepartmentsPage() {
   const resetPlatForm = () => {
     setEditingPlat(null);
     setPlatForm({ name: '' });
+  };
+
+  // 查找相似平台
+  const handleFindSimilarPlatforms = async () => {
+    try {
+      toast.info('正在查找相似平台...');
+      const similarGroups = await findSimilarPlatforms(0.7); // 设置阈值为0.7
+      
+      if (similarGroups.length === 0) {
+        toast.info('未发现相似的应用平台');
+        return;
+      }
+
+      // 显示相似平台组
+      let message = `发现 ${similarGroups.length} 组相似平台：\n\n`;
+      similarGroups.forEach((group, index) => {
+        message += `${index + 1}. ${group.map(p => p.name).join(' ≈ ')}\n`;
+      });
+      
+      const confirmed = window.confirm(`${message}\n是否要进行平台合并操作？`);
+      if (confirmed) {
+        setMergeDialogOpen(true);
+      }
+    } catch (error) {
+      console.error('查找相似平台失败:', error);
+      toast.error('查找相似平台失败');
+    }
   };
 
   return (
@@ -334,41 +363,66 @@ export default function DepartmentsPage() {
                   <CardTitle>应用平台列表</CardTitle>
                   <p className="text-sm text-muted-foreground mt-1">共 {platforms.length} 个平台</p>
                 </div>
-                <Dialog open={platDialogOpen} onOpenChange={(open) => {
-                  setPlatDialogOpen(open);
-                  if (!open) resetPlatForm();
-                }}>
-                  <DialogTrigger asChild>
-                    <Button size="sm">
-                      <Plus className="w-4 h-4 mr-2" />
-                      新增平台
-                    </Button>
-                  </DialogTrigger>
-                  <DialogContent>
-                    <DialogHeader>
-                      <DialogTitle>{editingPlat ? '编辑平台' : '新增平台'}</DialogTitle>
-                    </DialogHeader>
-                    <form onSubmit={handlePlatSubmit} className="space-y-4">
-                      <div className="space-y-2">
-                        <Label htmlFor="plat_name">平台名称 *</Label>
-                        <Input
-                          id="plat_name"
-                          value={platForm.name}
-                          onChange={(e) => setPlatForm({ name: e.target.value })}
-                          required
-                        />
-                      </div>
-                      <div className="flex justify-end gap-2">
-                        <Button type="button" variant="outline" onClick={() => setPlatDialogOpen(false)}>
-                          取消
-                        </Button>
-                        <Button type="submit">
-                          {editingPlat ? '更新' : '创建'}
-                        </Button>
-                      </div>
-                    </form>
-                  </DialogContent>
-                </Dialog>
+                <div className="flex gap-2">
+                  {/* 查找相似平台按钮 */}
+                  <Button 
+                    variant="outline" 
+                    size="sm" 
+                    onClick={handleFindSimilarPlatforms}
+                    className="gap-2"
+                  >
+                    <Search className="w-4 h-4" />
+                    查找相似平台
+                  </Button>
+                  
+                  {/* 合并平台按钮 */}
+                  <Button 
+                    variant="outline" 
+                    size="sm" 
+                    onClick={() => setMergeDialogOpen(true)}
+                    className="gap-2"
+                    disabled={platforms.length < 2}
+                  >
+                    <Merge className="w-4 h-4" />
+                    合并平台
+                  </Button>
+                  
+                  <Dialog open={platDialogOpen} onOpenChange={(open) => {
+                    setPlatDialogOpen(open);
+                    if (!open) resetPlatForm();
+                  }}>
+                    <DialogTrigger asChild>
+                      <Button size="sm">
+                        <Plus className="w-4 h-4 mr-2" />
+                        新增平台
+                      </Button>
+                    </DialogTrigger>
+                    <DialogContent>
+                      <DialogHeader>
+                        <DialogTitle>{editingPlat ? '编辑平台' : '新增平台'}</DialogTitle>
+                      </DialogHeader>
+                      <form onSubmit={handlePlatSubmit} className="space-y-4">
+                        <div className="space-y-2">
+                          <Label htmlFor="plat_name">平台名称 *</Label>
+                          <Input
+                            id="plat_name"
+                            value={platForm.name}
+                            onChange={(e) => setPlatForm({ name: e.target.value })}
+                            required
+                          />
+                        </div>
+                        <div className="flex justify-end gap-2">
+                          <Button type="button" variant="outline" onClick={() => setPlatDialogOpen(false)}>
+                            取消
+                          </Button>
+                          <Button type="submit">
+                            {editingPlat ? '更新' : '创建'}
+                          </Button>
+                        </div>
+                      </form>
+                    </DialogContent>
+                  </Dialog>
+                </div>
               </div>
             </CardHeader>
             <CardContent>
@@ -417,6 +471,14 @@ export default function DepartmentsPage() {
           </Card>
         </TabsContent>
       </Tabs>
+      
+      {/* 平台合并对话框 */}
+      <PlatformMergeDialog
+        open={mergeDialogOpen}
+        onClose={() => setMergeDialogOpen(false)}
+        platforms={platforms}
+        onMergeComplete={loadData}
+      />
     </div>
   );
 }

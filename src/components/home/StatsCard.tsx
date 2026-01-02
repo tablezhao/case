@@ -10,12 +10,12 @@ interface StatsCardProps {
   value: string | number;
   icon: LucideIcon;
   description?: string;
-  change?: number;
-  changePercent?: number;
+  change?: number | null;
+  changePercent?: number | null;
   showTrend?: boolean;
   variant?: 'default' | 'gradient' | 'accent';
-  trendLabel?: string; // 环比标签，如"较上月"、"较上季度"、"较上年度"
-  tooltipContent?: React.ReactNode; // 统计口径说明（Tooltip内容）
+  trendLabel?: string;
+  tooltipContent?: React.ReactNode;
 }
 
 const StatsCard = memo(function StatsCard({ 
@@ -31,18 +31,18 @@ const StatsCard = memo(function StatsCard({
   tooltipContent,
 }: StatsCardProps) {
   const getTrendColor = () => {
-    if (change === undefined || change === 0) return 'text-muted-foreground';
+    if (change == null || change === 0) return 'text-muted-foreground';
     // 增长显示红色（警示），减少显示绿色（改善）
     return change > 0 ? 'text-destructive' : 'text-green-600';
   };
 
   const getTrendBadgeVariant = () => {
-    if (change === undefined || change === 0) return 'secondary';
+    if (change == null || change === 0) return 'secondary';
     return change > 0 ? 'destructive' : 'default';
   };
 
   const getTrendIcon = () => {
-    if (change === undefined || change === 0) return Minus;
+    if (change == null || change === 0) return Minus;
     return change > 0 ? ArrowUp : ArrowDown;
   };
 
@@ -103,19 +103,17 @@ const StatsCard = memo(function StatsCard({
         )}
         
         {/* 趋势变化 - 使用Badge突出显示 */}
-        {showTrend && change !== undefined && changePercent !== undefined && (
+        {showTrend && change != null && changePercent != null && (
           <div className="flex items-center gap-1.5 pt-1.5 border-t border-border/50">
             {change === 0 ? (
-              // 当变化为0时，显示"持平 (0%)"
               <Badge 
                 variant="secondary" 
                 className="flex items-center gap-0.5 px-1.5 py-0.5 text-xs"
               >
                 <Minus className="h-2.5 w-2.5" />
-                <span className="font-semibold">持平 (0%)</span>
+                <span className="font-semibold">持平</span>
               </Badge>
             ) : (
-              // 当有变化时，显示具体数值
               <Badge 
                 variant={getTrendBadgeVariant()} 
                 className="flex items-center gap-0.5 px-1.5 py-0.5 text-xs"
