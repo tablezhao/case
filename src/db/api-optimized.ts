@@ -74,7 +74,16 @@ export async function getStatsOverviewOptimized(): Promise<StatsOverview> {
     throw error;
   }
 
-  const stats = data as StatsOverview;
+  // 确保返回正确的数据类型，处理RPC函数可能返回null的情况
+  const stats: StatsOverview = {
+    ...data,
+    // 确保年度环比数据返回数字类型
+    year_apps_change: typeof data.year_apps_change === 'number' ? data.year_apps_change : (data.current_year_apps || 0) - (data.last_year_apps || 0),
+    year_apps_change_percent: typeof data.year_apps_change_percent === 'number' ? data.year_apps_change_percent : 
+      ((data.last_year_apps || 0) === 0 ? 0 : 
+      (((data.current_year_apps || 0) - (data.last_year_apps || 0)) / (data.last_year_apps || 0)) * 100),
+  };
+  
   console.log('[getStatsOverviewOptimized] 获取数据成功:', stats);
 
   // 存入缓存

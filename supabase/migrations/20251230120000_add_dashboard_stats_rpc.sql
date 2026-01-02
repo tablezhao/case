@@ -172,6 +172,14 @@ BEGIN
     v_year_cases_change_percent := 0;
   END IF;
 
+  v_year_apps_change := v_current_year_apps - v_last_year_apps;
+  IF v_last_year_apps > 0 THEN
+    v_year_apps_change_percent := round((v_year_apps_change::numeric / v_last_year_apps::numeric) * 100, 2);
+  ELSE
+    v_year_apps_change_percent := 0;
+  END IF;
+
+
   -- 9. 返回 JSON
   RETURN json_build_object(
     'total_cases', v_total_cases,

@@ -1,0 +1,29 @@
+## 问题分析
+
+当前监管部门分布模块显示的数据不是通报的应用数量，而是通报活动次数，原因如下：
+
+* RPC函数`get_department_distribution_stats`使用`COUNT(DISTINCT c.department_id || '_' || c.report_date)`统计通报活动次数
+
+* 原始函数`getNationalDepartmentDistribution`和`getProvincialDepartmentDistribution`是按照**应用名称去重**统计应用数量
+
+## 修复方案
+
+修改`get_department_distribution_stats`函数，将统计逻辑从"通报活动次数"改为"通报应用数量"，统计方式与原始函数保持一致：按应用名称去重统计。
+
+## 修复步骤
+
+1. 创建新的迁移文件，修改`get_department_distribution_stats`函数
+2. 将统计逻辑从`COUNT(DISTINCT c.department_id || '_' || c.report_date)`改为`COUNT(DISTINCT c.app_name)`
+3. 确保过滤掉空的应用名称
+4. 保持函数返回格式不变，确保前端组件兼容性
+
+## 预期效果
+
+* 国家级部门分布饼图显示各部门通报的应用数量
+
+* 省级部门分布饼图显示各部门通报的应用数量
+
+* 与原始函数统计结果一致
+
+* 不影响其他功能模块
+
